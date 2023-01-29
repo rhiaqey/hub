@@ -54,15 +54,15 @@ async fn main() {
   let subscriber = RedisClient::new(config, None, Some(policy));
   let publisher = subscriber.clone();
 
-  let res = subscriber.connect();
+  let res = client.connect();
   println!("+++++++++++++++++++ connection result {:?}", res);
-  let wait_result = subscriber.wait_for_connect().await.unwrap();
+  let wait_result = client.wait_for_connect().await.unwrap();
   println!("+++++++++++++++++++ wait result {:?}", wait_result);
-  let wait_result2 = publisher.wait_for_connect().await.unwrap();
-  println!("+++++++++++++++++++ wait result 2 {:?}", wait_result2);
 
   let _: Result<String, RedisError> = subscriber.subscribe("foo").await;
+  println!("foo sub");
   let _: Result<String, RedisError> = subscriber.psubscribe(vec!["bar*", "baz*"]).await;
+  println!("bar / baz subbed");
 
   tokio::spawn(async move {
     println!("subscriber spawned");
