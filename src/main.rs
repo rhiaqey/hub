@@ -40,8 +40,10 @@ async fn main() -> Result<(), RedisError> {
   let policy = ReconnectPolicy::default();
   let client = RedisClient::new(config, None, Some(policy));
 
-  let _ = client.connect();
-  let _ = client.wait_for_connect().await?;
+  let res = client.connect();
+  println!("+++++++++++++++++++connection result {:?}", res);
+  let wait_result = client.wait_for_connect().await?;
+  println!("+++++++++++++++++++wait result {:?}", wait_result);
 
   // do stuff
 
