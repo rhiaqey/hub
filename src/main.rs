@@ -51,16 +51,19 @@ async fn main() {
   println!("===== CLIENT config {:?}", config);
 
   let policy = ReconnectPolicy::default();
-  let client = RedisClient::new(config, None, Some(policy));
-  let publisher = client.clone();
+  let subscriber = RedisClient::new(config, None, Some(policy));
+  let publisher = subscriber.clone();
 
-  let res = client.connect();
+  let res = subscriber.connect();
   println!("+++++++++++++++++++ connection result {:?}", res);
-  let wait_result = client.wait_for_connect().await.unwrap();
+  let wait_result = subscriber.wait_for_connect().await.unwrap();
   println!("+++++++++++++++++++ wait result {:?}", wait_result);
+  let wait_result2 = publisher.wait_for_connect().await.unwrap();
+  println!("+++++++++++++++++++ wait result 2 {:?}", wait_result2);
 
   tokio::spawn(async move {
-    let mut message_stream = client.on_message();
+    println!("subscriber spawned");
+    let mut message_stream = subscriber.on_message();
 
     while let Ok(message) = message_stream.recv().await {
       println!("------------ recv {:?} on channel {}", message.value, message.channel);
