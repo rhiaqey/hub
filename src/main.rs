@@ -54,9 +54,9 @@ async fn main() {
   let subscriber = RedisClient::new(config, None, Some(policy));
   let publisher = subscriber.clone();
 
-  let res = client.connect();
+  let res = subscriber.connect();
   println!("+++++++++++++++++++ connection result {:?}", res);
-  let wait_result = client.wait_for_connect().await.unwrap();
+  let wait_result = subscriber.wait_for_connect().await.unwrap();
   println!("+++++++++++++++++++ wait result {:?}", wait_result);
 
   let _: Result<String, RedisError> = subscriber.subscribe("foo").await;
