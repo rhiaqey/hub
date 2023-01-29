@@ -1,8 +1,16 @@
 use std::env;
+use std::net::SocketAddr;
+use axum::Router;
+use axum::routing::get;
 use fred::{prelude::*};
 
+// basic handler that responds with a static string
+async fn root() -> &'static str {
+  "Hello, World!"
+}
+
 #[tokio::main]
-async fn main() -> Result<(), RedisError> {
+async fn main() {
   let redis_address = env::var("REDIS_ADDRESS")
       .expect("REDIS_ADDRESS is not set");
   let redis_password = env::var("REDIS_PASSWORD")
@@ -41,12 +49,21 @@ async fn main() -> Result<(), RedisError> {
   let client = RedisClient::new(config, None, Some(policy));
 
   let res = client.connect();
-  println!("+++++++++++++++++++connection result {:?}", res);
-  let wait_result = client.wait_for_connect().await?;
-  println!("+++++++++++++++++++wait result {:?}", wait_result);
+  println!("+++++++++++++++++++ connection result {:?}", res);
+  let wait_result = client.wait_for_connect().await.unwrap();
+  println!("+++++++++++++++++++ wait result {:?}", wait_result);
 
-  // do stuff
+  // build our application with a route
+  let app = Router::new()
+      // `GET /` goes to `root`
+      .route("/alive", get(root));
 
-  let _ = client.quit().await?;
-  Ok(())
+  // run our app with hyper
+  // `axum::Server` is a re-export of `hyper::Server`
+  let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+  println!("listening on {}", addr);
+  axum::Server::bind(&addr)
+      .serve(app.into_make_service())
+      .await
+      .unwrap()
 }
