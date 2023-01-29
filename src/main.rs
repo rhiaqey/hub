@@ -4,10 +4,15 @@ use axum::Router;
 use axum::routing::get;
 use fred::{prelude::*};
 
+use tokio::time::sleep;
+use std::time::Duration;
+
 // basic handler that responds with a static string
 async fn root() -> &'static str {
   "Hello, World!"
 }
+
+const COUNT: usize = 60;
 
 #[tokio::main]
 async fn main() {
@@ -47,11 +52,38 @@ async fn main() {
 
   let policy = ReconnectPolicy::default();
   let client = RedisClient::new(config, None, Some(policy));
+  let publisher = client.clone();
 
   let res = client.connect();
   println!("+++++++++++++++++++ connection result {:?}", res);
   let wait_result = client.wait_for_connect().await.unwrap();
   println!("+++++++++++++++++++ wait result {:?}", wait_result);
+
+  tokio::spawn(async move {
+    let mut message_stream = client.on_message();
+
+    while let Ok(message) = message_stream.recv().await {
+      println!("------------ recv {:?} on channel {}", message.value, message.channel);
+    }
+
+    Ok::<_, RedisError>(())
+  });
+
+  tokio::spawn(async move {
+    for idx in 0..COUNT {
+      let _ = publisher.publish("foo", idx).await?;
+      sleep(Duration::from_millis(1000)).await;
+    }
+
+    sleep(Duration::from_millis(15000)).await;
+
+    for idx in 0..(COUNT * 2) {
+      let _ = publisher.publish("bar", idx).await?;
+      sleep(Duration::from_millis(3000)).await;
+    }
+
+    Ok::<_, RedisError>(())
+  });
 
   // build our application with a route
   let app = Router::new()
