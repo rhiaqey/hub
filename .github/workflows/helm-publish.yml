@@ -53,7 +53,14 @@ jobs:
 
       - name: Push Charts to GHCR
         run: |
+          mkdir charts
           for pkg in k8s/*; do
+            if [ -z "${pkg:-}" ]; then
+              break
+            fi
+            helm package "${pkg}" -d charts
+          done
+          for pkg in charts/*; do
             if [ -z "${pkg:-}" ]; then
               break
             fi
