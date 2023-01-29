@@ -94,6 +94,11 @@ async fn main() {
 
   println!("after spawning publisher");
 
+  let a = subscriber.subscribe("foo").await;
+  println!("subbed a {:?}", a);
+  let b = subscriber.subscribe("bar").await;
+  println!("subbed b {:?}", b);
+
   // build our application with a route
   let app = Router::new()
       // `GET /` goes to `root`
