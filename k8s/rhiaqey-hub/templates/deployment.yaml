@@ -58,7 +58,10 @@ spec:
             - name: REDIS_SENTINELS
               value: "redis:26379"
             - name: REDIS_PASSWORD
-              value: "test"
+              valueFrom:
+                secretKeyRef:
+                  name: "redis"
+                  key: "redis-password"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
