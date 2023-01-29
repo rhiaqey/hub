@@ -61,6 +61,9 @@ async fn main() {
   let wait_result2 = publisher.wait_for_connect().await.unwrap();
   println!("+++++++++++++++++++ wait result 2 {:?}", wait_result2);
 
+  let _: Result<String, RedisError> = subscriber.subscribe("foo").await;
+  let _: Result<String, RedisError> = subscriber.psubscribe(vec!["bar*", "baz*"]).await;
+
   tokio::spawn(async move {
     println!("subscriber spawned");
     let mut message_stream = subscriber.on_message();
@@ -92,13 +95,6 @@ async fn main() {
     Ok::<_, RedisError>(())
   });
 
-  println!("after spawning publisher");
-
-  let a = subscriber.subscribe("foo").await;
-  println!("subbed a {:?}", a);
-  let b = subscriber.subscribe("bar").await;
-  println!("subbed b {:?}", b);
-
   // build our application with a route
   let app = Router::new()
       // `GET /` goes to `root`
@@ -108,6 +104,7 @@ async fn main() {
   // `axum::Server` is a re-export of `hyper::Server`
   let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
   println!("listening on {}", addr);
+
   axum::Server::bind(&addr)
       .serve(app.into_make_service())
       .await
