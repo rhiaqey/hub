@@ -69,8 +69,11 @@ async fn main() {
     Ok::<_, RedisError>(())
   });
 
+  println!("after spawning subscriber");
+
   tokio::spawn(async move {
     for idx in 0..COUNT {
+      println!("published message foo:{}", idx);
       let _ = publisher.publish("foo", idx).await?;
       sleep(Duration::from_millis(1000)).await;
     }
@@ -78,12 +81,15 @@ async fn main() {
     sleep(Duration::from_millis(15000)).await;
 
     for idx in 0..(COUNT * 2) {
+      println!("published message bar:{}", idx);
       let _ = publisher.publish("bar", idx).await?;
       sleep(Duration::from_millis(3000)).await;
     }
 
     Ok::<_, RedisError>(())
   });
+
+  println!("after spawning publisher");
 
   // build our application with a route
   let app = Router::new()
