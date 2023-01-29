@@ -14,6 +14,7 @@ FROM debian:bullseye-slim
 ARG BINARY
 ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive
+LABEL org.opencontainers.image.description="Rhiaqey hub"
 RUN apt-get update \
     && apt-get install -y \
       ca-certificates \
