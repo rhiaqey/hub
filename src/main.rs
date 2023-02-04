@@ -4,19 +4,22 @@ use fred::prelude::*;
 use std::env;
 use std::net::SocketAddr;
 
-use std::time::Duration;
-use tokio::time::sleep;
+// use fred::types::XCapKind::MaxLen;
+// use fred::types::XCapTrim::AlmostExact;
+// use fred::types::{XCap, XCapTrim, XID};
+// use std::time::Duration;
+// use tokio::time::sleep;
 
 // basic handler that responds with a static string
 async fn root() -> &'static str {
     "Hello, World!"
 }
 
-const COUNT: usize = 60;
+// const COUNT: usize = 60;
 
 #[tokio::main]
 async fn main() {
-    let redis_address = env::var("REDIS_ADDRESS").expect("REDIS_ADDRESS is not set");
+    // let redis_address = env::var("REDIS_ADDRESS").expect("REDIS_ADDRESS is not set");
     let redis_password = env::var("REDIS_PASSWORD").expect("REDIS_PASSWORD is not set");
     let redis_sentinels = env::var("REDIS_SENTINELS").expect("REDIS_SENTINELS is not set");
 
@@ -72,20 +75,8 @@ async fn main() {
         println!("we can do shit part2");
     }
 
+    // pubsub example
     /*
-    println!(
-        "Subscriber channels: {:?}",
-        subscriber_client.tracked_channels()
-    ); // "foo"
-    println!(
-        "Subscriber patterns: {:?}",
-        subscriber_client.tracked_patterns()
-    ); // "bar*", "baz*"
-    println!(
-        "Subscriber sharded channels: {:?}",
-        subscriber_client.tracked_shard_channels()
-    );*/
-
     tokio::spawn(async move {
         println!("subscriber spawned");
         let mut message_stream = subscriber_client.on_message();
@@ -99,9 +90,7 @@ async fn main() {
 
         Ok::<_, RedisError>(())
     });
-
     println!("after spawning subscriber");
-
     tokio::spawn(async move {
         for idx in 0..COUNT {
             let _ = publisher_client.publish("foo", idx).await?;
@@ -120,6 +109,15 @@ async fn main() {
         }
 
         Ok::<_, RedisError>(())
+    });
+    */
+
+    tokio::spawn(async move {
+        // let cap: XCap = (MaxLen, AlmostExact, "10", None).try_into().unwrap();
+
+        // for idx in 0..COUNT {
+        //      publisher_client.xadd("stream:foo", true, cap.clone(), XID::Auto, vec![("a", 123)]);
+        // }
     });
 
     // build our application with a route

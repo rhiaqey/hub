@@ -1,15 +1,19 @@
+export REDIS_PASSWORD=7tgbBSO2Yu
+export REDIS_ADDRESS=localhost:6379
+export REDIS_SENTINELS=localhost:26379
+
 .PHONY: run
 run:
 	cargo run
 
 .PHONY: build
 build:
-	cargo +nightly build
+	cargo build
 	ls -lah target/debug/hub
 
 .PHONY: prod
 prod:
-	cargo +nightly build --release
+	cargo build --release
 	ls -lah target/release/hub
 
 .PHONY: docker-build
@@ -22,7 +26,27 @@ docker-run:
 		-e RUST_BACKTRACE=1 \
 		-e RUST_LOG=1 \
 		-e BINARY=hub \
-		-e REDIS_PASSWORD=123 \
+		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
 		--network host \
 		--name hub \
 		hub:latest
+
+.PHONY: redis
+redis:
+	docker run -it --rm --name redis -p 6379:6379 \
+		-e ALLOW_EMPTY_PASSWORD=yes \
+		bitnami/redis:7.0.8
+
+.PHONY: sentinel
+sentinel:
+	docker run -it --rm --name redis-sentinel -p 26379:26379 \
+		-e ALLOW_EMPTY_PASSWORD=yes \
+		-e REDIS_MASTER_HOST=localhost \
+		bitnami/redis-sentinel:7.0.8
+
+.PHONY: sentinel2
+sentinel2:
+	docker run -it --rm --name redis-sentinel-2 -p 26380:26379 \
+		-e ALLOW_EMPTY_PASSWORD=yes \
+		-e REDIS_MASTER_HOST=localhost \
+		bitnami/redis-sentinel:7.0.8
