@@ -14,13 +14,15 @@ panic = "abort"
 [dependencies]
 rhiaqey-sdk = { git = "https://github.com/rhiaqey/sdk.git" }
 rhiaqey-common = { git = "https://github.com/rhiaqey/common.git" }
-fred = { version="6.0.0-beta.2", features=[
-    "dns",
-    "blocking-encoding",
-    "metrics",
-    "sentinel-client",
-    "subscriber-client",
-    "serde-json"
-] }
-tokio = { version = "1", features = ["full"] }
-axum = "0.6.4"
+env_logger = "0.10"
+log = "0.4"
+serde = { version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+serde_bytes = "0.11"
+async-trait = "0.1"
+rustis = { version ="0.8", features = [ "redis-json", "tokio-runtime" ] }
+tokio = { version = "1.21", features = ["full"] }
+axum = { version = "0.6", features = ["headers", "http2", "json", "macros",
+    "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
+hyper = { version = "0.14", features = ["full"] }
+tower = { version = "0.4" }

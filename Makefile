@@ -2,18 +2,28 @@ export REDIS_PASSWORD=7tgbBSO2Yu
 export REDIS_ADDRESS=localhost:6379
 export REDIS_SENTINELS=localhost:26379
 
+export ID=1
+export NAME=hub
+export NAMESPACE=hub
+export RUST_BACKTRACE=full
+export RUST_LOG=trace
+export DEBUG=true
+
+.PHONY: hub
+hub: run
+
 .PHONY: run
 run:
-	cargo run
+	cargo +nightly run
 
 .PHONY: build
 build:
-	cargo build
+	cargo +nightly build
 	ls -lah target/debug/hub
 
 .PHONY: prod
 prod:
-	cargo build --release
+	cargo +nightly build --release
 	ls -lah target/release/hub
 
 .PHONY: docker-build
