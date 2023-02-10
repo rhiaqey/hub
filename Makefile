@@ -4,7 +4,7 @@ export REDIS_SENTINELS=localhost:26379
 
 export ID=1
 export NAME=hub
-export NAMESPACE=hub
+export NAMESPACE=rhiaqey
 export RUST_BACKTRACE=full
 export RUST_LOG=trace
 export DEBUG=true
