@@ -2,9 +2,8 @@ use crate::hub::SharedState;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use log::debug;
 use rhiaqey_sdk::channel::{AssignChannelsRequest, ChannelList, CreateChannelsRequest};
-use rustis::commands::StringCommands;
+use rustis::commands::{PubSubCommands, StringCommands};
 use std::sync::Arc;
 
 // create channels
@@ -38,18 +37,25 @@ pub async fn assign_channels(
     let key = format!("{}:channels", state.namespace);
     let result: String = client.get(key.clone()).await.unwrap();
     let channel_list: ChannelList = serde_json::from_str(result.as_str()).unwrap();
-    let channels = channel_list.channels.iter().filter(|x| {
-        payload
-            .channels
-            .iter()
-            .find(|y| x.name.as_str() == *y)
-            .is_some()
-    });
-
-    debug!("FILTERED {:?}", channels);
+    let channels = channel_list
+        .channels
+        .iter()
+        .filter(|x| {
+            payload
+                .channels
+                .iter()
+                .find(|y| x.name.as_str() == *y)
+                .is_some()
+        })
+        .map(|x| x.clone())
+        .collect::<Vec<_>>();
 
     let key = format!("{}:{}:channels", state.namespace, payload.name);
-    let content = serde_json::to_string(&payload.channels).unwrap_or("{}".to_string());
-    client.set(key, content).await.unwrap();
-    (StatusCode::OK, Json(payload))
+    let stream = format!("{}:{}:pubsub", state.namespace, payload.name);
+    let content = serde_json::to_string(&channels).unwrap_or("{}".to_string());
+
+    client.set(key, content.clone()).await.unwrap();
+    client.publish(stream, content.clone());
+
+    (StatusCode::OK, Json(channels))
 }

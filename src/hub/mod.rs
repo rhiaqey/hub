@@ -1,5 +1,5 @@
 use crate::http::channels::{assign_channels, create_channels};
-use axum::routing::post;
+use axum::routing::{post, put};
 use axum::Router;
 use log::debug;
 use rhiaqey_common::env::{parse_env, Env};
@@ -67,7 +67,7 @@ impl Hub {
         let app = Router::new()
             .route(
                 "/admin/channels",
-                post({
+                put({
                     let shared_state = Arc::clone(&shared_state);
                     move |body| create_channels(body, shared_state)
                 }),
