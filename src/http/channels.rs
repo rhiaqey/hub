@@ -2,14 +2,11 @@ use crate::hub::SharedState;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use log::{debug, warn};
+use rhiaqey_common::pubsub::{RPCMessage, RPCMessageType};
 use rhiaqey_sdk::channel::{AssignChannelsRequest, ChannelList, CreateChannelsRequest};
 use rustis::commands::{PubSubCommands, StringCommands};
 use std::sync::Arc;
-
-// create channels
-// assign channels to producer/gateway
-// delete channels
-// basic handler that responds with a static string
 
 pub async fn create_channels(
     Json(payload): Json<CreateChannelsRequest>,
@@ -36,8 +33,19 @@ pub async fn assign_channels(
     let mut client = state.redis.lock().await.clone().unwrap();
     let key = format!("{}:channels", state.namespace);
     let result: String = client.get(key.clone()).await.unwrap();
-    let channel_list: ChannelList = serde_json::from_str(result.as_str()).unwrap();
+    debug!("got channels {}", result);
+    let channel_list: Result<ChannelList, _> = serde_json::from_str(result.as_str());
+    if channel_list.is_err() {
+        warn!(
+            "error parsing channel list {}: {}",
+            result,
+            channel_list.unwrap_err()
+        );
+        return (StatusCode::BAD_REQUEST, Json(vec![]));
+    }
+
     let channels = channel_list
+        .unwrap()
         .channels
         .iter()
         .filter(|x| {
@@ -51,11 +59,28 @@ pub async fn assign_channels(
         .collect::<Vec<_>>();
 
     let key = format!("{}:{}:channels", state.namespace, payload.name);
-    let stream = format!("{}:{}:pubsub", state.namespace, payload.name);
-    let content = serde_json::to_string(&channels).unwrap_or("{}".to_string());
+    let stream = format!(
+        "{}:{}:streams:pubsub",
+        state.namespace, payload.name /* publisher */
+    );
 
-    client.set(key, content.clone()).await.unwrap();
-    client.publish(stream, content.clone());
+    debug!("publishing to {}", stream);
+
+    let content = serde_json::to_string(&ChannelList {
+        channels: channels.clone(),
+    })
+    .unwrap();
+    client.set(key, content).await.unwrap();
+
+    debug!("streaming to {}", stream);
+
+    let content = serde_json::to_string(&RPCMessage {
+        data: RPCMessageType::AssignChannels(ChannelList {
+            channels: channels.clone(),
+        }),
+    })
+    .unwrap();
+    client.publish(stream, content).await.unwrap();
 
     (StatusCode::OK, Json(channels))
 }
