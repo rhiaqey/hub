@@ -1,11 +1,12 @@
-use crate::hub::SharedState;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::Json;
-use log::{debug, warn};
+use crate::http::SharedState;
+use axum::{http::StatusCode, response::IntoResponse, Json};
+use log::{debug, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageType};
 use rhiaqey_sdk::channel::{AssignChannelsRequest, ChannelList, CreateChannelsRequest};
-use rustis::commands::{PubSubCommands, StringCommands};
+use rustis::client::BatchPreparedCommand;
+use rustis::commands::{PubSubCommands, StreamCommands, StringCommands, XGroupCreateOptions};
+use rustis::resp::Value;
+use rustis::Result as RedisResult;
 use std::sync::Arc;
 
 pub async fn create_channels(
@@ -14,16 +15,27 @@ pub async fn create_channels(
 ) -> impl IntoResponse {
     let key = format!("{}:channels", state.namespace);
     let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
-    state
-        .redis
-        .lock()
-        .await
-        .as_mut()
-        .unwrap()
-        .set(key, content)
-        .await
-        .unwrap();
-    (StatusCode::OK, Json(payload))
+    let mut pipeline = state.redis.lock().await.as_mut().unwrap().create_pipeline();
+    pipeline.set(key.clone(), content).forget();
+    for channel in &payload.channels.channels {
+        let topic = format!("{}:{}:streams:raw", state.namespace, channel.name);
+        pipeline
+            .xgroup_create(
+                topic,
+                "hub",
+                "$",
+                XGroupCreateOptions::default().mk_stream(),
+            )
+            .forget();
+    }
+    pipeline.get::<_, ()>(key).queue();
+    let pipeline_result: RedisResult<Value> = pipeline.execute().await;
+    trace!("pipeline result: {:?}", pipeline_result);
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "application/json")],
+        pipeline_result.unwrap().to_string(),
+    )
 }
 
 pub async fn assign_channels(
