@@ -1,14 +1,17 @@
+pub mod channels;
+
 use crate::http::start_http_server;
-use crate::http::state::{SharedState, StreamingChannel};
+use crate::http::state::SharedState;
+use crate::hub::channels::StreamingChannel;
 use log::debug;
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
 use rustis::client::Client;
 use rustis::commands::{ConnectionCommands, PingOptions, StringCommands};
-use tokio_stream::StreamMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
+use tokio_stream::StreamMap;
 
 #[derive(Clone)]
 pub struct Hub {

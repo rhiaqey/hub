@@ -892,7 +892,6 @@ dependencies = [
  "rhiaqey-sdk",
  "rustis",
  "serde",
- "serde_bytes",
  "serde_json",
  "tokio",
  "tokio-stream",

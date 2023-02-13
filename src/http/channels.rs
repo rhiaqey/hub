@@ -1,4 +1,5 @@
 use crate::http::SharedState;
+use crate::hub::channels::StreamingChannel;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
@@ -19,6 +20,9 @@ pub async fn create_channels(
 
     let mut pipeline = state.redis.lock().await.as_mut().unwrap().create_pipeline();
     pipeline.set(hub_channels_key.clone(), content).forget();
+
+    // 1. for every channel we create a topic that the publishers can stream to
+
     for channel in &payload.channels.channels {
         pipeline
             .xgroup_create(
@@ -33,9 +37,24 @@ pub async fn create_channels(
             .forget();
     }
 
-    pipeline.get::<_, ()>(hub_channels_key).queue();
+    pipeline.get::<_, ()>(hub_channels_key).queue(); // get channels back
     let pipeline_result: RedisResult<Value> = pipeline.execute().await;
     trace!("pipeline result: {:?}", pipeline_result);
+
+    // 2. for ever channel we create and store a streaming channel
+
+    for channel in &payload.channels.channels {
+        let streaming_channel = StreamingChannel::new(channel.clone());
+        streaming_channel.start();
+        state
+            .streams
+            .write()
+            .await
+            .insert(streaming_channel.get_name(), streaming_channel);
+    }
+
+    debug!("added {} streams", state.streams.read().await.len());
+
     (
         StatusCode::OK,
         [(hyper::header::CONTENT_TYPE, "application/json")],

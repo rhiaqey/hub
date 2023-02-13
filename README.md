@@ -16,6 +16,6 @@ cargo +nightly build
 
 ```
 rust-analyzer
-better toml
+better-toml
 docker
 ```
