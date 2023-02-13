@@ -1,11 +1,12 @@
 use crate::http::start_http_server;
-use crate::http::state::SharedState;
+use crate::http::state::{SharedState, StreamingChannel};
 use log::debug;
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
 use rustis::client::Client;
 use rustis::commands::{ConnectionCommands, PingOptions, StringCommands};
+use tokio_stream::StreamMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
@@ -13,7 +14,8 @@ use tokio::sync::{Mutex, RwLock};
 pub struct Hub {
     env: Arc<Env>,
     channels: Arc<RwLock<Vec<Channel>>>,
-    pub(crate) redis: Arc<Mutex<Option<Client>>>,
+    streams: Arc<RwLock<StreamMap<String, StreamingChannel>>>,
+    pub redis: Arc<Mutex<Option<Client>>>,
 }
 
 impl Hub {
@@ -78,6 +80,7 @@ impl Hub {
         Ok(Hub {
             env: Arc::from(config),
             channels: Arc::from(RwLock::new(vec![])),
+            streams: Arc::from(RwLock::new(StreamMap::new())),
             redis: Arc::new(Mutex::new(redis_connection)),
         })
     }
@@ -87,6 +90,7 @@ impl Hub {
 
         let shared_state = Arc::new(SharedState {
             namespace: self.env.namespace.clone(),
+            streams: self.streams.clone(),
             redis: self.redis.clone(),
         });
 
