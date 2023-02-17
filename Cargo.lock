@@ -250,6 +250,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fast-float"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95765f67b4b18863968b4a1bd5bb576f732b29a4a28c7cd84c09fa3e2875f33c"
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -934,14 +940,15 @@ dependencies = [
 
 [[package]]
 name = "rustis"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "600ef8105050f7aef35c49a527ad9b9faf936ead0f8c3ef0cad01cceeaecdbeb"
+checksum = "db8d3de938874cbab27bac430bf08387fcce10b77d86c5c7684c93fd41c33f56"
 dependencies = [
  "atoi",
  "bytes",
  "crc16",
  "dtoa",
+ "fast-float",
  "futures",
  "itoa",
  "log",
