@@ -14,7 +14,7 @@ hub: run
 
 .PHONY: run
 run:
-	cargo +nightly run
+	cargo +nightly run --bin hub
 
 .PHONY: build
 build:

@@ -1,6 +1,6 @@
 pub mod channels;
 
-use crate::http::start_http_server;
+use crate::http::server::start_http_server;
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
 use log::debug;
@@ -92,7 +92,7 @@ impl Hub {
         let port = self.get_private_port();
 
         let shared_state = Arc::new(SharedState {
-            namespace: self.env.namespace.clone(),
+            env: self.env.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
         });

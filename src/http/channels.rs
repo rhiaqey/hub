@@ -1,4 +1,4 @@
-use crate::http::SharedState;
+use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, trace, warn};
@@ -15,7 +15,7 @@ pub async fn create_channels(
     Json(payload): Json<CreateChannelsRequest>,
     state: Arc<SharedState>,
 ) -> impl IntoResponse {
-    let hub_channels_key = topics::hub_channels_key(state.namespace.clone());
+    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
     let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
 
     let mut pipeline = state.redis.lock().await.as_mut().unwrap().create_pipeline();
@@ -27,7 +27,7 @@ pub async fn create_channels(
         pipeline
             .xgroup_create(
                 topics::publishers_to_hub_stream_topic(
-                    state.namespace.clone(),
+                    state.get_namespace(),
                     channel.name.clone(),
                 ),
                 "hub",
@@ -44,13 +44,13 @@ pub async fn create_channels(
     // 2. for every channel we create and store a streaming channel
 
     for channel in &payload.channels.channels {
-        let streaming_channel = StreamingChannel::new(channel.clone());
-        streaming_channel.start();
+        let streaming_channel = StreamingChannel::create(channel.clone(), state.env.redis.clone());
+        /*streaming_channel.start().await;
         state
             .streams
             .write()
             .await
-            .insert(streaming_channel.get_name(), streaming_channel);
+            .insert(streaming_channel.get_name(), streaming_channel);*/
     }
 
     debug!("added {} streams", state.streams.read().await.len());
@@ -70,7 +70,7 @@ pub async fn assign_channels(
 
     // get channels
 
-    let channels_key = topics::hub_channels_key(state.namespace.clone());
+    let channels_key = topics::hub_channels_key(state.get_namespace());
     let result: String = client.get(channels_key.clone()).await.unwrap();
     debug!("got channels {}", result);
 
@@ -103,7 +103,7 @@ pub async fn assign_channels(
     // update publisher's channels
 
     let publishers_key =
-        topics::publisher_channels_key(state.namespace.clone(), payload.name.clone());
+        topics::publisher_channels_key(state.get_namespace(), payload.name.clone());
 
     debug!("saving channels for publisher {}", publishers_key);
 
@@ -115,7 +115,7 @@ pub async fn assign_channels(
 
     // stream to publisher
 
-    let stream_topic = topics::hub_to_publisher_pubsub_topic(state.namespace.clone(), payload.name);
+    let stream_topic = topics::hub_to_publisher_pubsub_topic(state.get_namespace(), payload.name);
 
     debug!("streaming to topic {}", stream_topic);
 
