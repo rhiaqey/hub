@@ -41,7 +41,7 @@ pub async fn create_channels(
     let pipeline_result: RedisResult<Value> = pipeline.execute().await;
     trace!("pipeline result: {:?}", pipeline_result);
 
-    // 2. for ever channel we create and store a streaming channel
+    // 2. for every channel we create and store a streaming channel
 
     for channel in &payload.channels.channels {
         let streaming_channel = StreamingChannel::new(channel.clone());

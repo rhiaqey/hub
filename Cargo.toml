@@ -27,3 +27,7 @@ axum = { version = "0.6", features = ["headers", "http2", "json", "macros",
     "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
 hyper = { version = "0.14", features = ["full"] }
 tower = { version = "0.4" }
+
+[[bin]]
+name = "hub"
+src = "src/bin/hub.rs"

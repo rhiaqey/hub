@@ -1,5 +1,4 @@
-mod hub;
-mod http;
+use rhiaqey_hub::hub;
 
 #[tokio::main]
 async fn main() {
