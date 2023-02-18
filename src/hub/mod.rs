@@ -11,12 +11,14 @@ use rustis::client::Client;
 use rustis::commands::{ConnectionCommands, PingOptions, StringCommands};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, RwLock};
 
 #[derive(Clone)]
 pub struct Hub {
     pub env: Arc<Env>,
+    pub sender: Arc<Mutex<UnboundedSender<u128>>>,
+    pub receiver: Arc<Mutex<UnboundedReceiver<u128>>>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub channels: Arc<RwLock<Vec<Channel>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
@@ -81,10 +83,14 @@ impl Hub {
             return Err("ping failed".to_string());
         }
 
+        let (sender, receiver) = unbounded_channel::<u128>();
+
         Ok(Hub {
             env: Arc::from(config),
-            channels: Arc::from(RwLock::new(vec![])),
-            streams: Arc::from(Mutex::new(HashMap::new())),
+            sender: Arc::new(Mutex::new(sender)),
+            receiver: Arc::new(Mutex::new(receiver)),
+            channels: Arc::new(RwLock::new(vec![])),
+            streams: Arc::new(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(redis_connection)),
         })
     }
@@ -92,29 +98,25 @@ impl Hub {
     pub async fn start(&self) -> hyper::Result<()> {
         let port = self.get_private_port();
 
-        let (sender, mut receiver) = unbounded_channel::<u128>();
+        let sender = self.sender.lock().await.clone();
+        let mut receiver = self.receiver.lock().await;
 
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
-            sender: sender.clone(),
+            sender,
         });
 
         tokio::spawn(async move { start_http_server(port, shared_state).await });
 
-        // tokio::spawn(async move {
         loop {
             tokio::select! {
                 Some(message) = receiver.recv() => {
                     trace!("message received from channel: {:?}", message);
-                    // executor.publish(message).await;
                 }
             }
         }
-        // });
-
-        // start_http_server(port, shared_state).await
     }
 }
 
@@ -139,5 +141,7 @@ pub async fn run() {
     let channels = hub.get_channels().await;
     hub.set_channels(channels).await;
 
-    hub.start().await.unwrap()
+    // TODO: Start channels listening here
+
+    hub.start().await.expect("[hub]: Failed to start");
 }
