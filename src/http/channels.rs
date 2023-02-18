@@ -1,7 +1,7 @@
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
 use axum::{http::StatusCode, response::IntoResponse, Json};
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::topics;
 use rhiaqey_sdk::channel::{AssignChannelsRequest, ChannelList, CreateChannelsRequest};
@@ -15,6 +15,8 @@ pub async fn create_channels(
     Json(payload): Json<CreateChannelsRequest>,
     state: Arc<SharedState>,
 ) -> impl IntoResponse {
+    info!("[PUT] Creating channels");
+
     let hub_channels_key = topics::hub_channels_key(state.get_namespace());
     let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
 
@@ -26,10 +28,7 @@ pub async fn create_channels(
     for channel in &payload.channels.channels {
         pipeline
             .xgroup_create(
-                topics::publishers_to_hub_stream_topic(
-                    state.get_namespace(),
-                    channel.name.clone(),
-                ),
+                topics::publishers_to_hub_stream_topic(state.get_namespace(), channel.name.clone()),
                 "hub",
                 "$",
                 XGroupCreateOptions::default().mk_stream(),
@@ -39,21 +38,46 @@ pub async fn create_channels(
 
     pipeline.get::<_, ()>(hub_channels_key).queue(); // get channels back
     let pipeline_result: RedisResult<Value> = pipeline.execute().await;
+
     trace!("pipeline result: {:?}", pipeline_result);
 
     // 2. for every channel we create and store a streaming channel
 
+    let mut channels = 0;
+
     for channel in &payload.channels.channels {
-        let streaming_channel = StreamingChannel::create(channel.clone(), state.env.redis.clone());
-        /*streaming_channel.start().await;
+        let channel_name = channel.name.clone();
+        if state.streams.lock().await.contains_key(&*channel_name) {
+            warn!("channel {} already exists", channel_name);
+            continue;
+        }
+
+        let mut streaming_channel = StreamingChannel::create(channel.clone()).await;
+
+        let streaming_channel_name = streaming_channel.get_name();
+        streaming_channel
+            .setup(state.sender.clone(), state.env.redis.clone())
+            .await;
+
+        debug!(
+            "starting up streaming channel {}",
+            streaming_channel.channel.name
+        );
+
+        streaming_channel.start();
+
         state
             .streams
-            .write()
+            .lock()
             .await
-            .insert(streaming_channel.get_name(), streaming_channel);*/
+            .insert(streaming_channel_name, streaming_channel);
+
+        channels += 1;
+
+        debug!("stream added");
     }
 
-    debug!("added {} streams", state.streams.read().await.len());
+    info!("added {} streams", channels);
 
     (
         StatusCode::OK,
@@ -66,6 +90,8 @@ pub async fn assign_channels(
     Json(payload): Json<AssignChannelsRequest>,
     state: Arc<SharedState>,
 ) -> impl IntoResponse {
+    info!("[POST] Assign channels");
+
     let mut client = state.redis.lock().await.clone().unwrap();
 
     // get channels

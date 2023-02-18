@@ -1,28 +1,33 @@
 use std::sync::Arc;
+use std::{thread, time};
 
 use log::warn;
-use rhiaqey_common::{stream::StreamMessage, redis::{RedisSettings, self}};
+use rhiaqey_common::redis::{self, RedisSettings};
 use rhiaqey_sdk::channel::Channel;
-use rustis::{client::Client, commands::{PingOptions, ConnectionCommands}};
-use tokio::sync::{mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender}, RwLock};
+use rustis::{
+    client::Client,
+    commands::{ConnectionCommands, PingOptions},
+};
+use tokio::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender},
+    RwLock,
+};
 
 pub struct StreamingChannel {
     pub channel: Channel,
-    pub sender: UnboundedSender<StreamMessage>,
-    pub receiver: UnboundedReceiver<StreamMessage>,
-    redis: Arc<RwLock<Client>>,
+    pub sender: Option<UnboundedSender<u128>>,
+    pub redis: Option<Arc<RwLock<Client>>>,
 }
 
+pub type HubMessageReceiver = Option<UnboundedReceiver<u128>>;
+
 impl StreamingChannel {
-    pub async fn create(channel: Channel, config: RedisSettings) -> Option<StreamingChannel> {
-        let (tx, rx) = unbounded_channel::<StreamMessage>();
-        let connection = Self::redis_connect(config).await?;
-        Some(StreamingChannel {
+    pub async fn create(channel: Channel) -> StreamingChannel {
+        StreamingChannel {
             channel,
-            sender: tx,
-            receiver: rx,
-            redis: Arc::new(RwLock::new(connection)),
-        })
+            sender: None,
+            redis: None,
+        }
     }
 
     async fn redis_connect(config: RedisSettings) -> Option<Client> {
@@ -46,9 +51,21 @@ impl StreamingChannel {
         redis_connection
     }
 
-    pub fn start(&self) {
-        tokio::spawn(async move {
-            //
+    pub async fn setup(&mut self, sender: UnboundedSender<u128>, config: RedisSettings) {
+        let connection = Self::redis_connect(config).await.unwrap();
+        self.sender = Some(sender);
+        self.redis = Some(Arc::new(RwLock::new(connection)));
+    }
+
+    pub fn start(&mut self) {
+        let ten_millis = time::Duration::from_secs(1);
+        let now = time::Instant::now();
+
+        let sender = self.sender.clone().as_mut().unwrap().clone();
+
+        thread::spawn(move || loop {
+            sender.send(now.elapsed().as_millis()).unwrap();
+            thread::sleep(ten_millis);
         });
     }
 

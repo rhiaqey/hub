@@ -3,22 +3,23 @@ pub mod channels;
 use crate::http::server::start_http_server;
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
-use log::debug;
+use log::{debug, trace};
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
 use rustis::client::Client;
 use rustis::commands::{ConnectionCommands, PingOptions, StringCommands};
+use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::{Mutex, RwLock};
-use tokio_stream::StreamMap;
 
 #[derive(Clone)]
 pub struct Hub {
-    env: Arc<Env>,
-    channels: Arc<RwLock<Vec<Channel>>>,
-    streams: Arc<RwLock<StreamMap<String, StreamingChannel>>>,
+    pub env: Arc<Env>,
     pub redis: Arc<Mutex<Option<Client>>>,
+    pub channels: Arc<RwLock<Vec<Channel>>>,
+    pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 
 impl Hub {
@@ -83,7 +84,7 @@ impl Hub {
         Ok(Hub {
             env: Arc::from(config),
             channels: Arc::from(RwLock::new(vec![])),
-            streams: Arc::from(RwLock::new(StreamMap::new())),
+            streams: Arc::from(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(redis_connection)),
         })
     }
@@ -91,13 +92,29 @@ impl Hub {
     pub async fn start(&self) -> hyper::Result<()> {
         let port = self.get_private_port();
 
+        let (sender, mut receiver) = unbounded_channel::<u128>();
+
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
+            sender: sender.clone(),
         });
 
-        start_http_server(port, shared_state).await
+        tokio::spawn(async move { start_http_server(port, shared_state).await });
+
+        // tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                Some(message) = receiver.recv() => {
+                    trace!("message received from channel: {:?}", message);
+                    // executor.publish(message).await;
+                }
+            }
+        }
+        // });
+
+        // start_http_server(port, shared_state).await
     }
 }
 

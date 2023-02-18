@@ -16,6 +16,10 @@ hub: run
 run:
 	cargo +nightly run --bin hub
 
+.PHONY: run-prod
+run-prod:
+	cargo +nightly run --release --bin hub
+
 .PHONY: build
 build:
 	cargo +nightly build
