@@ -10,6 +10,7 @@ use rustis::commands::{PubSubCommands, StreamCommands, StringCommands, XGroupCre
 use rustis::resp::Value;
 use rustis::Result as RedisResult;
 use std::sync::Arc;
+use std::thread;
 
 pub async fn create_channels(
     Json(payload): Json<CreateChannelsRequest>,
@@ -44,6 +45,7 @@ pub async fn create_channels(
     // 2. for every channel we create and store a streaming channel
 
     let mut channels = 0;
+    let namespace = state.env.namespace.clone();
 
     for channel in &payload.channels.channels {
         let channel_name = channel.name.clone();
@@ -52,7 +54,8 @@ pub async fn create_channels(
             continue;
         }
 
-        let mut streaming_channel = StreamingChannel::create(channel.clone()).await;
+        let mut streaming_channel =
+            StreamingChannel::create(namespace.clone(), channel.clone()).await;
 
         let streaming_channel_name = streaming_channel.get_name();
         streaming_channel
@@ -64,7 +67,7 @@ pub async fn create_channels(
             streaming_channel.channel.name
         );
 
-        streaming_channel.start();
+        streaming_channel.start().await;
 
         state
             .streams
