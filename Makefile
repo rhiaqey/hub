@@ -6,7 +6,7 @@ export ID=1
 export NAME=hub
 export NAMESPACE=rhiaqey
 export RUST_BACKTRACE=full
-export RUST_LOG=trace
+export RUST_LOG=info
 export DEBUG=true
 
 .PHONY: hub

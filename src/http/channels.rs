@@ -10,7 +10,6 @@ use rustis::commands::{PubSubCommands, StreamCommands, StringCommands, XGroupCre
 use rustis::resp::Value;
 use rustis::Result as RedisResult;
 use std::sync::Arc;
-use std::thread;
 
 pub async fn create_channels(
     Json(payload): Json<CreateChannelsRequest>,

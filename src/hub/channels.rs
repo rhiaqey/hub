@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use std::{thread, time};
 
-use log::{debug, warn};
+use log::{info, warn};
 use rhiaqey_common::redis::{self, RedisSettings};
+use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk::channel::Channel;
 use rustis::commands::{StreamCommands, StreamEntry, XReadGroupOptions};
@@ -12,7 +13,7 @@ use rustis::{
 };
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
-    Mutex, RwLock,
+    Mutex,
 };
 
 pub struct StreamingChannel {
@@ -62,10 +63,7 @@ impl StreamingChannel {
     }
 
     pub async fn start(&mut self) {
-        let one_sec = time::Duration::from_secs(1);
-        let now = time::Instant::now();
-
-        let sender = self.sender.clone().as_mut().unwrap().clone();
+        let one_sec = time::Duration::from_millis(500);
 
         let size = self.channel.size;
         let topic = topics::publishers_to_hub_stream_topic(
@@ -90,7 +88,11 @@ impl StreamingChannel {
                     .await
                     .unwrap();
                 if let Some(v) = results.get(0) {
-                    debug!("results are in {:?}", v.0);
+                    if let Some(raw) = v.1.get(0).unwrap().items.get("raw") {
+                        let stream_message: StreamMessage =
+                            serde_json::from_str(raw.as_str()).unwrap();
+                        info!("channel list extracted {:?}", stream_message);
+                    }
                 }
 
                 thread::sleep(one_sec);
