@@ -3,12 +3,14 @@ pub mod channels;
 use crate::http::server::start_http_server;
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
+use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::env::{parse_env, Env};
+use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
-use rustis::client::Client;
-use rustis::commands::{ConnectionCommands, PingOptions, StringCommands};
+use rustis::client::{Client, PubSubStream};
+use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
@@ -34,6 +36,20 @@ impl Hub {
 
     pub fn get_private_port(&self) -> u16 {
         self.env.private_port.unwrap()
+    }
+
+    pub async fn create_hub_to_publishers_pubsub(&mut self) -> Option<PubSubStream> {
+        let client = connect_and_ping(self.env.redis.clone()).await;
+        if client.is_none() {
+            warn!("failed to connect with ping");
+            return None;
+        }
+
+        let key = topics::hub_raw_to_hub_clean_pubsub_topic(self.env.namespace.clone());
+
+        let stream = client.unwrap().subscribe(key.clone()).await.unwrap();
+
+        Some(stream)
     }
 
     pub async fn get_channels(&self) -> Vec<Channel> {
@@ -113,7 +129,7 @@ pub async fn run() {
     let env = parse_env();
     let namespace = env.namespace.clone();
 
-    let hub = match Hub::setup(env).await {
+    let mut hub = match Hub::setup(env).await {
         Ok(exec) => exec,
         Err(error) => {
             panic!("failed to setup hub: {error}");
@@ -128,7 +144,6 @@ pub async fn run() {
 
     let mut total_channels = 0;
     let channels = hub.get_channels().await;
-
     let sender = hub.sender.lock().await.clone();
 
     for channel in channels {
@@ -163,5 +178,17 @@ pub async fn run() {
 
     info!("added {} streams", total_channels);
 
-    hub.start().await.expect("[hub]: Failed to start");
+    let mut pubsub_stream = hub.create_hub_to_publishers_pubsub().await.unwrap();
+
+    tokio::spawn(async move {
+        hub.start().await.expect("[hub]: Failed to start");
+    });
+
+    loop {
+        tokio::select! {
+            Some(pubsub_message) = pubsub_stream.next() => {
+                debug!("clean message arrived {:?}", pubsub_message);
+            }
+        }
+    }
 }
