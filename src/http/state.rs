@@ -5,13 +5,11 @@ use rustis::client::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 
 pub struct SharedState {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Option<Client>>>,
-    pub sender: UnboundedSender<u128>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 

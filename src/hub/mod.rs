@@ -7,6 +7,7 @@ use crate::hub::channels::StreamingChannel;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::env::{parse_env, Env};
+use rhiaqey_common::pubsub::RPCMessage;
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
@@ -14,14 +15,11 @@ use rustis::client::{Client, PubSubStream};
 use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct Hub {
     pub env: Arc<Env>,
-    pub sender: Arc<Mutex<UnboundedSender<u128>>>,
-    pub receiver: Arc<Mutex<UnboundedReceiver<u128>>>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
@@ -39,7 +37,7 @@ impl Hub {
         self.env.private_port.unwrap()
     }
 
-    pub async fn create_hub_to_publishers_pubsub(&mut self) -> Option<PubSubStream> {
+    pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Option<PubSubStream> {
         let client = connect_and_ping(self.env.redis.clone()).await;
         if client.is_none() {
             warn!("failed to connect with ping");
@@ -89,36 +87,42 @@ impl Hub {
             return Err("ping failed".to_string());
         }
 
-        let (sender, receiver) = unbounded_channel::<u128>();
-
         Ok(Hub {
             env: Arc::from(config),
-            sender: Arc::new(Mutex::new(sender)),
-            receiver: Arc::new(Mutex::new(receiver)),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(redis_connection)),
         })
     }
 
-    pub async fn start(&self) -> hyper::Result<()> {
+    pub async fn start(&mut self) -> hyper::Result<()> {
         let port = self.get_private_port();
-
-        let sender = self.sender.lock().await.clone();
-        let mut receiver = self.receiver.lock().await;
 
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
-            sender,
         });
 
         tokio::spawn(async move { start_http_server(port, shared_state).await });
 
+        let mut pubsub_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
+
         loop {
             tokio::select! {
-                Some(message) = receiver.recv() => {
-                    trace!("message received from channel: {:?}", message);
+                Some(pubsub_message) = pubsub_stream.next() => {
+                    trace!("clean message arrived");
+                    if pubsub_message.is_err() {
+                        warn!("invalid clean message");
+                        continue;
+                    }
+
+                    let data = serde_json::from_slice::<RPCMessage>(pubsub_message.unwrap().payload.as_slice());
+                    if data.is_err() {
+                        warn!("failed to parse rpc message");
+                        continue;
+                    }
+
+                    info!("clean message arrived {:?}", data.unwrap())
                 }
             }
         }
@@ -145,7 +149,6 @@ pub async fn run() {
 
     let mut total_channels = 0;
     let channels = hub.get_channels().await;
-    let sender = hub.sender.lock().await.clone();
 
     for channel in channels {
         let channel_name = channel.name.clone();
@@ -158,9 +161,7 @@ pub async fn run() {
             StreamingChannel::create(namespace.clone(), channel.clone()).await;
 
         let streaming_channel_name = streaming_channel.get_name();
-        streaming_channel
-            .setup(sender.clone(), hub.env.redis.clone())
-            .await;
+        streaming_channel.setup(hub.env.redis.clone()).await;
 
         info!(
             "starting up streaming channel {}",
@@ -179,17 +180,5 @@ pub async fn run() {
 
     info!("added {} streams", total_channels);
 
-    let mut pubsub_stream = hub.create_hub_to_publishers_pubsub().await.unwrap();
-
-    tokio::spawn(async move {
-        hub.start().await.expect("[hub]: Failed to start");
-    });
-
-    loop {
-        tokio::select! {
-            Some(pubsub_message) = pubsub_stream.next() => {
-                debug!("clean message arrived {:?}", pubsub_message);
-            }
-        }
-    }
+    hub.start().await.expect("[hub]: Failed to start");
 }

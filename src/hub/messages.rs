@@ -1,4 +1,5 @@
 use log::{debug, info, warn};
+use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
@@ -43,7 +44,7 @@ impl MessageHandler {
 
         info!("key generated for snapshot: {}", key);
 
-        let mut results: Result<Vec<StreamEntry<String>>, _> = self
+        let results: Result<Vec<StreamEntry<String>>, _> = self
             .redis
             .as_mut()
             .unwrap()
@@ -63,8 +64,11 @@ impl MessageHandler {
             debug!("results from snapshot key {:?}", entries.len());
         }
 
-        let raw = serde_json::to_string(&stream_message).unwrap();
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
+        let raw = serde_json::to_string(&RPCMessage {
+            data: RPCMessageData::NotifyClients(stream_message),
+        })
+        .unwrap();
 
         self.redis
             .as_mut()

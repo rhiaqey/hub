@@ -117,9 +117,7 @@ pub async fn create_channels(
             StreamingChannel::create(namespace.clone(), channel.clone()).await;
 
         let streaming_channel_name = streaming_channel.get_name();
-        streaming_channel
-            .setup(state.sender.clone(), state.env.redis.clone())
-            .await;
+        streaming_channel.setup(state.env.redis.clone()).await;
 
         info!(
             "starting up streaming channel {}",
