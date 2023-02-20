@@ -2,11 +2,11 @@ export REDIS_PASSWORD=7tgbBSO2Yu
 export REDIS_ADDRESS=localhost:6379
 export REDIS_SENTINELS=localhost:26379
 
-export ID=1
+export ID=hub1
 export NAME=hub
 export NAMESPACE=rhiaqey
 export RUST_BACKTRACE=full
-export RUST_LOG=info
+export RUST_LOG=debug
 export DEBUG=true
 
 .PHONY: hub

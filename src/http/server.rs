@@ -1,9 +1,9 @@
-use crate::http::channels::{assign_channels, create_channels};
+use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::state::SharedState;
-use axum::routing::{get, post, put};
+use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
-use log::trace;
+use log::info;
 use prometheus::{Encoder, TextEncoder};
 use std::sync::Arc;
 
@@ -45,6 +45,13 @@ pub async fn start_http_server(port: u16, shared_state: Arc<SharedState>) -> hyp
             }),
         )
         .route(
+            "/admin/channels",
+            delete({
+                let shared_state = Arc::clone(&shared_state);
+                move |body| delete_channels(body, shared_state)
+            }),
+        )
+        .route(
             "/admin/channels/assign",
             post({
                 let shared_state = Arc::clone(&shared_state);
@@ -52,7 +59,7 @@ pub async fn start_http_server(port: u16, shared_state: Arc<SharedState>) -> hyp
             }),
         );
 
-    trace!("running http server @ 0.0.0.0:{}", port);
+    info!("running http server @ 0.0.0.0:{}", port);
 
     axum::Server::bind(&format!("0.0.0.0:{}", port).parse().unwrap())
         .serve(app.into_make_service())

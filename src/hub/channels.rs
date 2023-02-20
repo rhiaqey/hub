@@ -15,12 +15,14 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     Mutex,
 };
+use tokio::task::JoinHandle;
 
 pub struct StreamingChannel {
     pub channel: Channel,
     pub namespace: String,
     pub sender: Option<UnboundedSender<u128>>,
     pub redis: Option<Arc<Mutex<Client>>>,
+    join_handler: Option<Arc<JoinHandle<u32>>>,
 }
 
 pub type HubMessageReceiver = Option<UnboundedReceiver<u128>>;
@@ -32,6 +34,7 @@ impl StreamingChannel {
             namespace,
             sender: None,
             redis: None,
+            join_handler: None,
         }
     }
 
@@ -73,9 +76,9 @@ impl StreamingChannel {
 
         let redis = self.redis.as_mut().unwrap().clone();
 
-        tokio::task::spawn(async move {
+        let join_handler = tokio::task::spawn(async move {
             loop {
-                let results: Vec<(String, Vec<StreamEntry<String>>)> = redis
+                let results: rustis::Result<Vec<(String, Vec<StreamEntry<String>>)>> = redis
                     .lock()
                     .await
                     .xreadgroup(
@@ -85,9 +88,14 @@ impl StreamingChannel {
                         topic.clone(),
                         ">",
                     )
-                    .await
-                    .unwrap();
-                if let Some(v) = results.get(0) {
+                    .await;
+
+                if results.is_err() {
+                    warn!("error with retrieving results");
+                    continue;
+                }
+
+                if let Some(v) = results.unwrap().get(0) {
                     if let Some(raw) = v.1.get(0).unwrap().items.get("raw") {
                         let stream_message: StreamMessage =
                             serde_json::from_str(raw.as_str()).unwrap();
@@ -98,9 +106,17 @@ impl StreamingChannel {
                 thread::sleep(one_sec);
             }
         });
+
+        self.join_handler = Some(Arc::new(join_handler));
     }
 
     pub fn get_name(&self) -> String {
         return self.channel.name.to_string();
+    }
+}
+
+impl Drop for StreamingChannel {
+    fn drop(&mut self) {
+        self.join_handler.as_mut().unwrap().abort();
     }
 }

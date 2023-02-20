@@ -1,15 +1,75 @@
-use crate::http::state::SharedState;
+use crate::http::state::{
+    AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
+};
 use crate::hub::channels::StreamingChannel;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::topics;
-use rhiaqey_sdk::channel::{AssignChannelsRequest, ChannelList, CreateChannelsRequest};
+use rhiaqey_sdk::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
 use rustis::commands::{PubSubCommands, StreamCommands, StringCommands, XGroupCreateOptions};
 use rustis::resp::Value;
 use rustis::Result as RedisResult;
 use std::sync::Arc;
+
+pub async fn delete_channels(
+    Json(payload): Json<DeleteChannelsRequest>,
+    state: Arc<SharedState>,
+) -> impl IntoResponse {
+    info!("[Delete] Delete channels");
+
+    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
+    let result: String = state
+        .redis
+        .lock()
+        .await
+        .as_mut()
+        .unwrap()
+        .get(hub_channels_key.clone())
+        .await
+        .unwrap();
+
+    let mut channel_list: ChannelList =
+        serde_json::from_str(result.as_str()).unwrap_or(ChannelList::default());
+
+    debug!("turning off streams for channels {:?}", payload.channels);
+
+    for streaming_channel_name in &payload.channels {
+        state
+            .streams
+            .lock()
+            .await
+            .remove(streaming_channel_name.as_str());
+    }
+
+    debug!("current channel list {:?}", channel_list);
+
+    channel_list.channels.retain_mut(|list_channel| {
+        let index = payload
+            .channels
+            .iter()
+            .position(|r| *r == list_channel.name);
+
+        index.is_none()
+    });
+
+    debug!("updated channel list {:?}", channel_list);
+
+    let content = serde_json::to_string(&channel_list).unwrap();
+
+    state
+        .redis
+        .lock()
+        .await
+        .as_mut()
+        .unwrap()
+        .set(hub_channels_key.clone(), content)
+        .await
+        .unwrap();
+
+    StatusCode::NO_CONTENT
+}
 
 pub async fn create_channels(
     Json(payload): Json<CreateChannelsRequest>,
@@ -43,7 +103,7 @@ pub async fn create_channels(
 
     // 2. for every channel we create and store a streaming channel
 
-    let mut channels = 0;
+    let mut total_channels = 0;
     let namespace = state.env.namespace.clone();
 
     for channel in &payload.channels.channels {
@@ -61,7 +121,7 @@ pub async fn create_channels(
             .setup(state.sender.clone(), state.env.redis.clone())
             .await;
 
-        debug!(
+        info!(
             "starting up streaming channel {}",
             streaming_channel.channel.name
         );
@@ -74,12 +134,10 @@ pub async fn create_channels(
             .await
             .insert(streaming_channel_name, streaming_channel);
 
-        channels += 1;
-
-        debug!("stream added");
+        total_channels += 1;
     }
 
-    info!("added {} streams", channels);
+    info!("added {} streams", total_channels);
 
     (
         StatusCode::OK,
