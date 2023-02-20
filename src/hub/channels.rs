@@ -43,7 +43,9 @@ impl StreamingChannel {
         let connection = connect_and_ping(config.clone()).await.unwrap();
         self.sender = Some(sender);
         self.redis = Some(Arc::new(Mutex::new(connection)));
-        self.message_handler = Some(Arc::new(Mutex::new(MessageHandler::create(config).await)));
+        self.message_handler = Some(Arc::new(Mutex::new(
+            MessageHandler::create(self.namespace.clone(), self.channel.clone(), config).await,
+        )));
     }
 
     pub async fn start(&mut self) {
@@ -84,7 +86,8 @@ impl StreamingChannel {
                         message_handler
                             .lock()
                             .await
-                            .handle_raw_stream_message(stream_message);
+                            .handle_raw_stream_message(stream_message)
+                            .await;
                     }
                 }
 
