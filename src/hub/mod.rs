@@ -1,4 +1,5 @@
 pub mod channels;
+pub mod messages;
 
 use crate::http::server::start_http_server;
 use crate::http::state::SharedState;

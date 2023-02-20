@@ -1,16 +1,15 @@
 use std::sync::Arc;
 use std::{thread, time};
 
+use crate::hub::messages::MessageHandler;
 use log::{info, warn};
-use rhiaqey_common::redis::{self, RedisSettings};
+use rhiaqey_common::redis::connect_and_ping;
+use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk::channel::Channel;
+use rustis::client::Client;
 use rustis::commands::{StreamCommands, StreamEntry, XReadGroupOptions};
-use rustis::{
-    client::Client,
-    commands::{ConnectionCommands, PingOptions},
-};
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     Mutex,
@@ -22,6 +21,7 @@ pub struct StreamingChannel {
     pub namespace: String,
     pub sender: Option<UnboundedSender<u128>>,
     pub redis: Option<Arc<Mutex<Client>>>,
+    pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
     join_handler: Option<Arc<JoinHandle<u32>>>,
 }
 
@@ -34,35 +34,16 @@ impl StreamingChannel {
             namespace,
             sender: None,
             redis: None,
+            message_handler: None,
             join_handler: None,
         }
     }
 
-    async fn redis_connect(config: RedisSettings) -> Option<Client> {
-        let redis_connection = redis::connect(config).await;
-        if redis_connection.is_none() {
-            warn!("could not connect to redis server");
-            return None;
-        }
-
-        let result: String = redis_connection
-            .clone()
-            .unwrap()
-            .ping(PingOptions::default().message("hello"))
-            .await
-            .unwrap();
-        if result != "hello" {
-            warn!("redis ping failed");
-            return None;
-        }
-
-        redis_connection
-    }
-
     pub async fn setup(&mut self, sender: UnboundedSender<u128>, config: RedisSettings) {
-        let connection = Self::redis_connect(config).await.unwrap();
+        let connection = connect_and_ping(config.clone()).await.unwrap();
         self.sender = Some(sender);
         self.redis = Some(Arc::new(Mutex::new(connection)));
+        self.message_handler = Some(Arc::new(Mutex::new(MessageHandler::create(config).await)));
     }
 
     pub async fn start(&mut self) {
@@ -75,6 +56,7 @@ impl StreamingChannel {
         );
 
         let redis = self.redis.as_mut().unwrap().clone();
+        let message_handler = self.message_handler.as_mut().unwrap().clone();
 
         let join_handler = tokio::task::spawn(async move {
             loop {
@@ -99,7 +81,10 @@ impl StreamingChannel {
                     if let Some(raw) = v.1.get(0).unwrap().items.get("raw") {
                         let stream_message: StreamMessage =
                             serde_json::from_str(raw.as_str()).unwrap();
-                        info!("channel list extracted {:?}", stream_message);
+                        message_handler
+                            .lock()
+                            .await
+                            .handle_raw_stream_message(stream_message);
                     }
                 }
 
