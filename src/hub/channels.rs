@@ -12,6 +12,7 @@ use rustis::client::Client;
 use rustis::commands::{StreamCommands, StreamEntry, XReadGroupOptions};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+use uuid::Uuid;
 
 pub struct StreamingChannel {
     pub channel: Channel,
@@ -19,6 +20,7 @@ pub struct StreamingChannel {
     pub redis: Option<Arc<Mutex<Client>>>,
     pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
     join_handler: Option<Arc<JoinHandle<u32>>>,
+    pub clients: Arc<Mutex<Vec<Uuid>>>,
 }
 
 impl StreamingChannel {
@@ -29,6 +31,7 @@ impl StreamingChannel {
             redis: None,
             message_handler: None,
             join_handler: None,
+            clients: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -92,6 +95,10 @@ impl StreamingChannel {
 
     pub fn get_name(&self) -> String {
         return self.channel.name.to_string();
+    }
+
+    pub async fn join_client(&mut self, connection_id: Uuid) {
+        self.clients.lock().await.push(connection_id);
     }
 }
 

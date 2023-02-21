@@ -1,6 +1,6 @@
 use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::state::SharedState;
-use crate::http::websockets::{ws_handler, Params};
+use crate::http::websockets::ws_handler;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};

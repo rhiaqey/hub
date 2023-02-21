@@ -1,4 +1,6 @@
 use crate::hub::channels::StreamingChannel;
+use axum::extract::ws::{Message, WebSocket};
+use futures::stream::SplitSink;
 use rhiaqey_common::env::Env;
 use rhiaqey_sdk::channel::ChannelList;
 use rustis::client::Client;
@@ -6,11 +8,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 pub struct SharedState {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    pub clients: Arc<Mutex<HashMap<Uuid, SplitSink<WebSocket, Message>>>>,
 }
 
 impl SharedState {

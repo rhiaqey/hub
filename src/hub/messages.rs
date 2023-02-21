@@ -30,7 +30,7 @@ impl MessageHandler {
     }
 
     pub async fn handle_raw_stream_message(&mut self, stream_message: StreamMessage) {
-        info!("stream list handled {:?}", stream_message);
+        debug!("handle raw stream message {:?}", stream_message);
 
         let key = topics::publisher_channels_snapshot(
             self.namespace.clone(),

@@ -4,10 +4,12 @@ pub mod messages;
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
-use futures::StreamExt;
+use axum::extract::ws::{Message, WebSocket};
+use futures::stream::SplitSink;
+use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::env::{parse_env, Env};
-use rhiaqey_common::pubsub::RPCMessage;
+use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
@@ -16,12 +18,14 @@ use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCo
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Hub {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    pub clients: Arc<Mutex<HashMap<Uuid, SplitSink<WebSocket, Message>>>>,
 }
 
 impl Hub {
@@ -95,6 +99,7 @@ impl Hub {
             env: Arc::from(config),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(redis_connection)),
+            clients: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -103,6 +108,7 @@ impl Hub {
             env: self.env.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
+            clients: self.clients.clone(),
         });
 
         let private_port = self.get_private_port();
@@ -119,6 +125,9 @@ impl Hub {
 
         let mut pubsub_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
 
+        let streams = self.streams.clone();
+        let clients = self.clients.clone();
+
         loop {
             tokio::select! {
                 Some(pubsub_message) = pubsub_stream.next() => {
@@ -134,7 +143,28 @@ impl Hub {
                         continue;
                     }
 
-                    info!("clean message arrived {:?}", data.unwrap())
+                    info!("clean message arrived");
+
+                    match data.unwrap().data {
+                        RPCMessageData::NotifyClients(stream_message) => {
+                            info!("stream message arrived {:?}", stream_message);
+                            // get streaming channel by channel name
+                            let all_streams = streams.lock().await;
+                            let streaming_channel = all_streams.get(&stream_message.channel);
+                            if streaming_channel.is_some() {
+                                debug!("streaming channel found");
+                                let client = streaming_channel.unwrap().clients.lock().await;
+                                let mut all_clients = clients.lock().await;
+                                let data = serde_json::to_vec(&stream_message).unwrap();
+                                info!("must notify {:?} client(s)", client.len());
+                                for client in client.as_slice() {
+                                    info!("must notify client {:?}", client);
+                                    all_clients.get_mut(client).unwrap().send(Message::Binary(data.clone())).await.expect("message failed to sent");
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
