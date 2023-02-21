@@ -32,12 +32,20 @@ pub async fn ws_handler(
     };
     debug!("`{}` at {} connected.", user_agent, addr.to_string());
     debug!("params extracted {:?}", params.channels);
+
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| handle_socket(socket, addr))
+    ws.on_upgrade(move |socket| {
+        handle_socket(
+            socket,
+            addr,
+            params.channels.split(",").map(|x| x.to_string()).collect(),
+        )
+    })
 }
 
 /// Actual websocket state machine (one will be spawned per connection)
-async fn handle_socket(mut socket: WebSocket, who: SocketAddr) {
+async fn handle_socket(mut socket: WebSocket, who: SocketAddr, channels: Vec<String>) {
     debug!("handling socket connection");
+    debug!("channels found {:?}", channels);
 }
