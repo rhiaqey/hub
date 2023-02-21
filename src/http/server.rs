@@ -75,7 +75,13 @@ pub async fn start_public_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
 ) -> hyper::Result<()> {
-    let app = Router::new().route("/ws", get(ws_handler));
+    let app = Router::new().route(
+        "/ws",
+        get({
+            let shared_state = Arc::clone(&shared_state);
+            move |ws, user_agent, info| ws_handler(ws, user_agent, info, shared_state)
+        }),
+    );
 
     info!("running public http server @ 0.0.0.0:{}", port);
 

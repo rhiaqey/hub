@@ -1,9 +1,11 @@
+use crate::http::state::SharedState;
 use axum::extract::ws::WebSocket;
 use axum::extract::{ConnectInfo, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::{headers, TypedHeader};
 use log::debug;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 /// The handler for the HTTP request (this gets called when the HTTP GET lands at the start
 /// of websocket negotiation). After this completes, the actual switching from HTTP to
@@ -14,6 +16,7 @@ pub async fn ws_handler(
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    state: Arc<SharedState>,
 ) -> impl IntoResponse {
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
         user_agent.to_string()
