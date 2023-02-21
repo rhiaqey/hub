@@ -1,7 +1,7 @@
 pub mod channels;
 pub mod messages;
 
-use crate::http::server::start_http_server;
+use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
 use futures::StreamExt;
@@ -35,6 +35,10 @@ impl Hub {
 
     pub fn get_private_port(&self) -> u16 {
         self.env.private_port.unwrap()
+    }
+
+    pub fn get_public_port(&self) -> u16 {
+        self.env.public_port.unwrap()
     }
 
     pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Option<PubSubStream> {
@@ -95,15 +99,23 @@ impl Hub {
     }
 
     pub async fn start(&mut self) -> hyper::Result<()> {
-        let port = self.get_private_port();
-
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
         });
 
-        tokio::spawn(async move { start_http_server(port, shared_state).await });
+        let private_port = self.get_private_port();
+        let private_state = Arc::clone(&shared_state);
+
+        tokio::spawn(async move { start_private_http_server(private_port, private_state).await });
+
+        let public_port = self.get_public_port();
+        let public_state = Arc::clone(&shared_state);
+
+        tokio::spawn(
+            async move { start_public_http_server(public_port, public_state.clone()).await },
+        );
 
         let mut pubsub_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
 

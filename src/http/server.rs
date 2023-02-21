@@ -1,10 +1,12 @@
 use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::state::SharedState;
+use crate::http::websockets::ws_handler;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
 use log::info;
 use prometheus::{Encoder, TextEncoder};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 async fn get_ready() -> impl IntoResponse {
@@ -31,7 +33,10 @@ async fn get_version() -> &'static str {
     VERSION
 }
 
-pub async fn start_http_server(port: u16, shared_state: Arc<SharedState>) -> hyper::Result<()> {
+pub async fn start_private_http_server(
+    port: u16,
+    shared_state: Arc<SharedState>,
+) -> hyper::Result<()> {
     let app = Router::new()
         .route("/alive", get(get_ready))
         .route("/ready", get(get_ready))
@@ -59,9 +64,22 @@ pub async fn start_http_server(port: u16, shared_state: Arc<SharedState>) -> hyp
             }),
         );
 
-    info!("running http server @ 0.0.0.0:{}", port);
+    info!("running private http server @ 0.0.0.0:{}", port);
 
     axum::Server::bind(&format!("0.0.0.0:{}", port).parse().unwrap())
         .serve(app.into_make_service())
+        .await
+}
+
+pub async fn start_public_http_server(
+    port: u16,
+    shared_state: Arc<SharedState>,
+) -> hyper::Result<()> {
+    let app = Router::new().route("/ws", get(ws_handler));
+
+    info!("running public http server @ 0.0.0.0:{}", port);
+
+    axum::Server::bind(&format!("0.0.0.0:{}", port).parse().unwrap())
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
 }
