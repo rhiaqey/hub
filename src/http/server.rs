@@ -1,6 +1,6 @@
 use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::state::SharedState;
-use crate::http::websockets::ws_handler;
+use crate::http::websockets::{ws_handler, Params};
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
@@ -79,7 +79,9 @@ pub async fn start_public_http_server(
         "/ws",
         get({
             let shared_state = Arc::clone(&shared_state);
-            move |ws, user_agent, info| ws_handler(ws, user_agent, info, shared_state)
+            move |query_params, ws, user_agent, info| {
+                ws_handler(query_params, ws, user_agent, info, shared_state)
+            }
         }),
     );
 
