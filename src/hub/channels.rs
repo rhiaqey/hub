@@ -100,6 +100,10 @@ impl StreamingChannel {
     pub async fn join_client(&mut self, connection_id: Uuid) {
         self.clients.lock().await.push(connection_id);
     }
+
+    pub async fn get_snapshot() {
+        todo!();
+    }
 }
 
 impl Drop for StreamingChannel {

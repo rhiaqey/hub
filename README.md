@@ -1,5 +1,7 @@
 # Hub
 
+Early development stage ( mostly for educational purposes )
+
 ## Run in github.dev
 
 ### Commands
