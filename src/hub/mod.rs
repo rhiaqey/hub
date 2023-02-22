@@ -8,6 +8,7 @@ use axum::extract::ws::{Message, WebSocket};
 use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
+use rhiaqey_common::client::{ClientMessage, ClientMessageDataType, ClientMessageValue};
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::connect_and_ping;
@@ -147,20 +148,36 @@ impl Hub {
 
                     match data.unwrap().data {
                         RPCMessageData::NotifyClients(stream_message) => {
-                            info!("stream message arrived {:?}", stream_message);
+                            debug!("stream message arrived {:?}", stream_message);
+
                             // get streaming channel by channel name
                             let all_streams = streams.lock().await;
                             let streaming_channel = all_streams.get(&stream_message.channel);
                             if streaming_channel.is_some() {
                                 debug!("streaming channel found");
-                                let client = streaming_channel.unwrap().clients.lock().await;
+
+                                let streaming_clients = streaming_channel.unwrap().clients.lock().await;
                                 let mut all_clients = clients.lock().await;
-                                let data = serde_json::to_vec(&stream_message).unwrap();
-                                info!("must notify {:?} client(s)", client.len());
-                                for client in client.as_slice() {
-                                    info!("must notify client {:?}", client);
-                                    all_clients.get_mut(client).unwrap().send(Message::Binary(data.clone())).await.expect("message failed to sent");
+
+                                let client_message = ClientMessage {
+                                    data_type: ClientMessageDataType::Data as u8,
+                                    channel: stream_message.channel,
+                                    key: stream_message.key,
+                                    value: ClientMessageValue::Data(stream_message.value),
+                                    tag: stream_message.tag,
+                                    category: stream_message.category,
+                                    hub_id: stream_message.hub_id,
+                                    publisher_id: stream_message.publisher_id
+                                };
+
+                                let raw = serde_json::to_vec(&client_message).unwrap();
+
+                                for client in streaming_clients.as_slice() {
+                                    trace!("must notify client {:?}", client);
+                                    all_clients.get_mut(client).unwrap().send(Message::Binary(raw.clone())).await.expect("message failed to sent");
                                 }
+
+                                info!("message sent to {:?} client(s)", streaming_clients.len());
                             }
                         }
                         _ => {}

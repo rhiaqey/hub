@@ -111,16 +111,15 @@ async fn handle_socket(
         value: ClientMessageValue::ClientConnected(client_message_value),
         tag: None,
         category: None,
-        size: None,
         hub_id: None,
         publisher_id: None,
     };
 
     for channel in added_channels {
         let mut data = client_message.clone();
-        data.channel = channel;
+        data.channel = channel.clone();
+        data.key = channel;
         let raw = serde_json::to_vec(&data).unwrap();
-
         if let Err(e) = sender.send(Message::Binary(raw)).await {
             warn!("Could not send binary data due to {}", e);
         }
