@@ -50,11 +50,11 @@ spec:
           livenessProbe:
             httpGet:
               path: /alive
-              port: http
+              port: http-private
           readinessProbe:
             httpGet:
               path: /alive
-              port: http
+              port: http-private
           env:
             - name: ID
               valueFrom:
@@ -72,6 +72,8 @@ spec:
               value: {{ .Values.hub.public_port }}
             - name: PRIVATE_PORT
               value: {{ .Values.hub.private_port }}
+            - name: RUST_LOG
+              value: {{ .Values.hub.log_level | quote }}
             - name: REDIS_ADDRESS
               value: "redis:6379"
             - name: REDIS_SENTINELS
@@ -81,8 +83,6 @@ spec:
                 secretKeyRef:
                   name: "redis"
                   key: "redis-password"
-            - name: RUST_LOG
-              value: {{ .Values.hub.log_level | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
