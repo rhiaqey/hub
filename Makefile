@@ -18,6 +18,16 @@ hub: run
 run:
 	cargo +nightly run --bin hub
 
+.PHONY: hub1
+hub1: run
+
+.PHONY: hub2
+hub2:
+	ID=hub2 \
+	PRIVATE_PORT=3010 \
+	PUBLIC_PORT=3020 \
+		cargo +nightly run --bin hub
+
 .PHONY: run-prod
 run-prod:
 	cargo +nightly run --release --bin hub
