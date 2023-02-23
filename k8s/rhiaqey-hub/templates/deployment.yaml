@@ -41,8 +41,11 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: http
-              containerPort: 8080
+            - name: http-public
+              containerPort: {{ .Values.hub.public_port }}
+              protocol: TCP
+            - name: http-private
+              containerPort: {{ .Values.hub.private_port }}
               protocol: TCP
           livenessProbe:
             httpGet:
@@ -65,6 +68,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: PUBLIC_PORT
+              value: {{ .Values.hub.public_port }}
+            - name: PRIVATE_PORT
+              value: {{ .Values.hub.private_port }}
             - name: REDIS_ADDRESS
               value: "redis:6379"
             - name: REDIS_SENTINELS
@@ -74,6 +81,8 @@ spec:
                 secretKeyRef:
                   name: "redis"
                   key: "redis-password"
+            - name: RUST_LOG
+              value: {{ .Values.hub.log_level | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
