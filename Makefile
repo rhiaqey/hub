@@ -32,6 +32,9 @@ hub2:
 run-prod:
 	cargo +nightly run --release --bin hub
 
+.PHONY: dev
+dev: build
+
 .PHONY: build
 build:
 	cargo +nightly build

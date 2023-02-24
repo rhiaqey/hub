@@ -191,6 +191,7 @@ impl Hub {
 pub async fn run() {
     env_logger::init();
     let env = parse_env();
+    let namespace = env.namespace.clone();
 
     let mut hub = match Hub::setup(env).await {
         Ok(exec) => exec,
@@ -206,7 +207,6 @@ pub async fn run() {
     );
 
     let mut total_channels = 0;
-    let namespace = env.namespace.clone();
     let channels = hub.get_channels().await;
 
     for channel in channels {

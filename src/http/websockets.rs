@@ -13,8 +13,10 @@ use uuid::Uuid;
 //allows to split the websocket stream into separate TX and RX branches
 use futures::{sink::SinkExt, stream::StreamExt};
 use rhiaqey_common::client::{
-    ClientMessage, ClientMessageDataType, ClientMessageValue, ClientMessageValueClientConnected,
+    ClientMessage, ClientMessageDataType, ClientMessageValue,
+    ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
 };
+use rhiaqey_sdk::channel::Channel;
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -66,18 +68,17 @@ async fn handle_socket(
     debug!("channels found {:?}", channels);
 
     let client_id = Uuid::new_v4();
-    let mut added_channels: Vec<String> = vec![];
+    let mut added_channels: Vec<Channel> = vec![];
     let mut streaming_channels = state.streams.lock().await;
 
     for channel in channels {
-        let mut streaming_channel = streaming_channels.get_mut(channel.as_str());
-        if streaming_channel.is_some() {
-            let streaming_channel_name = streaming_channel.as_mut().unwrap().get_name();
-            added_channels.push(streaming_channel_name.clone());
-            streaming_channel.unwrap().join_client(client_id).await;
-            debug!("client joined channel {}", streaming_channel_name);
+        let streaming_channel = streaming_channels.get_mut(channel.as_str());
+        if let Some(chx) = streaming_channel {
+            chx.join_client(client_id).await;
+            added_channels.push(chx.channel.clone());
+            debug!("client joined channel {}", channel.as_str());
         } else {
-            warn!("could not find channel by name={}", channel.as_str());
+            warn!("could not find channel {}", channel.as_str());
         }
     }
 
@@ -100,25 +101,39 @@ async fn handle_socket(
 
     debug!("client just joined in");
 
-    let client_message_value = ClientMessageValueClientConnected {
-        client_id: client_id.to_string(),
-    };
-
     let client_message = ClientMessage {
-        data_type: ClientMessageDataType::ClientConnect as u8,
+        data_type: ClientMessageDataType::ClientConnection as u8,
         channel: "".to_string(),
         key: "".to_string(),
-        value: ClientMessageValue::ClientConnected(client_message_value),
+        value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
+            client_id: client_id.to_string(),
+        }),
         tag: None,
         category: None,
         hub_id: None,
         publisher_id: None,
     };
 
+    let raw = serde_json::to_vec(&client_message).unwrap();
+
+    if let Err(e) = sender.send(Message::Binary(raw)).await {
+        warn!("Could not send binary data due to {}", e);
+        return;
+    }
+
     for channel in added_channels {
         let mut data = client_message.clone();
-        data.channel = channel.clone();
-        data.key = channel;
+
+        data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
+        data.channel = channel.name.clone();
+        data.key = channel.name.clone();
+        data.value = ClientMessageValue::ClientChannelSubscription(
+            ClientMessageValueClientChannelSubscription {
+                client_id: client_id.to_string(),
+                channel,
+            },
+        );
+
         let raw = serde_json::to_vec(&data).unwrap();
         if let Err(e) = sender.send(Message::Binary(raw)).await {
             warn!("Could not send binary data due to {}", e);
