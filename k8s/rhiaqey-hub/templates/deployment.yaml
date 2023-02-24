@@ -74,10 +74,13 @@ spec:
               value: {{ .Values.hub.private_port | quote }}
             - name: RUST_LOG
               value: {{ .Values.hub.log_level | quote }}
-            - name: REDIS_ADDRESS
-              value: {{ .Values.hub.redis.address | quote }}
+            {{ if .Values.hub.redis.sentinel_mode }}
             - name: REDIS_SENTINEL_ADDRESSES
               value: {{ .Values.hub.redis.sentinel_addresses | quote }}
+            {{ else }}
+            - name: REDIS_ADDRESS
+              value: {{ .Values.hub.redis.address | quote }}
+            {{ end }}
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:

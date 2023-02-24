@@ -86,5 +86,6 @@ hub:
   public_port: 3002
   log_level: "info"
   redis:
+    sentinel_mode: false
     address: "redis:6379"
     sentinel_addresses: "redis:26379"
