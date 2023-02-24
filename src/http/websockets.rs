@@ -84,23 +84,6 @@ async fn handle_socket(
 
     let (mut sender, mut _receiver) = socket.split();
 
-    if added_channels.len() == 0 {
-        warn!("no suitable channels found");
-        if let Err(e) = sender
-            .send(Message::Close(Some(CloseFrame {
-                code: axum::extract::ws::close_code::NORMAL,
-                reason: Cow::from("Invalid channels"),
-            })))
-            .await
-        {
-            warn!("Could not send Close due to {}, probably it is ok?", e);
-        }
-        return;
-    } else {
-    }
-
-    debug!("client just joined in");
-
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
         channel: "".to_string(),
@@ -120,6 +103,8 @@ async fn handle_socket(
         warn!("Could not send binary data due to {}", e);
         return;
     }
+
+    debug!("client just joined in");
 
     for channel in added_channels {
         let mut data = client_message.clone();
