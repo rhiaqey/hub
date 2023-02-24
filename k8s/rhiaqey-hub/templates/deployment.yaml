@@ -75,9 +75,9 @@ spec:
             - name: RUST_LOG
               value: {{ .Values.hub.log_level | quote }}
             - name: REDIS_ADDRESS
-              value: "redis:6379"
+              value: {{ .Values.hub.redis.address | quote }}
             - name: REDIS_SENTINEL_ADDRESSES
-              value: "redis:26379"
+              value: {{ .Values.hub.redis.sentinel_addresses | quote }}
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
