@@ -1,11 +1,10 @@
 use crate::http::state::SharedState;
-use axum::extract::ws::{CloseFrame, Message, WebSocket};
+use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, Query, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::{headers, TypedHeader};
 use log::{debug, info, warn};
 use serde::Deserialize;
-use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use uuid::Uuid;

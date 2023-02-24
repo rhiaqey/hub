@@ -69,8 +69,8 @@ impl StreamingChannel {
                     )
                     .await;
 
-                if results.is_err() {
-                    warn!("error with retrieving results");
+                if let Err(e) = results {
+                    warn!("error with retrieving results: {}", e);
                     continue;
                 }
 
