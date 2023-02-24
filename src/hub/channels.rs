@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 use std::{thread, time};
 
 use crate::hub::messages::MessageHandler;
@@ -71,6 +72,7 @@ impl StreamingChannel {
 
                 if let Err(e) = results {
                     warn!("error with retrieving results: {}", e);
+                    thread::sleep(Duration::from_secs(1));
                     continue;
                 }
 
