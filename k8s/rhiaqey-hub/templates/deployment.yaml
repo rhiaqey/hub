@@ -76,7 +76,7 @@ spec:
               value: {{ .Values.hub.log_level | quote }}
             - name: REDIS_ADDRESS
               value: "redis:6379"
-            - name: REDIS_SENTINELS
+            - name: REDIS_SENTINEL_ADDRESSES
               value: "redis:26379"
             - name: REDIS_PASSWORD
               valueFrom:
