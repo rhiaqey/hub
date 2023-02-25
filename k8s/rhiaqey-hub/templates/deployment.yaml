@@ -65,11 +65,9 @@ spec:
             - name: ID
               valueFrom:
                 fieldRef:
-                  fieldPath: status.podIP
-            - name: NAME
-              valueFrom:
-                fieldRef:
                   fieldPath: metadata.name
+            - name: NAME
+              value: {{ .Release.Name | quote }}
             - name: NAMESPACE
               valueFrom:
                 fieldRef:
