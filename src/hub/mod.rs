@@ -3,6 +3,7 @@ pub mod messages;
 
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
+use crate::http::websockets::TOTAL_CLIENTS;
 use crate::hub::channels::StreamingChannel;
 use axum::extract::ws::{Message, WebSocket};
 use futures::StreamExt;
@@ -155,7 +156,10 @@ impl Hub {
                             if streaming_channel.is_some() {
                                 debug!("streaming channel found");
 
-                                let all_stream_channel_clients = streaming_channel.unwrap().clients.lock().await;
+                                let lock = streaming_channel.unwrap().clients.lock().await;
+                                let all_stream_channel_clients = lock.to_vec();
+                                drop(lock);
+
                                 let mut all_hub_clients = clients.lock().await;
 
                                 let client_message = ClientMessage {
@@ -171,6 +175,8 @@ impl Hub {
 
                                 let raw = serde_json::to_vec(&client_message).unwrap();
 
+                                let mut to_delete = vec!();
+
                                 for client_id in all_stream_channel_clients.iter() {
                                     trace!("must notify client {:?}", client_id);
                                     match all_hub_clients.get_mut(client_id) {
@@ -179,7 +185,7 @@ impl Hub {
                                                 Ok(_) => debug!("message sent"),
                                                 Err(e) => {
                                                     warn!("failed to sent message: {e}");
-                                                    all_hub_clients.remove(client_id);
+                                                    to_delete.push(*client_id);
                                                 }
                                             }
                                         },
@@ -190,7 +196,18 @@ impl Hub {
                                     }
                                 }
 
-                                info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
+                                if to_delete.is_empty() {
+                                    info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
+                                } else {
+                                    for client_id in all_stream_channel_clients.iter() {
+                                        all_hub_clients.remove(client_id);
+                                        TOTAL_CLIENTS.dec();
+                                        let index = streaming_channel.unwrap().clients.lock().await.iter().position(|x| x == client_id);
+                                        if let Some(i) = index {
+                                            streaming_channel.unwrap().clients.lock().await.remove(i);
+                                        }
+                                    }
+                                }
                             }
                         }
                         _ => {}

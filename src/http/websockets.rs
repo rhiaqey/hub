@@ -17,7 +17,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 lazy_static! {
-    static ref TOTAL_CLIENTS: Gauge =
+    pub static ref TOTAL_CLIENTS: Gauge =
         register_gauge!("total_clients", "Total number of connected clients.",)
             .expect("cannot create gauge metric for total number of connected clients");
 }

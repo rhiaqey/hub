@@ -1,6 +1,6 @@
 use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
-use std::{thread, time};
 
 use crate::hub::messages::MessageHandler;
 use log::warn;
@@ -45,7 +45,7 @@ impl StreamingChannel {
     }
 
     pub async fn start(&mut self) {
-        let one_sec = time::Duration::from_millis(500);
+        let one_sec = Duration::from_millis(500);
 
         let size = self.channel.size;
         let topic = topics::publishers_to_hub_stream_topic(
@@ -101,16 +101,6 @@ impl StreamingChannel {
 
     pub async fn add_client(&mut self, connection_id: Uuid) {
         self.clients.lock().await.push(connection_id);
-    }
-
-    pub async fn remove_client(&mut self, _connection_id: Uuid) {
-        /*
-        let clients = self.clients.lock().await;
-        let index = clients.iter().position(|x| *x == connection_id);
-        if let Some(i) = index {
-            debug!("removing {} from {} position", connection_id, i);
-            self.clients.lock().await.remove(i);
-        }*/
     }
 }
 
