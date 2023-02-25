@@ -58,7 +58,7 @@ spec:
             httpGet:
               path: /alive
               port: http-private
-            initialDelaySeconds: 15
+            initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 15
           env:
