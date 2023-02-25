@@ -3,19 +3,24 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, Query, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::{headers, TypedHeader};
+use lazy_static::lazy_static;
 use log::{debug, info, warn};
-use serde::Deserialize;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use uuid::Uuid;
-
-//allows to split the websocket stream into separate TX and RX branches
-use futures::{sink::SinkExt, stream::StreamExt};
+use prometheus::{register_gauge, Gauge};
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
     ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
 };
 use rhiaqey_sdk::channel::Channel;
+use serde::Deserialize;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use uuid::Uuid;
+
+lazy_static! {
+    static ref TOTAL_CLIENTS: Gauge =
+        register_gauge!("total_clients", "Total number of connected clients.",)
+            .expect("cannot create gauge metric for total number of connected clients");
+}
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -48,7 +53,7 @@ pub async fn ws_handler(
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| {
-        handle_socket(
+        handle_ws_connection(
             socket,
             addr,
             params.channels.split(",").map(|x| x.to_string()).collect(),
@@ -58,9 +63,9 @@ pub async fn ws_handler(
 }
 
 /// Actual websocket state machine (one will be spawned per connection)
-async fn handle_socket(
-    socket: WebSocket,
-    _who: SocketAddr,
+async fn handle_ws_connection(
+    mut socket: WebSocket,
+    who: SocketAddr,
     channels: Vec<String>,
     state: Arc<SharedState>,
 ) {
@@ -73,15 +78,13 @@ async fn handle_socket(
     for channel in channels {
         let streaming_channel = streaming_channels.get_mut(channel.as_str());
         if let Some(chx) = streaming_channel {
-            chx.join_client(client_id).await;
+            chx.add_client(client_id).await;
             added_channels.push(chx.channel.clone());
             debug!("client joined channel {}", channel.as_str());
         } else {
             warn!("could not find channel {}", channel.as_str());
         }
     }
-
-    let (mut sender, mut _receiver) = socket.split();
 
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
@@ -98,12 +101,12 @@ async fn handle_socket(
 
     let raw = serde_json::to_vec(&client_message).unwrap();
 
-    if let Err(e) = sender.send(Message::Binary(raw)).await {
+    if let Err(e) = socket.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);
         return;
     }
 
-    debug!("client just joined in");
+    debug!("client {who} just joined in");
 
     for channel in added_channels {
         let mut data = client_message.clone();
@@ -116,12 +119,15 @@ async fn handle_socket(
         );
 
         let raw = serde_json::to_vec(&data).unwrap();
-        if let Err(e) = sender.send(Message::Binary(raw)).await {
-            warn!("Could not send binary data due to {}", e);
+        if let Err(e) = socket.send(Message::Binary(raw)).await {
+            warn!("could not send binary data due to {}", e);
+            socket.close().await.expect("failed to close connection");
+            return; // disconnect
         }
     }
 
-    state.clients.lock().await.insert(client_id, sender);
+    TOTAL_CLIENTS.inc();
+    state.clients.lock().await.insert(client_id, socket);
 
     debug!("client was stored")
 }

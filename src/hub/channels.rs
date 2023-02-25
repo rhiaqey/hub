@@ -99,12 +99,18 @@ impl StreamingChannel {
         return self.channel.name.to_string();
     }
 
-    pub async fn join_client(&mut self, connection_id: Uuid) {
+    pub async fn add_client(&mut self, connection_id: Uuid) {
         self.clients.lock().await.push(connection_id);
     }
 
-    pub async fn get_snapshot() {
-        todo!();
+    pub async fn remove_client(&mut self, _connection_id: Uuid) {
+        /*
+        let clients = self.clients.lock().await;
+        let index = clients.iter().position(|x| *x == connection_id);
+        if let Some(i) = index {
+            debug!("removing {} from {} position", connection_id, i);
+            self.clients.lock().await.remove(i);
+        }*/
     }
 }
 

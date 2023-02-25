@@ -15,6 +15,7 @@ pub struct MessageHandler {
     pub redis: Option<Arc<Mutex<Client>>>,
 }
 
+/// On message handler per channel
 impl MessageHandler {
     pub async fn create(
         namespace: String,

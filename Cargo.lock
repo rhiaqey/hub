@@ -916,6 +916,7 @@ dependencies = [
  "env_logger",
  "futures",
  "hyper",
+ "lazy_static",
  "log",
  "prometheus",
  "rhiaqey-common",

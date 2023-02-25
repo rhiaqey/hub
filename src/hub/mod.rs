@@ -5,8 +5,7 @@ use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
 use axum::extract::ws::{Message, WebSocket};
-use futures::stream::SplitSink;
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::{ClientMessage, ClientMessageDataType, ClientMessageValue};
 use rhiaqey_common::env::{parse_env, Env};
@@ -26,7 +25,7 @@ pub struct Hub {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-    pub clients: Arc<Mutex<HashMap<Uuid, SplitSink<WebSocket, Message>>>>,
+    pub clients: Arc<Mutex<HashMap<Uuid, WebSocket>>>,
 }
 
 impl Hub {
@@ -174,7 +173,15 @@ impl Hub {
 
                                 for client in streaming_clients.as_slice() {
                                     trace!("must notify client {:?}", client);
-                                    all_clients.get_mut(client).unwrap().send(Message::Binary(raw.clone())).await.expect("message failed to sent");
+                                    match all_clients.get_mut(client) {
+                                        Some(socket) => {
+                                            match socket.send(Message::Binary(raw.clone())).await {
+                                                Ok(_) => debug!("message sent"),
+                                                Err(e) => warn!("failed to sent message: {e}")
+                                            }
+                                        },
+                                        None => {}
+                                    }
                                 }
 
                                 info!("message sent to {:?} client(s)", streaming_clients.len());

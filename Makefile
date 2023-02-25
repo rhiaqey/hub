@@ -1,5 +1,5 @@
 export REDIS_PASSWORD=r6uq43vNsq
-# export REDIS_ADDRESS=localhost:6379
+export REDIS_ADDRESS=localhost:6379
 export REDIS_SENTINEL_ADDRESSES=localhost:26379
 
 export ID=hub1
