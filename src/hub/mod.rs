@@ -150,13 +150,13 @@ impl Hub {
                             debug!("stream message arrived {:?}", stream_message);
 
                             // get streaming channel by channel name
-                            let all_streams = streams.lock().await;
-                            let streaming_channel = all_streams.get(&stream_message.channel);
+                            let all_hub_streams = streams.lock().await;
+                            let streaming_channel = all_hub_streams.get(&stream_message.channel);
                             if streaming_channel.is_some() {
                                 debug!("streaming channel found");
 
-                                let streaming_clients = streaming_channel.unwrap().clients.lock().await;
-                                let mut all_clients = clients.lock().await;
+                                let all_stream_channel_clients = streaming_channel.unwrap().clients.lock().await;
+                                let mut all_hub_clients = clients.lock().await;
 
                                 let client_message = ClientMessage {
                                     data_type: ClientMessageDataType::Data as u8,
@@ -171,20 +171,26 @@ impl Hub {
 
                                 let raw = serde_json::to_vec(&client_message).unwrap();
 
-                                for client in streaming_clients.as_slice() {
-                                    trace!("must notify client {:?}", client);
-                                    match all_clients.get_mut(client) {
+                                for client_id in all_stream_channel_clients.iter() {
+                                    trace!("must notify client {:?}", client_id);
+                                    match all_hub_clients.get_mut(client_id) {
                                         Some(socket) => {
                                             match socket.send(Message::Binary(raw.clone())).await {
                                                 Ok(_) => debug!("message sent"),
-                                                Err(e) => warn!("failed to sent message: {e}")
+                                                Err(e) => {
+                                                    warn!("failed to sent message: {e}");
+                                                    all_hub_clients.remove(client_id);
+                                                }
                                             }
                                         },
-                                        None => {}
+                                        None => {
+                                            warn!("failed to find client by id");
+                                            continue;
+                                        }
                                     }
                                 }
 
-                                info!("message sent to {:?} client(s)", streaming_clients.len());
+                                info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
                             }
                         }
                         _ => {}
