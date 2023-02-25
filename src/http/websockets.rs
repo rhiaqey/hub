@@ -1,11 +1,10 @@
 use crate::http::state::SharedState;
+use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, Query, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::{headers, TypedHeader};
-use lazy_static::lazy_static;
 use log::{debug, info, warn};
-use prometheus::{register_gauge, Gauge};
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
     ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
@@ -15,12 +14,6 @@ use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use uuid::Uuid;
-
-lazy_static! {
-    pub static ref TOTAL_CLIENTS: Gauge =
-        register_gauge!("total_clients", "Total number of connected clients.",)
-            .expect("cannot create gauge metric for total number of connected clients");
-}
 
 #[derive(Deserialize)]
 pub struct Params {

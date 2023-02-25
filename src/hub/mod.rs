@@ -1,10 +1,11 @@
 pub mod channels;
 pub mod messages;
+pub mod metrics;
 
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
-use crate::http::websockets::TOTAL_CLIENTS;
 use crate::hub::channels::StreamingChannel;
+use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
 use axum::extract::ws::{Message, WebSocket};
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
@@ -270,6 +271,9 @@ pub async fn run() {
     }
 
     info!("added {} streams", total_channels);
+
+    TOTAL_CHANNELS.set(total_channels as f64);
+    TOTAL_CLIENTS.set(0 as f64);
 
     hub.start().await.expect("[hub]: Failed to start");
 }

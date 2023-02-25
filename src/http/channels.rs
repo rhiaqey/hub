@@ -2,6 +2,7 @@ use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
 use crate::hub::channels::StreamingChannel;
+use crate::hub::metrics::TOTAL_CHANNELS;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
@@ -136,6 +137,8 @@ pub async fn create_channels(
     }
 
     info!("added {} streams", total_channels);
+
+    TOTAL_CHANNELS.set(total_channels as f64);
 
     (
         StatusCode::OK,
