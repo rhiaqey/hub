@@ -182,7 +182,7 @@ impl Hub {
                                     match all_hub_clients.get_mut(client_id) {
                                         Some(socket) => {
                                             match socket.send(Message::Binary(raw.clone())).await {
-                                                Ok(_) => debug!("message sent"),
+                                                Ok(_) => trace!("message sent to {client_id}"),
                                                 Err(e) => {
                                                     warn!("failed to sent message: {e}");
                                                     to_delete.push(*client_id);
@@ -191,7 +191,6 @@ impl Hub {
                                         },
                                         None => {
                                             warn!("failed to find client by id");
-                                            continue;
                                         }
                                     }
                                 }
@@ -199,14 +198,17 @@ impl Hub {
                                 if to_delete.is_empty() {
                                     info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
                                 } else {
+                                    warn!("disconnecting {} clients", to_delete.len());
                                     for client_id in all_stream_channel_clients.iter() {
                                         all_hub_clients.remove(client_id);
-                                        TOTAL_CLIENTS.dec();
                                         let index = streaming_channel.unwrap().clients.lock().await.iter().position(|x| x == client_id);
                                         if let Some(i) = index {
+                                            warn!("removing client from channel by index {i}");
                                             streaming_channel.unwrap().clients.lock().await.remove(i);
                                         }
                                     }
+
+                                    TOTAL_CLIENTS.set(all_hub_clients.len() as f64);
                                 }
                             }
                         }

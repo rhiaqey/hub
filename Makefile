@@ -6,8 +6,7 @@ export ID=hub1
 export NAME=hub
 export NAMESPACE=rhiaqey
 export RUST_BACKTRACE=full
-export RUST_LOG=trace
-export DEBUG=true
+export RUST_LOG=debug
 export PRIVATE_PORT=3001
 export PUBLIC_PORT=3002
 
