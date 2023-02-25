@@ -51,10 +51,16 @@ spec:
             httpGet:
               path: /alive
               port: http-private
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 15
           readinessProbe:
             httpGet:
               path: /alive
               port: http-private
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 15
           env:
             - name: ID
               valueFrom:
