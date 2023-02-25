@@ -112,10 +112,7 @@ async fn handle_socket(
         data.channel = channel.name.clone();
         data.key = channel.name.clone();
         data.value = ClientMessageValue::ClientChannelSubscription(
-            ClientMessageValueClientChannelSubscription {
-                client_id: client_id.to_string(),
-                channel,
-            },
+            ClientMessageValueClientChannelSubscription { channel },
         );
 
         let raw = serde_json::to_vec(&data).unwrap();
