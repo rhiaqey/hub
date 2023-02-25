@@ -126,8 +126,8 @@ async fn handle_ws_connection(
         }
     }
 
-    TOTAL_CLIENTS.inc();
     state.clients.lock().await.insert(client_id, socket);
+    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client was stored")
 }
