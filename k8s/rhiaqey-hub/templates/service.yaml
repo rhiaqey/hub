@@ -11,7 +11,7 @@ spec:
       targetPort: http-private
       protocol: TCP
       name: http-private
-    - port: 8080
+    - port: {{ .Values.service.publicPort }}
       targetPort: http-public
       protocol: TCP
       name: http-public
