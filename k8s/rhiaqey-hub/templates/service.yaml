@@ -11,5 +11,9 @@ spec:
       targetPort: http-private
       protocol: TCP
       name: http-private
+    - port: 8080
+      targetPort: http-public
+      protocol: TCP
+      name: http-public
   selector:
     {{- include "rhiaqey-hub.selectorLabels" . | nindent 4 }}
