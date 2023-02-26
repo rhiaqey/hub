@@ -9,10 +9,6 @@ use prometheus::{Encoder, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-async fn get_home() -> impl IntoResponse {
-    (StatusCode::OK, "hello")
-}
-
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK
 }
@@ -79,7 +75,7 @@ pub async fn start_public_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
 ) -> hyper::Result<()> {
-    let app = Router::new().route("/", get(get_home)).route(
+    let app = Router::new().route(
         "/ws",
         get({
             let shared_state = Arc::clone(&shared_state);
