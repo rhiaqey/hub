@@ -1,4 +1,5 @@
 use crate::http::channels::{assign_channels, create_channels, delete_channels};
+use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
 use axum::routing::{delete, get, post, put};
@@ -61,6 +62,13 @@ pub async fn start_private_http_server(
             post({
                 let shared_state = Arc::clone(&shared_state);
                 move |body| assign_channels(body, shared_state)
+            }),
+        )
+        .route(
+            "/admin/settings/update",
+            post({
+                let shared_state = Arc::clone(&shared_state);
+                move |body| update_settings(body, shared_state)
             }),
         );
 
