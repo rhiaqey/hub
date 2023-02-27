@@ -2,7 +2,7 @@ use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::Error;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use log::warn;
+use log::{debug, warn};
 use std::borrow::Cow;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -38,8 +38,10 @@ impl WebSocketClient {
         let join_handler = tokio::task::spawn(async move {
             loop {
                 while let Some(Ok(_msg)) = rx.lock().await.next().await {
-                    warn!("received data from client");
+                    debug!("received data from client");
+
                     warn!("closing connection");
+
                     if let Err(e) = sx
                         .lock()
                         .await
@@ -50,8 +52,13 @@ impl WebSocketClient {
                         .await
                     {
                         warn!("could not send Close due to {}, probably it is ok?", e);
-                    } else {
-                        sx.lock().await.close().await.unwrap()
+                    }
+
+                    if let Err(e) = sx.lock().await.close().await {
+                        warn!(
+                            "could not close connection due to {}, probably it is ok?",
+                            e
+                        );
                     }
 
                     break;
