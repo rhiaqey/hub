@@ -45,7 +45,7 @@ impl StreamingChannel {
     }
 
     pub async fn start(&mut self) {
-        let one_sec = Duration::from_millis(500);
+        let duration = Duration::from_millis(250);
 
         let size = self.channel.size;
         let topic = topics::publishers_to_hub_stream_topic(
@@ -88,7 +88,7 @@ impl StreamingChannel {
                     }
                 }
 
-                thread::sleep(one_sec);
+                thread::sleep(duration);
             }
         });
 
