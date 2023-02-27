@@ -106,6 +106,8 @@ impl StreamingChannel {
 
 impl Drop for StreamingChannel {
     fn drop(&mut self) {
-        self.join_handler.as_mut().unwrap().abort();
+        if self.join_handler.is_some() {
+            self.join_handler.as_mut().unwrap().abort();
+        }
     }
 }
