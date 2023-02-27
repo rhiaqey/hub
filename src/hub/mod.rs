@@ -2,11 +2,12 @@ pub mod channels;
 pub mod messages;
 pub mod metrics;
 
+use crate::http::client::WebSocketClient;
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
 use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
-use axum::extract::ws::{Message, WebSocket};
+use axum::extract::ws::Message;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::{ClientMessage, ClientMessageDataType, ClientMessageValue};
@@ -27,7 +28,7 @@ pub struct Hub {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-    pub clients: Arc<Mutex<HashMap<Uuid, WebSocket>>>,
+    pub clients: Arc<Mutex<HashMap<Uuid, WebSocketClient>>>,
 }
 
 impl Hub {

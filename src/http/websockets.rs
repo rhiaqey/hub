@@ -1,3 +1,4 @@
+use crate::http::client::WebSocketClient;
 use crate::http::state::SharedState;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{Message, WebSocket};
@@ -57,7 +58,7 @@ pub async fn ws_handler(
 
 /// Actual websocket state machine (one will be spawned per connection)
 async fn handle_ws_connection(
-    mut socket: WebSocket,
+    socket: WebSocket,
     who: SocketAddr,
     channels: Vec<String>,
     state: Arc<SharedState>,
@@ -94,7 +95,9 @@ async fn handle_ws_connection(
 
     let raw = serde_json::to_vec(&client_message).unwrap();
 
-    if let Err(e) = socket.send(Message::Binary(raw)).await {
+    let mut client = WebSocketClient::create(client_id, socket);
+
+    if let Err(e) = client.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);
         return;
     }
@@ -112,14 +115,16 @@ async fn handle_ws_connection(
         );
 
         let raw = serde_json::to_vec(&data).unwrap();
-        if let Err(e) = socket.send(Message::Binary(raw)).await {
+        if let Err(e) = client.send(Message::Binary(raw)).await {
             warn!("could not send binary data due to {}", e);
-            socket.close().await.expect("failed to close connection");
+            client.close().await.expect("failed to close connection");
             return; // disconnect
         }
     }
 
-    state.clients.lock().await.insert(client_id, socket);
+    client.listen();
+
+    state.clients.lock().await.insert(client.get_id(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client was stored")

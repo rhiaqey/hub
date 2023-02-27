@@ -1,5 +1,5 @@
+use crate::http::client::WebSocketClient;
 use crate::hub::channels::StreamingChannel;
-use axum::extract::ws::WebSocket;
 use rhiaqey_common::env::Env;
 use rhiaqey_sdk::channel::ChannelList;
 use rustis::client::Client;
@@ -13,7 +13,7 @@ pub struct SharedState {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-    pub clients: Arc<Mutex<HashMap<Uuid, WebSocket>>>,
+    pub clients: Arc<Mutex<HashMap<Uuid, WebSocketClient>>>,
 }
 
 impl SharedState {
