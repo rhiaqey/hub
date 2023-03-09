@@ -15,6 +15,7 @@ pub async fn update_settings(
     info!("[POST] Update settings");
 
     let mut client = state.redis.lock().await.clone().unwrap();
+    let response = payload.settings.clone();
 
     let publishers_key =
         topics::publisher_settings_key(state.get_namespace(), payload.name.clone());
@@ -38,5 +39,5 @@ pub async fn update_settings(
 
     // return response
 
-    (StatusCode::OK, Json(content))
+    (StatusCode::OK, Json(response))
 }
