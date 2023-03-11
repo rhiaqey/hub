@@ -30,8 +30,7 @@ async fn get_metrics() -> impl IntoResponse {
 }
 
 async fn get_version() -> &'static str {
-    const VERSION: &str = env!("CARGO_PKG_VERSION");
-    VERSION
+    env!("CARGO_PKG_VERSION")
 }
 
 pub async fn start_private_http_server(

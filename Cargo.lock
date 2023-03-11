@@ -527,9 +527,9 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
-version = "0.14.24"
+version = "0.14.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e011372fa0b68db8350aa7a248930ecc7839bf46d8485577d69f117a75f164c"
+checksum = "cc5e554ff619822309ffd57d8734d77cd5ce6238bc956f037ea06c58238c9899"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -893,7 +893,7 @@ checksum = "456c603be3e8d448b072f410900c09faf164fbce2d480456f50eea6e25f9c848"
 [[package]]
 name = "rhiaqey-common"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/common.git#d285bab7ce634155aae3fe64f967de48a7962747"
+source = "git+https://github.com/rhiaqey/common.git#8fc14ffacc7df00f0c430df1365bf9cd58ef9d1e"
 dependencies = [
  "env_logger",
  "envy",
@@ -903,6 +903,7 @@ dependencies = [
  "rustis",
  "serde",
  "serde_json",
+ "tokio",
  "uuid",
 ]
 
@@ -932,7 +933,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/sdk.git#34740f1974a1eea8631203df65e9c6bb93ef97b5"
+source = "git+https://github.com/rhiaqey/sdk.git#0792c8cdd5dd63ab77cd3a21ad0f0403cbd3ad70"
 dependencies = [
  "async-trait",
  "serde",
