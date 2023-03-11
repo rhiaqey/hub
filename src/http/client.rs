@@ -13,7 +13,7 @@ pub struct WebSocketClient {
     id: Uuid,
     sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     receiver: Arc<Mutex<SplitStream<WebSocket>>>,
-    join_handler: Option<Arc<JoinHandle<u32>>>,
+    join_handler: Option<Arc<JoinHandle<()>>>,
 }
 
 impl WebSocketClient {
@@ -36,32 +36,42 @@ impl WebSocketClient {
         let rx = self.receiver.clone();
 
         let join_handler = tokio::task::spawn(async move {
-            loop {
-                while let Some(Ok(_msg)) = rx.lock().await.next().await {
-                    debug!("received data from client");
+            'outer: while let Some(Ok(msg)) = rx.lock().await.next().await {
+                debug!("received message {:?}", msg);
 
-                    warn!("closing connection");
-
-                    if let Err(e) = sx
-                        .lock()
-                        .await
-                        .send(Message::Close(Some(CloseFrame {
-                            code: axum::extract::ws::close_code::NORMAL,
-                            reason: Cow::from("invalid body"),
-                        })))
-                        .await
-                    {
-                        warn!("could not send Close due to {}, probably it is ok?", e);
+                match msg {
+                    Message::Ping(_) => {
+                        // handled automatically by axum
                     }
-
-                    if let Err(e) = sx.lock().await.close().await {
-                        warn!(
-                            "could not close connection due to {}, probably it is ok?",
-                            e
-                        );
+                    Message::Pong(_) => {
+                        // handled automatically by axum
                     }
+                    _ => {
+                        // text. binary, close
+                        // if we receive any data or close frame we close the connection
+                        debug!("received data from client");
 
-                    break;
+                        if let Err(e) = sx
+                            .lock()
+                            .await
+                            .send(Message::Close(Some(CloseFrame {
+                                code: axum::extract::ws::close_code::NORMAL,
+                                reason: Cow::from("invalid body"),
+                            })))
+                            .await
+                        {
+                            warn!("could not send Close due to {}, probably it is ok?", e);
+                        }
+
+                        if let Err(e) = sx.lock().await.close().await {
+                            warn!(
+                                "could not close connection due to {}, probably it is ok?",
+                                e
+                            );
+                        }
+
+                        break 'outer;
+                    }
                 }
             }
         });
