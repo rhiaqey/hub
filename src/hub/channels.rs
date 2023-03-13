@@ -53,6 +53,7 @@ impl StreamingChannel {
             self.channel.name.clone(),
         );
 
+        let channel_size = self.channel.size;
         let redis = self.redis.as_mut().unwrap().clone();
         let message_handler = self.message_handler.as_mut().unwrap().clone();
 
@@ -83,7 +84,11 @@ impl StreamingChannel {
                         message_handler
                             .lock()
                             .await
-                            .handle_raw_stream_message(stream_message)
+                            .handle_raw_stream_message_from_publishers(
+                                stream_message,
+                                raw.to_string(),
+                                channel_size,
+                            )
                             .await;
                     }
                 }
