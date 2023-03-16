@@ -3,7 +3,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
@@ -11,7 +11,7 @@ use rhiaqey_common::topics;
 use rhiaqey_sdk::channel::Channel;
 use rustis::client::Client;
 use rustis::commands::{
-    GenericCommands, ScanOptions, StreamCommands, StreamEntry, XReadGroupOptions,
+    GenericCommands, ScanOptions, StreamCommands, StreamEntry, XReadGroupOptions, XReadOptions,
 };
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -110,14 +110,47 @@ impl StreamingChannel {
         self.clients.lock().await.push(connection_id);
     }
 
-    pub async fn get_snapshot(&mut self) -> String {
+    pub async fn get_snapshot(&mut self) -> Vec<StreamMessage> {
         let keys = self.get_snapshot_keys().await;
-        info!("keys are here {:?}", keys);
-        // TODO: xread here for all keys of the channel
-        "hello world".try_into().unwrap()
+        debug!("keys are here {:?}", keys);
+
+        if keys.len() == 0 {
+            return Vec::new();
+        }
+
+        let mut messages = Vec::new();
+
+        let ids = vec![0; keys.len()];
+        debug!("ids are key {:?}", ids);
+
+        let mut options = XReadOptions::default();
+        options = options.count(self.channel.size);
+
+        let results: Vec<(String, Vec<StreamEntry<String>>)> = self
+            .redis
+            .as_mut()
+            .unwrap()
+            .lock()
+            .await
+            .xread(options, keys, ids)
+            .await
+            .unwrap();
+
+        for (_key, entries) in results {
+            for entry in entries {
+                for (_key, value) in entry.items.into_iter() {
+                    let raw: StreamMessage = serde_json::from_str(value.as_str()).unwrap();
+                    messages.push(raw);
+                }
+            }
+        }
+
+        debug!("message count {:?}", messages.len());
+
+        messages
     }
 
-    pub async fn get_snapshot_keys(&mut self) -> Vec<String> {
+    async fn get_snapshot_keys(&mut self) -> Vec<String> {
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.clone(),

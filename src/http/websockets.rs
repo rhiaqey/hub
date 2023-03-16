@@ -109,6 +109,7 @@ async fn handle_ws_connection(
     debug!("client {who} just joined in");
 
     for channel in added_channels {
+        let channel_name = channel.name.clone();
         let mut data = client_message.clone();
 
         data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
@@ -124,7 +125,42 @@ async fn handle_ws_connection(
             client.close().await.expect("failed to close connection");
             return; // disconnect
         }
+
+        let streaming_channel = streaming_channels.get_mut(channel_name.as_str());
+        if let Some(chx) = streaming_channel {
+            let snapshot = chx.get_snapshot().await;
+            for stream_message in snapshot {
+                let client_message = ClientMessage::from(stream_message);
+                let raw = serde_json::to_vec(&client_message).unwrap();
+                if let Err(e) = client.send(Message::Binary(raw)).await {
+                    warn!("could not send binary data due to {}", e);
+                    client.close().await.expect("failed to close connection");
+                    return; // disconnect
+                }
+            }
+        }
     }
+
+    /*
+    for channel in &added_channels {
+        let streaming_channel = streaming_channels.get_mut(channel.name.as_str());
+        if let Some(chx) = streaming_channel {
+            let snapshot = chx.get_snapshot().await;
+            let mut data = client_message.clone();
+            data.data_type = ClientMessageDataType::Data as u8;
+            data.channel = channel.name.clone();
+            data.key = channel.name.clone();
+            for stream_message in snapshot {
+                data.value = ClientMessageValue::Data(stream_message.value);
+                let raw = serde_json::to_vec(&data).unwrap();
+                if let Err(e) = client.send(Message::Binary(raw)).await {
+                    warn!("could not send binary data due to {}", e);
+                    client.close().await.expect("failed to close connection");
+                    return; // disconnect
+                }
+            }
+        }
+    }*/
 
     client.listen();
 
