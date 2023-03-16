@@ -1,13 +1,11 @@
-use log::{debug, info, warn};
+use log::{debug, info};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk::channel::Channel;
 use rustis::client::Client;
-use rustis::commands::{
-    PubSubCommands, StreamCommands, StreamEntry, XAddOptions, XTrimOperator, XTrimOptions,
-};
+use rustis::commands::{PubSubCommands, StreamCommands, XAddOptions, XTrimOperator, XTrimOptions};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -40,18 +38,7 @@ impl MessageHandler {
     ) {
         debug!("handle raw stream message {:?}", stream_message);
 
-        let key = topics::publisher_channels_snapshot(
-            self.namespace.clone(),
-            stream_message.channel.clone(),
-            stream_message.key.clone(),
-            stream_message
-                .category
-                .clone()
-                .unwrap_or("default".to_string()),
-        );
-
-        info!("key generated for snapshot: {}", key);
-
+        /*
         let results: Result<Vec<StreamEntry<String>>, _> = self
             .redis
             .as_mut()
@@ -70,7 +57,7 @@ impl MessageHandler {
 
         if entries.len() > 0 {
             debug!("results from snapshot key {:?}", entries.len());
-        }
+        }*/
 
         let notify_message = stream_message.clone();
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());

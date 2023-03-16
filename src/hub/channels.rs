@@ -3,14 +3,16 @@ use std::thread;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
-use log::warn;
+use log::{debug, info, warn};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk::channel::Channel;
 use rustis::client::Client;
-use rustis::commands::{StreamCommands, StreamEntry, XReadGroupOptions};
+use rustis::commands::{
+    GenericCommands, ScanOptions, StreamCommands, StreamEntry, XReadGroupOptions,
+};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -106,6 +108,54 @@ impl StreamingChannel {
 
     pub async fn add_client(&mut self, connection_id: Uuid) {
         self.clients.lock().await.push(connection_id);
+    }
+
+    pub async fn get_snapshot(&mut self) -> String {
+        let keys = self.get_snapshot_keys().await;
+        info!("keys are here {:?}", keys);
+        // TODO: xread here for all keys of the channel
+        "hello world".try_into().unwrap()
+    }
+
+    pub async fn get_snapshot_keys(&mut self) -> Vec<String> {
+        let snapshot_topic = topics::hub_channel_snapshot_topic(
+            self.namespace.clone(),
+            self.channel.name.clone(),
+            String::from("*"),
+            String::from("*"),
+        );
+
+        let mut count = 0u64;
+        let mut keys: Vec<String> = vec![];
+
+        loop {
+            let mut options = ScanOptions::default();
+            options = options.match_pattern(snapshot_topic.clone());
+            let result = self
+                .redis
+                .as_mut()
+                .unwrap()
+                .lock()
+                .await
+                .scan(count, options)
+                .await;
+
+            if result.is_ok() {
+                let mut entries: (u64, Vec<String>) = result.unwrap();
+                count = entries.0;
+                keys.append(&mut entries.1);
+
+                if count == 0 {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        debug!("found {} keys", keys.len());
+
+        keys
     }
 }
 

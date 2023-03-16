@@ -65,6 +65,7 @@ async fn handle_ws_connection(
 ) {
     debug!("channels found {:?}", channels);
 
+    let hub_id = &state.env.id;
     let client_id = Uuid::new_v4();
     let mut added_channels: Vec<Channel> = vec![];
     let mut streaming_channels = state.streams.lock().await;
@@ -73,6 +74,8 @@ async fn handle_ws_connection(
         let streaming_channel = streaming_channels.get_mut(channel.as_str());
         if let Some(chx) = streaming_channel {
             chx.add_client(client_id).await;
+            let snapshot = chx.get_snapshot().await;
+            debug!("snapshot ready {:?}", snapshot);
             added_channels.push(chx.channel.clone());
             debug!("client joined channel {}", channel.as_str());
         } else {
@@ -86,6 +89,7 @@ async fn handle_ws_connection(
         key: "".to_string(),
         value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
             client_id: client_id.to_string(),
+            hub_id: hub_id.to_string(),
         }),
         tag: None,
         category: None,
