@@ -18,6 +18,7 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 pub struct StreamingChannel {
+    hub_id: String,
     pub channel: Channel,
     pub namespace: String,
     pub redis: Option<Arc<Mutex<Client>>>,
@@ -27,8 +28,9 @@ pub struct StreamingChannel {
 }
 
 impl StreamingChannel {
-    pub async fn create(namespace: String, channel: Channel) -> StreamingChannel {
+    pub async fn create(hub_id: String, namespace: String, channel: Channel) -> StreamingChannel {
         StreamingChannel {
+            hub_id,
             channel,
             namespace,
             redis: None,
@@ -42,7 +44,13 @@ impl StreamingChannel {
         let connection = connect_and_ping(config.clone()).await.unwrap();
         self.redis = Some(Arc::new(Mutex::new(connection)));
         self.message_handler = Some(Arc::new(Mutex::new(
-            MessageHandler::create(self.namespace.clone(), self.channel.clone(), config).await,
+            MessageHandler::create(
+                self.hub_id.clone(),
+                self.namespace.clone(),
+                self.channel.clone(),
+                config,
+            )
+            .await,
         )));
     }
 
@@ -86,11 +94,7 @@ impl StreamingChannel {
                         message_handler
                             .lock()
                             .await
-                            .handle_raw_stream_message_from_publishers(
-                                stream_message,
-                                raw.to_string(),
-                                channel_size,
-                            )
+                            .handle_raw_stream_message_from_publishers(stream_message, channel_size)
                             .await;
                     }
                 }

@@ -105,6 +105,7 @@ pub async fn create_channels(
     // 2. for every channel we create and store a streaming channel
 
     let mut total_channels = 0;
+    let hub_id = state.env.id.clone();
     let namespace = state.env.namespace.clone();
 
     for channel in &payload.channels.channels {
@@ -115,7 +116,7 @@ pub async fn create_channels(
         }
 
         let mut streaming_channel =
-            StreamingChannel::create(namespace.clone(), channel.clone()).await;
+            StreamingChannel::create(hub_id.clone(), namespace.clone(), channel.clone()).await;
 
         let streaming_channel_name = streaming_channel.get_name();
         streaming_channel.setup(state.env.redis.clone()).await;

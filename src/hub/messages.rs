@@ -10,6 +10,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct MessageHandler {
+    hub_id: String,
     pub namespace: String,
     pub channel: Channel,
     pub redis: Option<Arc<Mutex<Client>>>,
@@ -18,12 +19,14 @@ pub struct MessageHandler {
 /// On message handler per channel
 impl MessageHandler {
     pub async fn create(
+        hub_id: String,
         namespace: String,
         channel: Channel,
         config: RedisSettings,
     ) -> MessageHandler {
         let connection = connect_and_ping(config).await.unwrap();
         MessageHandler {
+            hub_id,
             namespace,
             channel,
             redis: Some(Arc::new(Mutex::new(connection))),
@@ -33,33 +36,16 @@ impl MessageHandler {
     pub async fn handle_raw_stream_message_from_publishers(
         &mut self,
         stream_message: StreamMessage,
-        raw_message: String,
         channel_size: usize,
     ) {
-        debug!("handle raw stream message {:?}", stream_message);
+        debug!("handle raw stream message");
 
-        /*
-        let results: Result<Vec<StreamEntry<String>>, _> = self
-            .redis
-            .as_mut()
-            .unwrap()
-            .lock()
-            .await
-            .xrevrange(key, "+", "-", Some(1))
-            .await;
+        let channel_size = stream_message.size.unwrap_or(channel_size) as i64;
+        let mut notify_message = stream_message.clone();
+        notify_message.hub_id = Some(self.hub_id.clone());
 
-        if results.is_err() {
-            warn!("error with results");
-            return;
-        }
+        let raw_message = serde_json::to_string(&stream_message).unwrap();
 
-        let entries = results.unwrap_or(vec![]);
-
-        if entries.len() > 0 {
-            debug!("results from snapshot key {:?}", entries.len());
-        }*/
-
-        let notify_message = stream_message.clone();
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
@@ -84,10 +70,7 @@ impl MessageHandler {
         info!("message sent to pubsub {}", clean_topic);
 
         let xadd_options = XAddOptions::default();
-        let trim_options = XTrimOptions::max_len(
-            XTrimOperator::Equal,
-            stream_message.size.unwrap_or(channel_size) as i64,
-        );
+        let trim_options = XTrimOptions::max_len(XTrimOperator::Equal, channel_size);
 
         let id: String = self
             .redis
