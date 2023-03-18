@@ -122,9 +122,7 @@ impl Hub {
         let public_port = self.get_public_port();
         let public_state = Arc::clone(&shared_state);
 
-        tokio::spawn(
-            async move { start_public_http_server(public_port, public_state.clone()).await },
-        );
+        tokio::spawn(start_public_http_server(public_port, public_state.clone()));
 
         let mut pubsub_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
 
