@@ -10,7 +10,7 @@ use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
 use axum::extract::ws::Message;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
-use rhiaqey_common::client::{ClientMessage, ClientMessageDataType, ClientMessageValue};
+use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::connect_and_ping;
@@ -164,16 +164,7 @@ impl Hub {
 
                                 let mut all_hub_clients = clients.lock().await;
 
-                                let client_message = ClientMessage {
-                                    data_type: ClientMessageDataType::Data as u8,
-                                    channel: stream_message.channel,
-                                    key: stream_message.key,
-                                    value: ClientMessageValue::Data(stream_message.value),
-                                    tag: stream_message.tag,
-                                    category: stream_message.category,
-                                    hub_id: stream_message.hub_id,
-                                    publisher_id: stream_message.publisher_id
-                                };
+                                let client_message = ClientMessage::from(stream_message);
 
                                 let raw = serde_json::to_vec(&client_message).unwrap();
 
