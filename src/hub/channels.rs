@@ -55,27 +55,26 @@ impl StreamingChannel {
     }
 
     pub async fn start(&mut self) {
-        let duration = Duration::from_millis(250);
+        let id = self.hub_id.clone();
+        let channel = self.channel.clone();
+        let namespace = self.namespace.clone();
+        let duration = Duration::from_millis(150);
 
-        let size = self.channel.size;
-        let topic = topics::publishers_to_hub_stream_topic(
-            self.namespace.clone(),
-            self.channel.name.clone(),
-        );
-
-        let channel_size = self.channel.size;
         let redis = self.redis.as_mut().unwrap().clone();
         let message_handler = self.message_handler.as_mut().unwrap().clone();
 
         let join_handler = tokio::task::spawn(async move {
+            let id = id.clone();
+            let topic = topics::publishers_to_hub_stream_topic(namespace, channel.name);
+
             loop {
                 let results: rustis::Result<Vec<(String, Vec<StreamEntry<String>>)>> = redis
                     .lock()
                     .await
                     .xreadgroup(
                         "hub",
-                        "hub1",
-                        XReadGroupOptions::default().count(size),
+                        id.clone(),
+                        XReadGroupOptions::default().count(channel.size),
                         topic.clone(),
                         ">",
                     )
@@ -94,7 +93,7 @@ impl StreamingChannel {
                         message_handler
                             .lock()
                             .await
-                            .handle_raw_stream_message_from_publishers(stream_message, channel_size)
+                            .handle_raw_stream_message_from_publishers(stream_message, channel.size)
                             .await;
                     }
                 }
