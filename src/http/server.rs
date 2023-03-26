@@ -49,7 +49,7 @@ async fn get_auth(
     info!("authenticating against api_key");
 
     if query.api_key.is_none() {
-        return (StatusCode::UNAUTHORIZED, "Unauthorized access key");
+        return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
     let key = query.api_key.clone().unwrap();
@@ -59,7 +59,7 @@ async fn get_auth(
     if settings.api_keys.contains(&api_key) {
         (StatusCode::OK, "OK")
     } else {
-        (StatusCode::UNAUTHORIZED, "Unauthorized access key")
+        (StatusCode::UNAUTHORIZED, "Unauthorized access")
     }
 }
 
