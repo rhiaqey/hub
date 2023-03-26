@@ -72,10 +72,10 @@ async fn get_auth(
 ) -> impl IntoResponse {
     info!("authenticating with api_key");
 
-    if query.api_key.is_some() {
+    if let Some(query_api_key) = query.api_key.clone() {
         info!("query api key found");
 
-        return if valid_api_key(query.api_key.clone().unwrap(), state).await {
+        return if valid_api_key(query_api_key, state).await {
             (StatusCode::OK, "OK")
         } else {
             (StatusCode::UNAUTHORIZED, "Unauthorized access")
