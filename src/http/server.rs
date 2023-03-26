@@ -39,7 +39,7 @@ async fn get_version() -> &'static str {
 
 #[derive(Debug, Deserialize)]
 struct AuthenticationQueryParams {
-    pub api_key: String,
+    pub api_key: Option<String>,
 }
 
 async fn get_auth(
@@ -49,7 +49,15 @@ async fn get_auth(
     info!("authenticating against api_key");
 
     let key = query.api_key.clone();
-    let api_key = HubSettingsApiKey { key: digest(key) };
+
+    if key.is_none() {
+        return (StatusCode::UNAUTHORIZED, "Unauthorized access key");
+    }
+
+    let raw_key = key.unwrap().clone();
+    let api_key = HubSettingsApiKey {
+        key: digest(raw_key),
+    };
 
     let settings = state.settings.lock().await;
 
