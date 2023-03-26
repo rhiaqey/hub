@@ -48,17 +48,12 @@ async fn get_auth(
 ) -> impl IntoResponse {
     info!("authenticating against api_key");
 
-    let key = query.api_key.clone();
-
-    if key.is_none() {
+    if query.api_key.is_none() {
         return (StatusCode::UNAUTHORIZED, "Unauthorized access key");
     }
 
-    let raw_key = key.unwrap().clone();
-    let api_key = HubSettingsApiKey {
-        key: digest(raw_key),
-    };
-
+    let key = query.api_key.clone().unwrap();
+    let api_key = HubSettingsApiKey { key: digest(key) };
     let settings = state.settings.lock().await;
 
     if settings.api_keys.contains(&api_key) {
