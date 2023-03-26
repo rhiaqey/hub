@@ -83,9 +83,10 @@ async fn get_auth(
     }
 
     if headers.contains_key("x-forwarded-uri") {
-        info!("x-forwarded-uri found");
-
         let path = headers.get("x-forwarded-uri").unwrap().to_str().unwrap();
+
+        info!("x-forwarded-uri found {}", path);
+
         if let Some(api_key) = extract_api_key(path) {
             if valid_api_key(api_key, state).await {
                 return (StatusCode::OK, "OK");

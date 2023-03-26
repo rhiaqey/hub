@@ -123,7 +123,7 @@ impl Hub {
     pub async fn set_settings(&mut self, settings: HubSettings) {
         let mut locked_settings = self.settings.lock().await;
         *locked_settings = settings.clone();
-        info!("new settings updated {:?}", settings);
+        debug!("new settings updated {:?}", settings);
     }
 
     pub async fn setup(config: Env) -> Result<Hub, String> {
