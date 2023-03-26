@@ -3,16 +3,19 @@ use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
 use crate::hub::settings::HubSettingsApiKey;
-use axum::http::{HeaderMap, Request};
+use axum::extract::Query;
+use axum::http::HeaderMap;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
-use hyper::Body;
 use log::info;
 use prometheus::{Encoder, TextEncoder};
+use serde::Deserialize;
 use sha256::digest;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use url::Url;
 
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK
@@ -37,30 +40,58 @@ async fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-async fn get_auth(
-    req: Request<Body>,
-    // headers: HeaderMap,
-    // state: Arc<SharedState>,
-) -> impl IntoResponse {
-    info!("authenticating against x-api-key");
+#[derive(Debug, Deserialize)]
+struct AuthenticationQueryParams {
+    pub api_key: Option<String>,
+}
 
-    info!("REQ DUMP {:?}", req);
-    /*
-    let x_api_key = headers.get("x-api-key");
-
-    if x_api_key.is_none() {
-        return (StatusCode::UNAUTHORIZED, "Unauthorized access");
-    }
-
-    let key = String::from(x_api_key.unwrap().to_str().unwrap());
+async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
     let api_key = HubSettingsApiKey { key: digest(key) };
     let settings = state.settings.lock().await;
+    settings.api_keys.contains(&api_key)
+}
 
-    if settings.api_keys.contains(&api_key) {
-        (StatusCode::OK, "OK")
-    } else {
-        (StatusCode::UNAUTHORIZED, "Unauthorized access")
-    }*/
+fn extract_api_key(relative_path: &str) -> Option<String> {
+    let full = format!("http://localhost{}", relative_path);
+
+    if let Ok(parts) = Url::parse(full.as_str()) {
+        let queries: HashMap<_, _> = parts.query_pairs().collect();
+        if queries.contains_key("api_key") {
+            let api_key = queries.get("api_key").unwrap().to_string();
+            return Some(api_key);
+        }
+    }
+
+    None
+}
+
+async fn get_auth(
+    headers: HeaderMap,
+    query: Query<AuthenticationQueryParams>,
+    state: Arc<SharedState>,
+) -> impl IntoResponse {
+    info!("authenticating with api_key");
+
+    if query.api_key.is_some() {
+        info!("query api key found");
+
+        return if valid_api_key(query.api_key.clone().unwrap(), state).await {
+            (StatusCode::OK, "OK")
+        } else {
+            (StatusCode::UNAUTHORIZED, "Unauthorized access")
+        };
+    }
+
+    if headers.contains_key("x-forwarded-uri") {
+        info!("x-forwarded-uri found");
+
+        let path = headers.get("x-forwarded-uri").unwrap().to_str().unwrap();
+        if let Some(api_key) = extract_api_key(path) {
+            if valid_api_key(api_key, state).await {
+                return (StatusCode::OK, "OK");
+            }
+        }
+    }
 
     (StatusCode::UNAUTHORIZED, "Unauthorized access")
 }
@@ -77,8 +108,8 @@ pub async fn start_private_http_server(
         .route(
             "/auth",
             get({
-                // let shared_state = Arc::clone(&shared_state);
-                move |req| get_auth(req)
+                let shared_state = Arc::clone(&shared_state);
+                move |headers, query| get_auth(headers, query, shared_state)
             }),
         )
         .route(
