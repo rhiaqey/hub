@@ -5,7 +5,7 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, Query, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::{headers, TypedHeader};
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
     ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
@@ -120,7 +120,11 @@ async fn handle_ws_connection(
         );
 
         let raw = serde_json::to_vec(&data).unwrap();
-        client.send(Message::Binary(raw)).await.unwrap();
+        if let Ok(_) = client.send(Message::Binary(raw)).await {
+            trace!("channel subscription message sent successfully");
+        } else {
+            warn!("could not send subscription message");
+        }
 
         let streaming_channel = streaming_channels.get_mut(channel_name.as_str());
         if let Some(chx) = streaming_channel {
@@ -128,7 +132,11 @@ async fn handle_ws_connection(
             for stream_message in snapshot {
                 let client_message = ClientMessage::from(stream_message);
                 let raw = serde_json::to_vec(&client_message).unwrap();
-                client.send(Message::Binary(raw)).await.unwrap();
+                if let Ok(_) = client.send(Message::Binary(raw)).await {
+                    trace!("channel snapshot message sent successfully");
+                } else {
+                    warn!("could not send snapshot message");
+                }
             }
         }
     }
