@@ -3,10 +3,11 @@ use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
 use crate::hub::settings::HubSettingsApiKey;
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, Request};
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
+use hyper::Body;
 use log::info;
 use prometheus::{Encoder, TextEncoder};
 use sha256::digest;
@@ -36,9 +37,15 @@ async fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-async fn get_auth(headers: HeaderMap, state: Arc<SharedState>) -> impl IntoResponse {
+async fn get_auth(
+    req: Request<Body>,
+    // headers: HeaderMap,
+    // state: Arc<SharedState>,
+) -> impl IntoResponse {
     info!("authenticating against x-api-key");
 
+    info!("REQ DUMP {:?}", req);
+    /*
     let x_api_key = headers.get("x-api-key");
 
     if x_api_key.is_none() {
@@ -53,7 +60,9 @@ async fn get_auth(headers: HeaderMap, state: Arc<SharedState>) -> impl IntoRespo
         (StatusCode::OK, "OK")
     } else {
         (StatusCode::UNAUTHORIZED, "Unauthorized access")
-    }
+    }*/
+
+    (StatusCode::UNAUTHORIZED, "Unauthorized access")
 }
 
 pub async fn start_private_http_server(
@@ -68,8 +77,8 @@ pub async fn start_private_http_server(
         .route(
             "/auth",
             get({
-                let shared_state = Arc::clone(&shared_state);
-                move |headers| get_auth(headers, shared_state)
+                // let shared_state = Arc::clone(&shared_state);
+                move |req| get_auth(req)
             }),
         )
         .route(
