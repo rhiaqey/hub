@@ -3,13 +3,12 @@ use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
 use crate::hub::settings::HubSettingsApiKey;
-use axum::extract::Query;
+use axum::http::HeaderMap;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
 use log::info;
 use prometheus::{Encoder, TextEncoder};
-use serde::Deserialize;
 use sha256::digest;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -37,22 +36,16 @@ async fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-#[derive(Debug, Deserialize)]
-struct AuthenticationQueryParams {
-    pub api_key: Option<String>,
-}
+async fn get_auth(headers: HeaderMap, state: Arc<SharedState>) -> impl IntoResponse {
+    info!("authenticating against x-api-key");
 
-async fn get_auth(
-    query: Query<AuthenticationQueryParams>,
-    state: Arc<SharedState>,
-) -> impl IntoResponse {
-    info!("authenticating against api_key");
+    let x_api_key = headers.get("x-api-key");
 
-    if query.api_key.is_none() {
+    if x_api_key.is_none() {
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
-    let key = query.api_key.clone().unwrap();
+    let key = String::from(x_api_key.unwrap().to_str().unwrap());
     let api_key = HubSettingsApiKey { key: digest(key) };
     let settings = state.settings.lock().await;
 
@@ -76,7 +69,7 @@ pub async fn start_private_http_server(
             "/auth",
             get({
                 let shared_state = Arc::clone(&shared_state);
-                move |body| get_auth(body, shared_state)
+                move |headers| get_auth(headers, shared_state)
             }),
         )
         .route(
