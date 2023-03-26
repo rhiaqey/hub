@@ -65,93 +65,86 @@ async fn handle_ws_connection(
 ) {
     debug!("channels found {:?}", channels);
 
-    let all_channels = Arc::new(channels);
+    let hub_id = &state.env.id;
+    let client_id = Uuid::new_v4();
+    let mut added_channels: Vec<Channel> = vec![];
+    let mut streaming_channels = state.streams.lock().await;
 
-    let hub_id = state.env.id.clone();
-    let streams = state.streams.clone();
+    for channel in channels {
+        let streaming_channel = streaming_channels.get_mut(channel.as_str());
+        if let Some(chx) = streaming_channel {
+            chx.add_client(client_id).await;
+            let snapshot = chx.get_snapshot().await;
+            debug!("snapshot ready {:?}", snapshot);
+            added_channels.push(chx.channel.clone());
+            debug!("client joined channel {}", channel.as_str());
+        } else {
+            warn!("could not find channel {}", channel.as_str());
+        }
+    }
 
-    tokio::spawn(async move {
-        let hub_id = hub_id.clone();
-        let client_id = Uuid::new_v4();
-        let mut added_channels: Vec<Channel> = vec![];
-        let mut streaming_channels = streams.lock().await;
+    let client_message = ClientMessage {
+        data_type: ClientMessageDataType::ClientConnection as u8,
+        channel: "".to_string(),
+        key: "".to_string(),
+        value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
+            client_id: client_id.to_string(),
+            hub_id: hub_id.to_string(),
+        }),
+        tag: None,
+        category: None,
+        hub_id: None,
+        publisher_id: None,
+    };
 
-        for channel in all_channels.iter() {
-            let streaming_channel = streaming_channels.get_mut(channel.as_str());
-            if let Some(chx) = streaming_channel {
-                chx.add_client(client_id).await;
-                let snapshot = chx.get_snapshot().await;
-                debug!("snapshot ready {:?}", snapshot);
-                added_channels.push(chx.channel.clone());
-                debug!("client joined channel {}", channel.as_str());
-            } else {
-                warn!("could not find channel {}", channel.as_str());
-            }
+    let raw = serde_json::to_vec(&client_message).unwrap();
+
+    let mut client = WebSocketClient::create(client_id, socket);
+
+    if let Err(e) = client.send(Message::Binary(raw)).await {
+        warn!("Could not send binary data due to {}", e);
+        return;
+    }
+
+    debug!("client {who} just joined in");
+
+    for channel in added_channels {
+        let channel_name = channel.name.clone();
+        let mut data = client_message.clone();
+
+        data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
+        data.channel = channel.name.clone();
+        data.key = channel.name.clone();
+        data.value = ClientMessageValue::ClientChannelSubscription(
+            ClientMessageValueClientChannelSubscription { channel },
+        );
+
+        let raw = serde_json::to_vec(&data).unwrap();
+        if let Ok(_) = client.send(Message::Binary(raw)).await {
+            trace!("channel subscription message sent successfully");
+        } else {
+            warn!("could not send subscription message");
         }
 
-        let client_message = ClientMessage {
-            data_type: ClientMessageDataType::ClientConnection as u8,
-            channel: "".to_string(),
-            key: "".to_string(),
-            value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
-                client_id: client_id.to_string(),
-                hub_id: hub_id.to_string(),
-            }),
-            tag: None,
-            category: None,
-            hub_id: None,
-            publisher_id: None,
-        };
-
-        let raw = serde_json::to_vec(&client_message).unwrap();
-
-        let mut client = WebSocketClient::create(client_id, socket);
-
-        if let Err(e) = client.send(Message::Binary(raw)).await {
-            warn!("Could not send binary data due to {}", e);
-            return;
-        }
-
-        debug!("client {who} just joined in");
-
-        for channel in added_channels {
-            let channel_name = channel.name.clone();
-            let mut data = client_message.clone();
-
-            data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
-            data.channel = channel.name.clone();
-            data.key = channel.name.clone();
-            data.value = ClientMessageValue::ClientChannelSubscription(
-                ClientMessageValueClientChannelSubscription { channel },
-            );
-
-            let raw = serde_json::to_vec(&data).unwrap();
-            if let Ok(_) = client.send(Message::Binary(raw)).await {
-                trace!("channel subscription message sent successfully");
-            } else {
-                warn!("could not send subscription message");
-            }
-
-            let streaming_channel = streaming_channels.get_mut(channel_name.as_str());
-            if let Some(chx) = streaming_channel {
-                let snapshot = chx.get_snapshot().await;
-                for stream_message in snapshot {
-                    let client_message = ClientMessage::from(stream_message);
-                    let raw = serde_json::to_vec(&client_message).unwrap();
-                    if let Ok(_) = client.send(Message::Binary(raw)).await {
-                        trace!("channel snapshot message sent successfully");
-                    } else {
-                        warn!("could not send snapshot message");
-                    }
+        let streaming_channel = streaming_channels.get_mut(channel_name.as_str());
+        if let Some(chx) = streaming_channel {
+            let snapshot = chx.get_snapshot().await;
+            for stream_message in snapshot {
+                let client_message = ClientMessage::from(stream_message);
+                let raw = serde_json::to_vec(&client_message).unwrap();
+                if let Ok(_) = client.send(Message::Binary(raw)).await {
+                    trace!("channel snapshot message sent successfully");
+                } else {
+                    warn!("could not send snapshot message");
                 }
             }
         }
+    }
 
-        client.listen();
+    client.listen();
 
-        state.clients.lock().await.insert(client.get_id(), client);
-        TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
+    state.clients.lock().await.insert(client.get_id(), client);
+    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
-        debug!("client {} was stored", client_id);
-    });
+    debug!("client was stored")
 }
