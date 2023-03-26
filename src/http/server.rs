@@ -2,11 +2,13 @@ use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
+use axum::extract::Query;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
-use log::info;
+use log::{debug, info};
 use prometheus::{Encoder, TextEncoder};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -33,6 +35,17 @@ async fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+#[derive(Debug, Deserialize)]
+struct AuthenticationQueryParams {
+    pub api_key: String,
+}
+
+async fn get_auth(query: Query<AuthenticationQueryParams>) -> impl IntoResponse {
+    debug!("query params {:?}", query);
+    debug!("query api_key: {}", query.api_key);
+    (StatusCode::OK, "OK")
+}
+
 pub async fn start_private_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
@@ -42,6 +55,7 @@ pub async fn start_private_http_server(
         .route("/ready", get(get_ready))
         .route("/metrics", get(get_metrics))
         .route("/version", get(get_version))
+        .route("/auth", get(get_auth))
         .route(
             "/admin/channels",
             put({

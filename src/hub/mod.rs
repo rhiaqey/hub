@@ -18,14 +18,28 @@ use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
 use rustis::client::{Client, PubSubStream};
 use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HubSettingsApiKey {
+    pub key: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct HubSettings {
+    pub api_keys: Vec<HubSettingsApiKey>,
+}
+
 #[derive(Clone)]
 pub struct Hub {
     pub env: Arc<Env>,
+    pub settings: Arc<Mutex<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<Uuid, WebSocketClient>>>,
@@ -46,6 +60,10 @@ impl Hub {
 
     pub fn get_public_port(&self) -> u16 {
         self.env.public_port.unwrap()
+    }
+
+    pub fn get_namespace(&self) -> String {
+        self.env.namespace.clone()
     }
 
     pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Option<PubSubStream> {
@@ -86,6 +104,37 @@ impl Hub {
         channel_list.channels
     }
 
+    pub async fn read_settings<T: DeserializeOwned + Default + Debug>(&self) -> Option<T> {
+        let settings_key = topics::hub_settings_key(self.get_namespace());
+
+        let settings_result = self
+            .redis
+            .lock()
+            .await
+            .as_mut()
+            .unwrap()
+            .get(settings_key.clone())
+            .await;
+
+        if settings_result.is_err() {
+            return None;
+        }
+
+        let result: String = settings_result.unwrap();
+
+        let settings: T = serde_json::from_str(result.as_str()).unwrap_or(T::default());
+
+        debug!("settings from {} retrieved {:?}", settings_key, settings);
+
+        Some(settings)
+    }
+
+    pub async fn set_settings(&mut self, settings: HubSettings) {
+        let mut locked_settings = self.settings.lock().await;
+        *locked_settings = settings;
+        debug!("new settings updated");
+    }
+
     pub async fn setup(config: Env) -> Result<Hub, String> {
         let redis_connection = redis::connect(config.redis.clone()).await;
         let result: String = redis_connection
@@ -100,6 +149,7 @@ impl Hub {
 
         Ok(Hub {
             env: Arc::from(config),
+            settings: Arc::from(Mutex::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(redis_connection)),
             clients: Arc::new(Mutex::new(HashMap::new())),
@@ -109,6 +159,7 @@ impl Hub {
     pub async fn start(&mut self) -> hyper::Result<()> {
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
+            settings: self.settings.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
             clients: self.clients.clone(),
@@ -147,8 +198,15 @@ impl Hub {
                     info!("clean message arrived");
 
                     match data.unwrap().data {
+                        RPCMessageData::UpdateSettings(value) => {
+                            info!("updating settings request message arrived");
+                            if let Ok(settings) = value.decode::<HubSettings>() {
+                                self.set_settings(settings).await;
+                                trace!("settings updated correctly");
+                            }
+                        }
                         RPCMessageData::NotifyClients(stream_message) => {
-                            debug!("stream message arrived {:?}", stream_message);
+                            info!("notify clients request message arrived");
 
                             // get streaming channel by channel name
                             let all_hub_streams = streams.lock().await;

@@ -2,8 +2,8 @@ export REDIS_PASSWORD=r6uq43vNsq
 export REDIS_ADDRESS=localhost:6379
 export REDIS_SENTINEL_ADDRESSES=localhost:26379
 
-export ID=hub1
-export NAME=hub
+export ID=fc5e1420-cbec-11ed-afa1-0242ac120002
+export NAME=hub-1
 export NAMESPACE=rhiaqey
 export RUST_BACKTRACE=full
 export RUST_LOG=info

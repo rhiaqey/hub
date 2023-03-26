@@ -1,5 +1,6 @@
 use crate::http::client::WebSocketClient;
 use crate::hub::channels::StreamingChannel;
+use crate::hub::HubSettings;
 use rhiaqey_common::env::Env;
 use rhiaqey_sdk::channel::ChannelList;
 use rhiaqey_sdk::message::MessageValue;
@@ -12,6 +13,7 @@ use uuid::Uuid;
 
 pub struct SharedState {
     pub env: Arc<Env>,
+    pub settings: Arc<Mutex<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<Uuid, WebSocketClient>>>,
