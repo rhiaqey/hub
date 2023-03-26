@@ -1,12 +1,14 @@
 pub mod channels;
 pub mod messages;
 pub mod metrics;
+pub mod settings;
 
 use crate::http::client::WebSocketClient;
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channels::StreamingChannel;
 use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
+use crate::hub::settings::HubSettings;
 use axum::extract::ws::Message;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
@@ -18,23 +20,10 @@ use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
 use rustis::client::{Client, PubSubStream};
 use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct HubSettingsApiKey {
-    pub key: String,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct HubSettings {
-    pub api_keys: Vec<HubSettingsApiKey>,
-}
 
 #[derive(Clone)]
 pub struct Hub {
@@ -104,8 +93,10 @@ impl Hub {
         channel_list.channels
     }
 
-    pub async fn read_settings<T: DeserializeOwned + Default + Debug>(&self) -> Option<T> {
+    pub async fn read_settings(&self) -> Option<HubSettings> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
+
+        info!("reading settings from {}", settings_key);
 
         let settings_result = self
             .redis
@@ -122,17 +113,17 @@ impl Hub {
 
         let result: String = settings_result.unwrap();
 
-        let settings: T = serde_json::from_str(result.as_str()).unwrap_or(T::default());
+        let settings = serde_json::from_str(result.as_str()).unwrap_or(HubSettings::default());
 
-        debug!("settings from {} retrieved {:?}", settings_key, settings);
+        trace!("settings from {} retrieved {:?}", settings_key, settings);
 
         Some(settings)
     }
 
     pub async fn set_settings(&mut self, settings: HubSettings) {
         let mut locked_settings = self.settings.lock().await;
-        *locked_settings = settings;
-        debug!("new settings updated");
+        *locked_settings = settings.clone();
+        info!("new settings updated {:?}", settings);
     }
 
     pub async fn setup(config: Env) -> Result<Hub, String> {
@@ -157,6 +148,11 @@ impl Hub {
     }
 
     pub async fn start(&mut self) -> hyper::Result<()> {
+        if let Some(settings) = self.read_settings().await {
+            self.set_settings(settings).await;
+            info!("setting set successfully")
+        }
+
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
             settings: self.settings.clone(),

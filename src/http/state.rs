@@ -1,6 +1,6 @@
 use crate::http::client::WebSocketClient;
 use crate::hub::channels::StreamingChannel;
-use crate::hub::HubSettings;
+use crate::hub::settings::HubSettings;
 use rhiaqey_common::env::Env;
 use rhiaqey_sdk::channel::ChannelList;
 use rhiaqey_sdk::message::MessageValue;

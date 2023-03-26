@@ -2,13 +2,15 @@ use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
+use crate::hub::settings::HubSettingsApiKey;
 use axum::extract::Query;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
-use log::{debug, info};
+use log::info;
 use prometheus::{Encoder, TextEncoder};
 use serde::Deserialize;
+use sha256::digest;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -40,10 +42,22 @@ struct AuthenticationQueryParams {
     pub api_key: String,
 }
 
-async fn get_auth(query: Query<AuthenticationQueryParams>) -> impl IntoResponse {
-    debug!("query params {:?}", query);
-    debug!("query api_key: {}", query.api_key);
-    (StatusCode::OK, "OK")
+async fn get_auth(
+    query: Query<AuthenticationQueryParams>,
+    state: Arc<SharedState>,
+) -> impl IntoResponse {
+    info!("authenticating against api_key");
+
+    let key = query.api_key.clone();
+    let api_key = HubSettingsApiKey { key: digest(key) };
+
+    let settings = state.settings.lock().await;
+
+    if settings.api_keys.contains(&api_key) {
+        (StatusCode::OK, "OK")
+    } else {
+        (StatusCode::UNAUTHORIZED, "Unauthorized access key")
+    }
 }
 
 pub async fn start_private_http_server(
@@ -55,7 +69,13 @@ pub async fn start_private_http_server(
         .route("/ready", get(get_ready))
         .route("/metrics", get(get_metrics))
         .route("/version", get(get_version))
-        .route("/auth", get(get_auth))
+        .route(
+            "/auth",
+            get({
+                let shared_state = Arc::clone(&shared_state);
+                move |body| get_auth(body, shared_state)
+            }),
+        )
         .route(
             "/admin/channels",
             put({
