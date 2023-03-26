@@ -94,6 +94,8 @@ async fn get_auth(
         }
     }
 
+    info!("HEADER DUMP {:?}", headers);
+
     (StatusCode::UNAUTHORIZED, "Unauthorized access")
 }
 
