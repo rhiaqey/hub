@@ -83,7 +83,8 @@ jobs:
         # against the sigstore community Fulcio instance.
         run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
 
-      - name: Push Charts to GHCR
+      - name: Push Charts to GHCR      
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           mkdir charts
           for pkg in k8s/*; do
