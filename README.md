@@ -1,10 +1,8 @@
 # Hub
 
-Early development stage ( mostly for educational purposes )
+![Hub](https://github.com/rhiaqey/hub/actions/workflows/hub.yml/badge.svg)
 
-## Build status
-
-[![Hub](https://github.com/rhiaqey/hub/actions/workflows/hub.yml/badge.svg)]
+Early development stage ( mostly for educational purposes 
 
 ## Run in github.dev
 
