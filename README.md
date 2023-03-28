@@ -2,6 +2,10 @@
 
 Early development stage ( mostly for educational purposes )
 
+## Build status
+
+[![Hub](https://github.com/rhiaqey/hub/actions/workflows/hub.yml/badge.svg)]
+
 ## Run in github.dev
 
 ### Commands
