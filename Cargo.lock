@@ -913,7 +913,7 @@ dependencies = [
  "log",
  "rhiaqey-sdk",
  "rmp-serde",
- "rustis",
+ "rustis 0.8.3",
  "serde",
  "serde_json",
  "tokio",
@@ -934,7 +934,7 @@ dependencies = [
  "prometheus",
  "rhiaqey-common",
  "rhiaqey-sdk",
- "rustis",
+ "rustis 0.10.2",
  "serde",
  "serde_json",
  "sha256",
@@ -990,6 +990,31 @@ dependencies = [
  "dtoa",
  "fast-float",
  "futures",
+ "itoa",
+ "log",
+ "memchr",
+ "rand",
+ "serde",
+ "smallvec",
+ "socket2",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "rustis"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e0f8d3c24d30ec69b0e3823104eb59c116c860074def8f0478d7b490cf1f2f6"
+dependencies = [
+ "atoi",
+ "bytes",
+ "crc16",
+ "dtoa",
+ "fast-float",
+ "futures-channel",
+ "futures-util",
  "itoa",
  "log",
  "memchr",
