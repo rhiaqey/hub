@@ -9,7 +9,7 @@ use rustis::commands::{PubSubCommands, StringCommands};
 use std::sync::Arc;
 
 async fn update_settings_for_hub(payload: UpdateSettingsRequest, state: Arc<SharedState>) {
-    let mut client = state.redis.lock().await.clone().unwrap();
+    let client = state.redis.lock().await.clone().unwrap();
 
     let hub_key = topics::hub_settings_key(state.get_namespace());
 
@@ -32,7 +32,7 @@ async fn update_settings_for_hub(payload: UpdateSettingsRequest, state: Arc<Shar
 }
 
 async fn update_settings_for_publishers(payload: UpdateSettingsRequest, state: Arc<SharedState>) {
-    let mut client = state.redis.lock().await.clone().unwrap();
+    let client = state.redis.lock().await.clone().unwrap();
 
     let publishers_key =
         topics::publisher_settings_key(state.get_namespace(), payload.name.clone());

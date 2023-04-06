@@ -895,7 +895,7 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 [[package]]
 name = "rhiaqey-common"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/common.git#51a1a8ae7a50abc5aef0cb98fa03781d2b353d94"
+source = "git+https://github.com/rhiaqey/common.git#731e2d2d2bc6e0bd9294c9ed87f43fa6ac3d45b9"
 dependencies = [
  "env_logger",
  "envy",
@@ -969,16 +969,17 @@ dependencies = [
 
 [[package]]
 name = "rustis"
-version = "0.8.3"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db8d3de938874cbab27bac430bf08387fcce10b77d86c5c7684c93fd41c33f56"
+checksum = "1e0f8d3c24d30ec69b0e3823104eb59c116c860074def8f0478d7b490cf1f2f6"
 dependencies = [
  "atoi",
  "bytes",
  "crc16",
  "dtoa",
  "fast-float",
- "futures",
+ "futures-channel",
+ "futures-util",
  "itoa",
  "log",
  "memchr",

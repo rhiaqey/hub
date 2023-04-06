@@ -81,7 +81,8 @@ pub async fn create_channels(
     let hub_channels_key = topics::hub_channels_key(state.get_namespace());
     let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
 
-    let mut pipeline = state.redis.lock().await.as_mut().unwrap().create_pipeline();
+    let redis = state.redis.clone().lock().await.clone().unwrap();
+    let mut pipeline = redis.create_pipeline();
     pipeline.set(hub_channels_key.clone(), content).forget();
 
     // 1. for every channel we create a topic that the publishers can stream to
@@ -154,7 +155,7 @@ pub async fn assign_channels(
 ) -> impl IntoResponse {
     info!("[POST] Assign channels");
 
-    let mut client = state.redis.lock().await.clone().unwrap();
+    let client = state.redis.lock().await.clone().unwrap();
 
     // get channels
 
