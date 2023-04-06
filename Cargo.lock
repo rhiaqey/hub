@@ -923,6 +923,7 @@ dependencies = [
  "axum",
  "env_logger",
  "futures",
+ "http",
  "hyper",
  "lazy_static",
  "log",

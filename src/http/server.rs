@@ -8,13 +8,15 @@ use axum::http::HeaderMap;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
-use log::info;
+use http::{request::Parts as RequestParts, HeaderValue};
+use log::{debug, info, warn};
 use prometheus::{Encoder, TextEncoder};
 use serde::Deserialize;
 use sha256::digest;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
 
 async fn get_ready() -> impl IntoResponse {
@@ -47,7 +49,7 @@ struct AuthenticationQueryParams {
 
 async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
     let api_key = HubSettingsApiKey { key: digest(key) };
-    let settings = state.settings.lock().await;
+    let settings = state.settings.read().unwrap();
     settings.api_keys.contains(&api_key)
 }
 
@@ -82,6 +84,8 @@ async fn get_auth(
         };
     }
 
+    warn!("api key was not found in the url");
+
     if headers.contains_key("x-forwarded-uri") {
         let path = headers.get("x-forwarded-uri").unwrap().to_str().unwrap();
 
@@ -94,7 +98,7 @@ async fn get_auth(
         }
     }
 
-    // info!("all headers {:?}", headers);
+    warn!("api key was not found in the x-forwarded-uri");
 
     (StatusCode::UNAUTHORIZED, "Unauthorized access")
 }
@@ -159,15 +163,43 @@ pub async fn start_public_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
 ) -> hyper::Result<()> {
-    let app = Router::new().route("/", get(get_home)).route(
-        "/ws",
-        get({
-            let shared_state = Arc::clone(&shared_state);
-            move |query_params, ws, user_agent, info| {
-                ws_handler(query_params, ws, user_agent, info, shared_state)
+    let settings = Arc::clone(&shared_state.settings);
+
+    let cors = CorsLayer::new().allow_origin(AllowOrigin::predicate(
+        move |origin: &HeaderValue, _request_parts: &RequestParts| {
+            let settings = settings.read().unwrap();
+            if let Some(domains) = &settings.domains {
+                if let Ok(domain) = std::str::from_utf8(origin.as_bytes()) {
+                    let contains = domains.contains(&domain.to_string());
+                    if contains {
+                        debug!("allowing cors domain {}", domain);
+                    } else {
+                        warn!("cors domain {} is not allowed", domain);
+                    }
+
+                    return contains;
+                }
             }
-        }),
-    );
+
+            warn!("no whitelisted domains found.");
+            warn!("allowing all");
+
+            return true;
+        },
+    ));
+
+    let app = Router::new()
+        .route("/", get(get_home))
+        .route(
+            "/ws",
+            get({
+                let shared_state = Arc::clone(&shared_state);
+                move |query_params, ws, user_agent, info| {
+                    ws_handler(query_params, ws, user_agent, info, shared_state)
+                }
+            }),
+        )
+        .layer(cors);
 
     info!("running public http server @ 0.0.0.0:{}", port);
 

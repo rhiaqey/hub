@@ -21,14 +21,14 @@ use rhiaqey_sdk::channel::{Channel, ChannelList};
 use rustis::client::{Client, PubSubStream};
 use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Hub {
     pub env: Arc<Env>,
-    pub settings: Arc<Mutex<HubSettings>>,
+    pub settings: Arc<RwLock<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<Uuid, WebSocketClient>>>,
@@ -121,7 +121,7 @@ impl Hub {
     }
 
     pub async fn set_settings(&mut self, settings: HubSettings) {
-        let mut locked_settings = self.settings.lock().await;
+        let mut locked_settings = self.settings.write().unwrap();
         *locked_settings = settings.clone();
         debug!("new settings updated {:?}", settings);
     }
@@ -140,7 +140,7 @@ impl Hub {
 
         Ok(Hub {
             env: Arc::from(config),
-            settings: Arc::from(Mutex::new(HubSettings::default())),
+            settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(redis_connection)),
             clients: Arc::new(Mutex::new(HashMap::new())),
