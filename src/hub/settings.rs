@@ -12,8 +12,10 @@ impl PartialEq for HubSettingsApiKey {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct HubSettings {
     #[serde(alias = "ApiKeys")]
     pub api_keys: Vec<HubSettingsApiKey>,
+    #[serde(alias = "Domains")]
+    pub domains: Option<Vec<String>>,
 }
