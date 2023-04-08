@@ -56,6 +56,19 @@ pub async fn ws_handler(
     })
 }
 
+/// Handle each websocket connection here
+async fn handle_ws_connection(
+    socket: WebSocket,
+    who: SocketAddr,
+    channels: Vec<String>,
+    state: Arc<SharedState>,
+) {
+    let client_id = Uuid::new_v4();
+    info!("connection {who} established");
+    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state).await });
+}
+
+/// Handle each client here
 async fn handle_client(
     client_id: Uuid,
     socket: WebSocket,
@@ -144,16 +157,4 @@ async fn handle_client(
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client {client_id} was connected")
-}
-
-/// Actual websocket state machine (one will be spawned per connection)
-async fn handle_ws_connection(
-    socket: WebSocket,
-    who: SocketAddr,
-    channels: Vec<String>,
-    state: Arc<SharedState>,
-) {
-    let client_id = Uuid::new_v4();
-    info!("connection {who} established");
-    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state).await });
 }
