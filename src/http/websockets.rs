@@ -62,6 +62,7 @@ async fn handle_client(
     channels: Vec<String>,
     state: Arc<SharedState>,
 ) {
+    info!("handle client {client_id}");
     debug!("channels found {:?}", channels);
 
     let hub_id = &state.env.id;
@@ -153,6 +154,6 @@ async fn handle_ws_connection(
     state: Arc<SharedState>,
 ) {
     let client_id = Uuid::new_v4();
-    debug!("connection {who} established");
-    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state) });
+    info!("connection {who} established");
+    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state).await });
 }
