@@ -224,6 +224,7 @@ impl Hub {
 
                                 for client_id in all_stream_channel_clients.iter() {
                                     trace!("must notify client {:?}", client_id);
+
                                     match all_hub_clients.get_mut(client_id) {
                                         Some(socket) => {
                                             match socket.send(Message::Binary(raw.clone())).await {
@@ -235,7 +236,7 @@ impl Hub {
                                             }
                                         },
                                         None => {
-                                            warn!("failed to find client by id");
+                                            warn!("failed to find client by id {client_id}");
                                         }
                                     }
                                 }
