@@ -100,6 +100,7 @@ async fn handle_ws_connection(
     let raw = serde_json::to_vec(&client_message).unwrap();
 
     let mut client = WebSocketClient::create(client_id, socket);
+    let client_id = client.get_id();
 
     if let Err(e) = client.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);
@@ -133,9 +134,10 @@ async fn handle_ws_connection(
                 let client_message = ClientMessage::from(stream_message);
                 let raw = serde_json::to_vec(&client_message).unwrap();
                 if let Ok(_) = client.send(Message::Binary(raw)).await {
-                    trace!("channel snapshot message sent successfully");
+                    trace!("channel snapshot message sent successfully to {client_id}");
                 } else {
-                    warn!("could not send snapshot message");
+                    warn!("could not send snapshot message to {client_id}");
+                    break;
                 }
             }
         }
