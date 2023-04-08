@@ -56,17 +56,15 @@ pub async fn ws_handler(
     })
 }
 
-/// Actual websocket state machine (one will be spawned per connection)
-async fn handle_ws_connection(
+async fn handle_client(
+    client_id: Uuid,
     socket: WebSocket,
-    who: SocketAddr,
     channels: Vec<String>,
     state: Arc<SharedState>,
 ) {
     debug!("channels found {:?}", channels);
 
     let hub_id = &state.env.id;
-    let client_id = Uuid::new_v4();
     let mut added_channels: Vec<Channel> = vec![];
     let mut streaming_channels = state.streams.lock().await;
 
@@ -100,14 +98,10 @@ async fn handle_ws_connection(
     let raw = serde_json::to_vec(&client_message).unwrap();
 
     let mut client = WebSocketClient::create(client_id, socket);
-    let client_id = client.get_id();
 
     if let Err(e) = client.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);
-        return;
     }
-
-    debug!("client {who} just joined in");
 
     for channel in added_channels {
         let channel_name = channel.name.clone();
@@ -148,5 +142,17 @@ async fn handle_ws_connection(
     state.clients.lock().await.insert(client.get_id(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
-    debug!("client was stored")
+    debug!("client {client_id} was connected")
+}
+
+/// Actual websocket state machine (one will be spawned per connection)
+async fn handle_ws_connection(
+    socket: WebSocket,
+    who: SocketAddr,
+    channels: Vec<String>,
+    state: Arc<SharedState>,
+) {
+    let client_id = Uuid::new_v4();
+    debug!("connection {who} established");
+    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state) });
 }
