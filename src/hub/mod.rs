@@ -245,11 +245,11 @@ impl Hub {
                                     info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
                                 } else {
                                     warn!("disconnecting {} clients", to_delete.len());
+
                                     for client_id in all_stream_channel_clients.iter() {
                                         all_hub_clients.remove(client_id);
                                         let mut lock = streaming_channel.unwrap().clients.lock().await;
-                                        let index = lock.iter().position(|x| x == client_id);
-                                        if let Some(i) = index {
+                                        if let Some(i) = lock.iter().position(|x| x == client_id) {
                                             warn!("removing client from channel by index {i}");
                                             lock.remove(i);
                                         }
