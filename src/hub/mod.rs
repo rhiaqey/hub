@@ -247,10 +247,11 @@ impl Hub {
                                     warn!("disconnecting {} clients", to_delete.len());
                                     for client_id in all_stream_channel_clients.iter() {
                                         all_hub_clients.remove(client_id);
-                                        let index = streaming_channel.unwrap().clients.lock().await.iter().position(|x| x == client_id);
+                                        let mut lock = streaming_channel.unwrap().clients.lock().await;
+                                        let index = lock.iter().position(|x| x == client_id);
                                         if let Some(i) = index {
                                             warn!("removing client from channel by index {i}");
-                                            streaming_channel.unwrap().clients.lock().await.remove(i);
+                                            lock.remove(i);
                                         }
                                     }
 
