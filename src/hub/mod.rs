@@ -107,17 +107,23 @@ impl Hub {
             .get(settings_key.clone())
             .await;
 
-        if settings_result.is_err() {
+        if let Err(e) = settings_result {
+            warn!("error retrieving settings from redis {}", e);
             return None;
         }
 
         let result: String = settings_result.unwrap();
 
-        let settings = serde_json::from_str(result.as_str()).unwrap_or(HubSettings::default());
-
-        trace!("settings from {} retrieved {:?}", settings_key, settings);
-
-        Some(settings)
+        return match serde_json::from_str(result.as_str()) {
+            Ok(settings) => {
+                trace!("settings from {} retrieved {:?}", settings_key, settings);
+                Some(settings)
+            }
+            Err(e) => {
+                warn!("error parsing json from string {e}");
+                Some(HubSettings::default())
+            }
+        };
     }
 
     pub async fn set_settings(&mut self, settings: HubSettings) {

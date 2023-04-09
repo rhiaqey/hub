@@ -176,13 +176,13 @@ pub async fn start_public_http_server(
     let cors = CorsLayer::new().allow_origin(AllowOrigin::predicate(
         move |origin: &HeaderValue, request_parts: &RequestParts| {
             if let Some(api_key) = extract_api_key(request_parts.uri.path()) {
-                info!("api key found in cors {:?}", request_parts);
+                info!("api key {} found in cors {:?}", api_key, request_parts);
             } else {
                 warn!("api key was not found near {:?}", request_parts);
             }
 
-            /*
             let settings = settings.read().unwrap();
+
             if let Some(domains) = &settings.domains {
                 if let Ok(domain) = std::str::from_utf8(origin.as_bytes()) {
                     let contains = domains.contains(&domain.to_string());
@@ -197,9 +197,8 @@ pub async fn start_public_http_server(
             }
 
             warn!("no whitelisted domains found.");
-            warn!("allowing all");
 
-             */
+            debug!("allowing all");
 
             return true;
         },
