@@ -86,8 +86,9 @@ async fn handle_client(
         let streaming_channel = streaming_channels.get_mut(channel.as_str());
         if let Some(chx) = streaming_channel {
             chx.add_client(client_id).await;
+
             let snapshot = chx.get_snapshot().await;
-            trace!("snapshot ready {:?}", snapshot);
+            trace!("snapshot ready with {} elements", snapshot.len());
 
             added_channels.push(chx.channel.clone());
             debug!("client joined channel {}", channel.as_str());
