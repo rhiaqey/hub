@@ -17,5 +17,5 @@ pub struct HubSettings {
     #[serde(alias = "ApiKeys")]
     pub api_keys: Vec<HubSettingsApiKey>,
     #[serde(alias = "Domains")]
-    pub domains: Vec<String>,
+    pub domains: Option<Vec<String>>,
 }
