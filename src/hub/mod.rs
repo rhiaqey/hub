@@ -180,6 +180,7 @@ impl Hub {
             tokio::select! {
                 Some(pubsub_message) = pubsub_stream.next() => {
                     trace!("clean message arrived");
+
                     if pubsub_message.is_err() {
                         warn!("invalid clean message");
                         continue;
@@ -190,8 +191,6 @@ impl Hub {
                         warn!("failed to parse rpc message");
                         continue;
                     }
-
-                    info!("clean message arrived");
 
                     match data.unwrap().data {
                         RPCMessageData::UpdateSettings(value) => {

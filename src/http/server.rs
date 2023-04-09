@@ -53,6 +53,9 @@ async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
         // domains: vec![],
     };
     let settings = state.settings.read().unwrap();
+
+    info!("Settings {:?} - {:?}", api_key, settings);
+
     settings.api_keys.contains(&api_key)
 }
 
