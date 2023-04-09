@@ -69,7 +69,7 @@ impl Hub {
         Some(stream)
     }
 
-    pub async fn get_channels(&self) -> Vec<Channel> {
+    pub async fn read_channels(&self) -> Vec<Channel> {
         let channels_key = topics::hub_channels_key(self.env.namespace.clone());
 
         let result: String = self
@@ -286,7 +286,7 @@ pub async fn run() {
     );
 
     let mut total_channels = 0;
-    let channels = hub.get_channels().await;
+    let channels = hub.read_channels().await;
 
     for channel in channels {
         let channel_name = channel.name.clone();
