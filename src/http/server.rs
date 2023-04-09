@@ -9,7 +9,7 @@ use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
 use http::{request::Parts as RequestParts, HeaderValue};
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use prometheus::{Encoder, TextEncoder};
 use serde::Deserialize;
 use sha256::digest;
@@ -61,16 +61,27 @@ async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
 
 fn extract_api_key(relative_path: &str) -> Option<String> {
     let full = format!("http://localhost{}", relative_path);
+    trace!("examining full url {}", full);
 
-    if let Ok(parts) = Url::parse(full.as_str()) {
-        let queries: HashMap<_, _> = parts.query_pairs().collect();
-        if queries.contains_key("api_key") {
-            let api_key = queries.get("api_key").unwrap().to_string();
-            return Some(api_key);
+    return match Url::parse(full.as_str()) {
+        Ok(parts) => {
+            trace!("we parsed full url into parts");
+
+            let queries: HashMap<_, _> = parts.query_pairs().collect();
+            if queries.contains_key("api_key") {
+                debug!("api_key was found");
+                return Some(api_key);
+            }
+
+            warn!("could ot find api_key part");
+
+            return None;
         }
-    }
-
-    None
+        Err(e) => {
+            warn!("error parsing api key {}", e);
+            None
+        }
+    };
 }
 
 async fn get_auth(
