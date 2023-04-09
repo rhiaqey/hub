@@ -69,7 +69,9 @@ fn extract_api_key(relative_path: &str) -> Option<String> {
 
             let queries: HashMap<_, _> = parts.query_pairs().collect();
             if queries.contains_key("api_key") {
+                let api_key = queries.get("api_key").unwrap().to_string();
                 debug!("api_key was found");
+
                 return Some(api_key);
             }
 
