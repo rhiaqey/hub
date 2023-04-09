@@ -48,20 +48,15 @@ struct AuthenticationQueryParams {
 }
 
 async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
-    let api_key = HubSettingsApiKey {
+    let settings = state.settings.read().unwrap();
+    settings.api_keys.contains(&HubSettingsApiKey {
         api_key: digest(key),
         // domains: vec![],
-    };
-    let settings = state.settings.read().unwrap();
-
-    info!("Settings {:?} - {:?}", api_key, settings);
-
-    settings.api_keys.contains(&api_key)
+    })
 }
 
 fn extract_api_key(relative_path: &str) -> Option<String> {
     let full = format!("http://localhost{}", relative_path);
-    trace!("examining full url {}", full);
 
     return match Url::parse(full.as_str()) {
         Ok(parts) => {
