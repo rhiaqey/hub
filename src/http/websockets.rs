@@ -87,7 +87,8 @@ async fn handle_client(
         if let Some(chx) = streaming_channel {
             chx.add_client(client_id).await;
             let snapshot = chx.get_snapshot().await;
-            debug!("snapshot ready {:?}", snapshot);
+            trace!("snapshot ready {:?}", snapshot);
+
             added_channels.push(chx.channel.clone());
             debug!("client joined channel {}", channel.as_str());
         } else {

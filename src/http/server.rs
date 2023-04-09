@@ -178,7 +178,7 @@ pub async fn start_public_http_server(
             if let Some(api_key) = extract_api_key(request_parts.uri.path()) {
                 info!("api key {} found in cors {:?}", api_key, request_parts);
             } else {
-                warn!("api key was not found near {:?}", request_parts);
+                warn!("api key was not found near {:?}", request_parts.uri.path());
             }
 
             let settings = settings.read().unwrap();
