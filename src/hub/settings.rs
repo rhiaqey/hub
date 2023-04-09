@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct HubSettingsApiKey {
     #[serde(alias = "Key")]
     pub api_key: String,
-    #[serde(alias = "Domains")]
-    pub domains: Vec<String>,
 }
 
 impl PartialEq for HubSettingsApiKey {
@@ -18,4 +16,6 @@ impl PartialEq for HubSettingsApiKey {
 pub struct HubSettings {
     #[serde(alias = "ApiKeys")]
     pub api_keys: Vec<HubSettingsApiKey>,
+    #[serde(alias = "Domains")]
+    pub domains: Vec<String>,
 }

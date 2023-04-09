@@ -50,7 +50,7 @@ struct AuthenticationQueryParams {
 async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
     let api_key = HubSettingsApiKey {
         api_key: digest(key),
-        domains: vec![],
+        // domains: vec![],
     };
     let settings = state.settings.read().unwrap();
     settings.api_keys.contains(&api_key)
@@ -95,6 +95,8 @@ async fn get_auth(
         info!("x-forwarded-uri found {}", path);
 
         if let Some(api_key) = extract_api_key(path) {
+            info!("api key extracted successfully from x-forwarded-uri");
+
             if valid_api_key(api_key, state).await {
                 return (StatusCode::OK, "OK");
             }
