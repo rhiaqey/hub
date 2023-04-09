@@ -188,10 +188,8 @@ pub async fn start_public_http_server(
 
     let cors = CorsLayer::new().allow_origin(AllowOrigin::predicate(
         move |origin: &HeaderValue, request_parts: &RequestParts| {
-            request_parts.uri.path_and_query().path();
-
             if let Some(path_and_query) = request_parts.uri.path_and_query() {
-                if let Some(api_key) = extract_api_key(path_and_query.path()) {
+                if let Some(api_key) = extract_api_key(path_and_query.as_str()) {
                     info!("api key {} found in cors {:?}", api_key, request_parts);
                 } else {
                     warn!("api key was not found near {:?}", request_parts.uri.path());
