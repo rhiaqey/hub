@@ -72,6 +72,14 @@ pub async fn start_private_http_server(
             }),
         )
         .route(
+            // TODO: This is here for BC issues. Remove once the auth hub is ready
+            "/auth",
+            get({
+                let shared_state = Arc::clone(&shared_state);
+                move |headers, query| get_hub_auth(headers, query, shared_state)
+            }),
+        )
+        .route(
             "/auth/hub",
             get({
                 let shared_state = Arc::clone(&shared_state);
