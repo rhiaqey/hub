@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod channels;
 pub mod client;
 pub mod server;
