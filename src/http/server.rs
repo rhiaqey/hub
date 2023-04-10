@@ -1,4 +1,4 @@
-use crate::http::auth::{extract_api_key, get_auth};
+use crate::http::auth::{create_cors_layer, get_gateway_auth, get_hub_auth, get_prometheus_auth};
 use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
@@ -6,12 +6,10 @@ use crate::http::websockets::ws_handler;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
-use http::{request::Parts as RequestParts, HeaderValue};
-use log::{debug, info, warn};
+use log::info;
 use prometheus::{Encoder, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower_http::cors::{AllowOrigin, CorsLayer};
 
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK
@@ -46,13 +44,6 @@ pub async fn start_private_http_server(
         .route("/metrics", get(get_metrics))
         .route("/version", get(get_version))
         .route(
-            "/auth",
-            get({
-                let shared_state = Arc::clone(&shared_state);
-                move |headers, query| get_auth(headers, query, shared_state)
-            }),
-        )
-        .route(
             "/admin/channels",
             put({
                 let shared_state = Arc::clone(&shared_state);
@@ -79,6 +70,27 @@ pub async fn start_private_http_server(
                 let shared_state = Arc::clone(&shared_state);
                 move |body| update_settings(body, shared_state)
             }),
+        )
+        .route(
+            "/auth/hub",
+            get({
+                let shared_state = Arc::clone(&shared_state);
+                move |headers, query| get_hub_auth(headers, query, shared_state)
+            }),
+        )
+        .route(
+            "/auth/gateway",
+            get({
+                let shared_state = Arc::clone(&shared_state);
+                move |headers, query| get_gateway_auth(headers, query, shared_state)
+            }),
+        )
+        .route(
+            "/auth/prometheus",
+            get({
+                let shared_state = Arc::clone(&shared_state);
+                move |headers, query| get_prometheus_auth(headers, query, shared_state)
+            }),
         );
 
     info!("running private http server @ 0.0.0.0:{}", port);
@@ -96,40 +108,7 @@ pub async fn start_public_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
 ) -> hyper::Result<()> {
-    let settings = Arc::clone(&shared_state.settings);
-
-    let cors = CorsLayer::new().allow_origin(AllowOrigin::predicate(
-        move |origin: &HeaderValue, request_parts: &RequestParts| {
-            if let Some(path_and_query) = request_parts.uri.path_and_query() {
-                if let Some(_api_key) = extract_api_key(path_and_query.as_str()) {
-                    info!("api key found in cors {}", path_and_query);
-                } else {
-                    warn!("api key was not found near {}", path_and_query);
-                }
-            }
-
-            let settings = settings.read().unwrap();
-
-            if let Some(domains) = &settings.domains {
-                if let Ok(domain) = std::str::from_utf8(origin.as_bytes()) {
-                    let contains = domains.contains(&domain.to_string());
-                    if contains {
-                        debug!("allowing cors domain {}", domain);
-                    } else {
-                        warn!("cors domain {} is not allowed", domain);
-                    }
-
-                    return contains;
-                }
-            }
-
-            warn!("no whitelisted domains found.");
-
-            debug!("allowing all");
-
-            return true;
-        },
-    ));
+    let cors = create_cors_layer(Arc::clone(&shared_state.settings));
 
     let app = Router::new()
         .route("/", get(get_home))

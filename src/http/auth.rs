@@ -1,13 +1,14 @@
 use crate::http::state::SharedState;
-use crate::hub::settings::HubSettingsApiKey;
+use crate::hub::settings::{HubSettings, HubSettingsApiKey};
 use axum::extract::Query;
 use axum::{http::StatusCode, response::IntoResponse};
-use http::HeaderMap;
+use http::{request::Parts as RequestParts, HeaderMap, HeaderValue};
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
 use sha256::digest;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
 
 #[derive(Debug, Deserialize)]
@@ -49,7 +50,42 @@ pub async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
     })
 }
 
-pub async fn get_auth(
+pub fn create_cors_layer(settings: Arc<RwLock<HubSettings>>) -> CorsLayer {
+    return CorsLayer::new().allow_origin(AllowOrigin::predicate(
+        move |origin: &HeaderValue, request_parts: &RequestParts| {
+            if let Some(path_and_query) = request_parts.uri.path_and_query() {
+                if let Some(_api_key) = extract_api_key(path_and_query.as_str()) {
+                    info!("api key found in cors {}", path_and_query);
+                } else {
+                    warn!("api key was not found near {}", path_and_query);
+                }
+            }
+
+            let settings = settings.read().unwrap();
+
+            if let Some(domains) = &settings.domains {
+                if let Ok(domain) = std::str::from_utf8(origin.as_bytes()) {
+                    let contains = domains.contains(&domain.to_string());
+                    if contains {
+                        debug!("allowing cors domain {}", domain);
+                    } else {
+                        warn!("cors domain {} is not allowed", domain);
+                    }
+
+                    return contains;
+                }
+            }
+
+            warn!("no whitelisted domains found.");
+
+            debug!("allowing all");
+
+            return true;
+        },
+    ));
+}
+
+pub async fn get_hub_auth(
     headers: HeaderMap,
     query: Query<AuthenticationQueryParams>,
     state: Arc<SharedState>,
@@ -84,5 +120,21 @@ pub async fn get_auth(
 
     warn!("api key was not found in the x-forwarded-uri");
 
+    (StatusCode::UNAUTHORIZED, "Unauthorized access")
+}
+
+pub async fn get_gateway_auth(
+    _headers: HeaderMap,
+    _query: Query<AuthenticationQueryParams>,
+    _state: Arc<SharedState>,
+) -> impl IntoResponse {
+    (StatusCode::UNAUTHORIZED, "Unauthorized access")
+}
+
+pub async fn get_prometheus_auth(
+    _headers: HeaderMap,
+    _query: Query<AuthenticationQueryParams>,
+    _state: Arc<SharedState>,
+) -> impl IntoResponse {
     (StatusCode::UNAUTHORIZED, "Unauthorized access")
 }
