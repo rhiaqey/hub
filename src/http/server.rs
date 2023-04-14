@@ -1,8 +1,9 @@
-use crate::http::auth::{create_cors_layer, get_gateway_auth, get_hub_auth, get_prometheus_auth};
+use crate::http::auth::get_auth;
 use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
+use axum::extract::Host;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
@@ -72,32 +73,12 @@ pub async fn start_private_http_server(
             }),
         )
         .route(
-            // TODO: This is here for BC issues. Remove once the auth hub is ready
-            "/auth",
+            "/admin/auth",
             get({
                 let shared_state = Arc::clone(&shared_state);
-                move |headers, query| get_hub_auth(headers, query, shared_state)
-            }),
-        )
-        .route(
-            "/auth/hub",
-            get({
-                let shared_state = Arc::clone(&shared_state);
-                move |headers, query| get_hub_auth(headers, query, shared_state)
-            }),
-        )
-        .route(
-            "/auth/gateway",
-            get({
-                let shared_state = Arc::clone(&shared_state);
-                move |headers, query| get_gateway_auth(headers, query, shared_state)
-            }),
-        )
-        .route(
-            "/auth/prometheus",
-            get({
-                let shared_state = Arc::clone(&shared_state);
-                move |headers, query| get_prometheus_auth(headers, query, shared_state)
+                move |Host(hostname): Host, headers, query| {
+                    get_auth(hostname, headers, query, shared_state)
+                }
             }),
         );
 
@@ -116,20 +97,15 @@ pub async fn start_public_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
 ) -> hyper::Result<()> {
-    let cors = create_cors_layer(Arc::clone(&shared_state.settings));
-
-    let app = Router::new()
-        .route("/", get(get_home))
-        .route(
-            "/ws",
-            get({
-                let shared_state = Arc::clone(&shared_state);
-                move |query_params, ws, user_agent, info| {
-                    ws_handler(query_params, ws, user_agent, info, shared_state)
-                }
-            }),
-        )
-        .layer(cors);
+    let app = Router::new().route("/", get(get_home)).route(
+        "/ws",
+        get({
+            let shared_state = Arc::clone(&shared_state);
+            move |query_params, ws, user_agent, info| {
+                ws_handler(query_params, ws, user_agent, info, shared_state)
+            }
+        }),
+    );
 
     info!("running public http server @ 0.0.0.0:{}", port);
 

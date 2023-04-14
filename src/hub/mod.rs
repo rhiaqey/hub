@@ -201,9 +201,15 @@ impl Hub {
                     match data.unwrap().data {
                         RPCMessageData::UpdateSettings(value) => {
                             info!("updating settings request message arrived");
-                            if let Ok(settings) = value.decode::<HubSettings>() {
-                                self.set_settings(settings).await;
-                                trace!("settings updated correctly");
+
+                            match value.decode::<HubSettings>() {
+                                Ok(settings) => {
+                                    self.set_settings(settings).await;
+                                    debug!("settings updated correctly");
+                                },
+                                Err(err) => {
+                                    warn!("error decoding to hub settings: {err}")
+                                }
                             }
                         }
                         RPCMessageData::NotifyClients(stream_message) => {

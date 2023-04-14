@@ -1,22 +1,21 @@
 use crate::http::state::SharedState;
-use crate::hub::settings::{HubSettings, HubSettingsApiKey};
+use crate::hub::settings::HubSettingsApiKey;
 use axum::extract::Query;
-use axum::{http::StatusCode, response::IntoResponse};
-use http::{request::Parts as RequestParts, HeaderMap, HeaderValue};
-use log::{debug, info, trace, warn};
+use axum::response::IntoResponse;
+use http::{HeaderMap, StatusCode};
+use log::{debug, trace, warn};
 use serde::Deserialize;
-use sha256::digest;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use tower_http::cors::{AllowOrigin, CorsLayer};
+use std::sync::Arc;
 use url::Url;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationQueryParams {
-    pub api_key: Option<String>,
+    pub api_key: String,
+    pub host: String,
 }
 
-pub fn extract_api_key(relative_path: &str) -> Option<String> {
+pub fn extract_api_key_from_relative_path(relative_path: &str) -> Option<String> {
     let full = format!("http://localhost{}", relative_path);
 
     return match Url::parse(full.as_str()) {
@@ -42,99 +41,19 @@ pub fn extract_api_key(relative_path: &str) -> Option<String> {
     };
 }
 
-pub async fn valid_api_key(key: String, state: Arc<SharedState>) -> bool {
+pub async fn valid_api_key(key: HubSettingsApiKey, state: Arc<SharedState>) -> bool {
     let settings = state.settings.read().unwrap();
-    settings.api_keys.contains(&HubSettingsApiKey {
-        api_key: digest(key),
-        // domains: vec![],
-    })
+    settings.security.api_keys.contains(&key)
 }
 
-pub fn create_cors_layer(settings: Arc<RwLock<HubSettings>>) -> CorsLayer {
-    return CorsLayer::new().allow_origin(AllowOrigin::predicate(
-        move |origin: &HeaderValue, request_parts: &RequestParts| {
-            if let Some(path_and_query) = request_parts.uri.path_and_query() {
-                if let Some(_api_key) = extract_api_key(path_and_query.as_str()) {
-                    info!("api key found in cors {}", path_and_query);
-                } else {
-                    warn!("api key was not found near {}", path_and_query);
-                }
-            }
-
-            let settings = settings.read().unwrap();
-
-            if let Some(domains) = &settings.domains {
-                if let Ok(domain) = std::str::from_utf8(origin.as_bytes()) {
-                    let contains = domains.contains(&domain.to_string());
-                    if contains {
-                        debug!("allowing cors domain {}", domain);
-                    } else {
-                        warn!("cors domain {} is not allowed", domain);
-                    }
-
-                    return contains;
-                }
-            }
-
-            warn!("no whitelisted domains found.");
-
-            debug!("allowing all");
-
-            return true;
-        },
-    ));
-}
-
-pub async fn get_hub_auth(
-    headers: HeaderMap,
-    query: Query<AuthenticationQueryParams>,
-    state: Arc<SharedState>,
-) -> impl IntoResponse {
-    info!("authenticating with api_key");
-
-    if let Some(query_api_key) = query.api_key.clone() {
-        info!("query api key found");
-
-        return if valid_api_key(query_api_key, state).await {
-            (StatusCode::OK, "OK")
-        } else {
-            (StatusCode::UNAUTHORIZED, "Unauthorized access")
-        };
-    }
-
-    warn!("api key was not found in the url");
-
-    if headers.contains_key("x-forwarded-uri") {
-        let path = headers.get("x-forwarded-uri").unwrap().to_str().unwrap();
-
-        info!("x-forwarded-uri found {}", path);
-
-        if let Some(api_key) = extract_api_key(path) {
-            info!("api key extracted successfully from x-forwarded-uri");
-
-            if valid_api_key(api_key, state).await {
-                return (StatusCode::OK, "OK");
-            }
-        }
-    }
-
-    warn!("api key was not found in the x-forwarded-uri");
-
-    (StatusCode::UNAUTHORIZED, "Unauthorized access")
-}
-
-pub async fn get_gateway_auth(
+pub async fn get_auth(
+    _hostname: String,
     _headers: HeaderMap,
-    _query: Query<AuthenticationQueryParams>,
+    _query: Query<Option<AuthenticationQueryParams>>,
     _state: Arc<SharedState>,
 ) -> impl IntoResponse {
-    (StatusCode::UNAUTHORIZED, "Unauthorized access")
-}
-
-pub async fn get_prometheus_auth(
-    _headers: HeaderMap,
-    _query: Query<AuthenticationQueryParams>,
-    _state: Arc<SharedState>,
-) -> impl IntoResponse {
+    debug!("some from hostname {:?}", _hostname);
+    debug!("some from headers {:?}", _headers);
+    debug!("some from query {:?}", _query);
     (StatusCode::UNAUTHORIZED, "Unauthorized access")
 }

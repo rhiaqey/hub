@@ -1,38 +1,62 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct HubSettingsApiKey {
-    #[serde(alias = "Key")]
-    pub api_key: String,
-}
-
-impl PartialEq for HubSettingsApiKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.api_key == other.api_key
-    }
+pub enum HubSettingsIPs {
+    #[serde(alias = "Whitelisted")]
+    Whitelisted(Vec<String>),
+    #[serde(alias = "Blacklisted")]
+    Blacklisted(Vec<String>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct HubSettingsApiKey2 {
+pub struct HubSettingsApiKey {
     #[serde(alias = "ApiKey")]
     pub api_key: String,
-    #[serde(alias = "Domains")]
-    pub domains: Vec<String>,
+    #[serde(alias = "Host")]
+    pub host: String,
+    #[serde(alias = "IPs")]
+    pub ips: Option<HubSettingsIPs>,
 }
 
-impl PartialEq for HubSettingsApiKey2 {
+impl PartialEq for HubSettingsApiKey {
     fn eq(&self, other: &Self) -> bool {
         if self.api_key != other.api_key {
             return false;
         }
 
-        if self.domains.is_empty() && other.domains.is_empty() {
+        if self.host != other.host {
+            return false;
+        }
+
+        let self_ips = self.ips.clone();
+        let other_ips = other.ips.clone();
+
+        if self_ips.is_some() && other_ips.is_none() {
+            return false;
+        }
+
+        if self_ips.is_none() && other_ips.is_some() {
+            return false;
+        }
+
+        if self_ips.is_none() && other_ips.is_none() {
             return true;
         }
 
-        self.domains // at least one common
-            .iter()
-            .any(|x| other.domains.contains(&x))
+        match self_ips.unwrap() {
+            HubSettingsIPs::Whitelisted(self_whitelisted_ips) => match other_ips.unwrap() {
+                HubSettingsIPs::Whitelisted(other_whitelisted_ips) => self_whitelisted_ips
+                    .iter()
+                    .any(|self_whitelisted_ip| other_whitelisted_ips.contains(self_whitelisted_ip)),
+                HubSettingsIPs::Blacklisted(_) => false,
+            },
+            HubSettingsIPs::Blacklisted(self_blacklisted_ips) => match other_ips.unwrap() {
+                HubSettingsIPs::Whitelisted(_) => false,
+                HubSettingsIPs::Blacklisted(other_blacklisted_ips) => self_blacklisted_ips
+                    .iter()
+                    .any(|self_blacklisted_ip| other_blacklisted_ips.contains(self_blacklisted_ip)),
+            },
+        }
     }
 }
 
@@ -44,117 +68,210 @@ pub struct HubSecurity {
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct HubSettings {
-    #[serde(alias = "ApiKeys")]
-    pub api_keys: Vec<HubSettingsApiKey>,
-    #[serde(alias = "Domains")]
-    pub domains: Option<Vec<String>>,
+    #[serde(alias = "Security")]
+    pub security: HubSecurity,
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::hub::settings::HubSettingsApiKey2;
+    use crate::hub::settings::HubSettingsIPs::{Blacklisted, Whitelisted};
+    use crate::hub::settings::{HubSettingsApiKey, HubSettingsIPs};
 
     #[test]
-    fn partial_eq_works_with_no_domains() {
-        let key1 = HubSettingsApiKey2 {
+    fn can_serialize() {
+        let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec![],
+            host: "localhost".to_string(),
+            ips: None,
         };
-        let key2 = HubSettingsApiKey2 {
+
+        let result = serde_json::to_string(&key1);
+        assert_eq!(result.is_ok(), true);
+        println!("{}", result.unwrap());
+    }
+
+    #[test]
+    fn can_serialize_whitelisted_ips() {
+        let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec![],
+            host: "localhost".to_string(),
+            ips: Some(Whitelisted(vec!["192.168.0.3".to_string()])),
+        };
+
+        let result = serde_json::to_string(&key1);
+        assert_eq!(result.is_ok(), true);
+        println!("{}", result.unwrap());
+    }
+
+    #[test]
+    fn can_serialize_blacklisted_ips() {
+        let key1 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(Blacklisted(vec!["192.168.0.3".to_string()])),
+        };
+
+        let result = serde_json::to_string(&key1);
+        assert_eq!(result.is_ok(), true);
+        println!("{}", result.unwrap());
+    }
+
+    #[test]
+    fn partial_eq_works_with_no_ips() {
+        let key1 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: None,
+        };
+        let key2 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: None,
         };
         assert_eq!(key1, key2);
     }
 
     #[test]
-    fn partial_eq_works_with_same_domains() {
-        let key1 = HubSettingsApiKey2 {
+    fn partial_eq_works_with_different_api_keys() {
+        let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec!["localhost".to_string()],
+            host: "localhost".to_string(),
+            ips: None,
         };
-        let key2 = HubSettingsApiKey2 {
-            api_key: "abc".to_string(),
-            domains: vec!["localhost".to_string()],
-        };
-        assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn partial_eq_works_with_same_domains2() {
-        let key1 = HubSettingsApiKey2 {
-            api_key: "abc".to_string(),
-            domains: vec!["localhost".to_string(), "localhost2".to_string()],
-        };
-        let key2 = HubSettingsApiKey2 {
-            api_key: "abc".to_string(),
-            domains: vec!["localhost".to_string(), "localhost3".to_string()],
-        };
-        assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn partial_eq_works_with_no_domains_in_one_key() {
-        let key1 = HubSettingsApiKey2 {
-            api_key: "abc".to_string(),
-            domains: vec!["localhost".to_string(), "localhost2".to_string()],
-        };
-        let key2 = HubSettingsApiKey2 {
-            api_key: "abc".to_string(),
-            domains: vec![],
+        let key2 = HubSettingsApiKey {
+            api_key: "def".to_string(),
+            host: "localhost".to_string(),
+            ips: None,
         };
         assert_ne!(key1, key2);
     }
 
     #[test]
-    fn partial_eq_works_with_same_domains3() {
-        let key1 = HubSettingsApiKey2 {
+    fn partial_eq_works_with_different_hosts() {
+        let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec!["localhost3".to_string(), "localhost2".to_string()],
+            host: "localhost".to_string(),
+            ips: None,
         };
-        let key2 = HubSettingsApiKey2 {
+        let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec!["localhost4".to_string(), "localhost3".to_string()],
-        };
-        assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn partial_eq_works_with_different_keys() {
-        let key1 = HubSettingsApiKey2 {
-            api_key: "abcd".to_string(),
-            domains: vec!["localhost3".to_string(), "localhost2".to_string()],
-        };
-        let key2 = HubSettingsApiKey2 {
-            api_key: "abc".to_string(),
-            domains: vec!["localhost3".to_string(), "localhost2".to_string()],
+            host: "127.0.0.1".to_string(),
+            ips: None,
         };
         assert_ne!(key1, key2);
     }
 
     #[test]
-    fn partial_eq_works_with_same_domains4() {
-        let key1 = HubSettingsApiKey2 {
+    fn partial_eq_works_with_same_blacklisted_ips() {
+        let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec!["localhost3".to_string(), "localhost2".to_string()],
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
-        let key2 = HubSettingsApiKey2 {
+        let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec!["localhost2".to_string()],
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
         assert_eq!(key1, key2);
     }
 
     #[test]
-    fn partial_eq_works_with_same_domains5() {
-        let key1 = HubSettingsApiKey2 {
+    fn partial_eq_works_with_different_blacklisted_ips() {
+        let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec!["localhost2".to_string()],
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
-        let key2 = HubSettingsApiKey2 {
+        let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            domains: vec!["localhost3".to_string(), "localhost2".to_string()],
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.2".to_string()])),
+        };
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn partial_eq_works_with_multiple_different_blacklisted_ips() {
+        let key1 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
+        };
+        let key2 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Blacklisted(vec![
+                "192.168.0.1".to_string(),
+                "192.168.0.2".to_string(),
+            ])),
         };
         assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn partial_eq_works_with_same_whitelisted_ips() {
+        let key1 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
+        };
+        let key2 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
+        };
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn partial_eq_works_with_different_whitelisted_ips() {
+        let key1 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
+        };
+        let key2 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.2".to_string()])),
+        };
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn partial_eq_works_with_multiple_different_whitelisted_ips() {
+        let key1 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
+        };
+        let key2 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Whitelisted(vec![
+                "192.168.0.1".to_string(),
+                "192.168.0.2".to_string(),
+            ])),
+        };
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn partial_eq_works_with_multiple_mix_ips() {
+        let key1 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
+        };
+        let key2 = HubSettingsApiKey {
+            api_key: "abc".to_string(),
+            host: "localhost".to_string(),
+            ips: Some(HubSettingsIPs::Blacklisted(vec![
+                "192.168.0.3".to_string(),
+                "192.168.0.2".to_string(),
+            ])),
+        };
+        assert_ne!(key1, key2);
     }
 }
