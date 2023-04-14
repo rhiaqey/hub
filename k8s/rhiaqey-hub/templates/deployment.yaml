@@ -72,6 +72,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rhiaqey-hub.fullname" . }}-secret
+                  key: secret
             - name: PUBLIC_PORT
               value: {{ .Values.hub.public_port | quote }}
             - name: PRIVATE_PORT

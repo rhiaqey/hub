@@ -10,6 +10,8 @@ export RUST_LOG=rhiaqey=debug
 export PRIVATE_PORT=3001
 export PUBLIC_PORT=3002
 
+export SECRET=92c54ddb6370d95e04f679dc773af83da4f359265909289e330c51651e840250
+
 .PHONY: hub
 hub: run
 

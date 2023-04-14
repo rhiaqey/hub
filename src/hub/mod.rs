@@ -55,6 +55,10 @@ impl Hub {
         self.env.namespace.clone()
     }
 
+    pub fn get_secret(&self) -> String {
+        self.env.secret.clone()
+    }
+
     pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Option<PubSubStream> {
         let client = connect_and_ping(self.env.redis.clone()).await;
         if client.is_none() {
