@@ -45,6 +45,15 @@ pub async fn start_private_http_server(
         .route("/metrics", get(get_metrics))
         .route("/version", get(get_version))
         .route(
+            "/auth",
+            get({
+                let shared_state = Arc::clone(&shared_state);
+                move |ip, Host(hostname): Host, headers, query| {
+                    get_auth(hostname, ip, headers, query, shared_state)
+                }
+            }),
+        )
+        .route(
             "/admin/channels",
             put({
                 let shared_state = Arc::clone(&shared_state);
@@ -70,15 +79,6 @@ pub async fn start_private_http_server(
             post({
                 let shared_state = Arc::clone(&shared_state);
                 move |body| update_settings(body, shared_state)
-            }),
-        )
-        .route(
-            "/admin/auth",
-            get({
-                let shared_state = Arc::clone(&shared_state);
-                move |Host(hostname): Host, headers, query| {
-                    get_auth(hostname, headers, query, shared_state)
-                }
             }),
         );
 

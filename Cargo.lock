@@ -439,6 +439,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "headers-client-ip"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86df7ac5d7ef6bbff8c2c0d9c304fe18fd7383b7f1803a04db53029d6a6a1013"
+dependencies = [
+ "headers",
+ "lazy_static",
+]
+
+[[package]]
 name = "headers-core"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -917,6 +927,7 @@ dependencies = [
  "axum",
  "env_logger",
  "futures",
+ "headers-client-ip",
  "http",
  "hyper",
  "lazy_static",
