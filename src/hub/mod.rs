@@ -14,12 +14,15 @@ use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::{parse_env, Env};
+use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
-use rhiaqey_common::redis::connect_and_ping;
+use rhiaqey_common::redis::{connect_and_ping, RhiaqeyBufVec};
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk::channel::{Channel, ChannelList};
+use rhiaqey_sdk::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
 use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
+use sha256::digest;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
@@ -53,10 +56,6 @@ impl Hub {
 
     pub fn get_namespace(&self) -> String {
         self.env.namespace.clone()
-    }
-
-    pub fn get_secret(&self) -> String {
-        self.env.secret.clone()
     }
 
     pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Option<PubSubStream> {
@@ -97,43 +96,46 @@ impl Hub {
         channel_list.channels
     }
 
-    pub async fn read_settings(&self) -> Option<HubSettings> {
+    pub async fn read_settings(&self) -> Result<HubSettings, RhiaqeyError> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
 
-        info!("reading settings from {}", settings_key);
-
-        let settings_result = self
+        let result: RhiaqeyBufVec = self
             .redis
             .lock()
             .await
             .as_mut()
             .unwrap()
-            .get(settings_key.clone())
-            .await;
+            .get(settings_key)
+            .await?;
+        debug!("encrypted settings retrieved");
 
-        if let Err(e) = settings_result {
-            warn!("error retrieving settings from redis {}", e);
-            return None;
-        }
+        let data = self.env.decrypt(result.0)?;
+        debug!("raw data decrypted");
 
-        let result: String = settings_result.unwrap();
+        let settings = MessageValue::Binary(data).decode::<HubSettings>()?;
+        debug!("decrypted data decoded into settings");
 
-        return match serde_json::from_str(result.as_str()) {
-            Ok(settings) => {
-                trace!("settings from {} retrieved {:?}", settings_key, settings);
-                Some(settings)
-            }
-            Err(e) => {
-                warn!("error parsing json from string {e}");
-                Some(HubSettings::default())
-            }
-        };
+        Ok(settings)
     }
 
     pub async fn set_settings(&mut self, settings: HubSettings) {
         let mut locked_settings = self.settings.write().unwrap();
-        *locked_settings = settings.clone();
-        debug!("new settings updated {:?}", settings);
+
+        let mut new_settings = settings.clone();
+        new_settings.security.api_keys = new_settings
+            .security
+            .api_keys
+            .iter_mut()
+            .map(|x| {
+                let mut y = x.clone();
+                y.api_key = digest(y.api_key.clone());
+                y
+            })
+            .collect();
+
+        *locked_settings = new_settings;
+
+        trace!("new settings updated");
     }
 
     pub async fn setup(config: Env) -> Result<Hub, String> {
@@ -158,10 +160,11 @@ impl Hub {
     }
 
     pub async fn start(&mut self) -> hyper::Result<()> {
-        if let Some(settings) = self.read_settings().await {
-            self.set_settings(settings).await;
-            info!("setting set successfully")
-        }
+        info!("starting hub");
+
+        self.set_settings(self.read_settings().await.unwrap_or(HubSettings::default()))
+            .await;
+        debug!("setting set successfully");
 
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
@@ -203,10 +206,9 @@ impl Hub {
                     }
 
                     match data.unwrap().data {
-                        RPCMessageData::UpdateSettings(value) => {
+                        RPCMessageData::UpdateSettings() => {
                             info!("updating settings request message arrived");
-
-                            match value.decode::<HubSettings>() {
+                            match self.read_settings().await {
                                 Ok(settings) => {
                                     self.set_settings(settings).await;
                                     debug!("settings updated correctly");
