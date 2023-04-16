@@ -82,20 +82,3 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
-
-      - name: Push Charts to GHCR      
-        if: ${{ github.event_name != 'pull_request' }}
-        run: |
-          mkdir charts
-          for pkg in k8s/*; do
-            if [ -z "${pkg:-}" ]; then
-              break
-            fi
-            helm package "${pkg}" -d charts
-          done
-          for pkg in charts/*; do
-            if [ -z "${pkg:-}" ]; then
-              break
-            fi
-            helm push "${pkg}" oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/charts
-          done
