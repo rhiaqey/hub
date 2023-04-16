@@ -20,46 +20,6 @@ fn cli() -> Command {
         )
 }
 
-/*
-fn write_keys() {
-    let mut rng = rand::thread_rng();
-
-    let bits = 2048;
-    let private_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
-    let public_key = RsaPublicKey::from(&private_key);
-
-    private_key
-        .write_pkcs8_pem_file("priv.pem", LineEnding::LF)
-        .expect("failed to write private pem file");
-
-    public_key
-        .write_public_key_pem_file("pub.pem", LineEnding::LF)
-        .expect("failed to write public pem file")
-}
-
-fn main2() {
-    write_keys();
-
-    let data = b"hello world";
-    let padding = Oaep::new::<sha2::Sha256>();
-    let mut rng = rand::thread_rng();
-
-    // work with pem files
-    let (private_key, public_key) = read_keys();
-
-    let enc_data = public_key
-        .encrypt(&mut rng, padding, &data[..])
-        .expect("failed to encrypt");
-    assert_ne!(&data[..], &enc_data[..]);
-
-    // Decrypt
-    let padding = Oaep::new::<sha2::Sha256>();
-    let dec_data = private_key
-        .decrypt(padding, &enc_data)
-        .expect("failed to decrypt");
-    assert_eq!(&data[..], &dec_data[..]);
-}*/
-
 fn generate_keys(bits: Option<usize>) -> (RsaPrivateKey, RsaPublicKey) {
     let mut rng = rand::thread_rng();
     let bits = bits.unwrap_or(2048);
