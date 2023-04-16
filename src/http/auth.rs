@@ -78,8 +78,6 @@ pub async fn valid_api_key(
 ) -> bool {
     let settings = state.settings.read().unwrap();
 
-    debug!("api creds {} - {} - {}", api_key, api_host, ip.to_string());
-
     let security_api_key = settings
         .security
         .api_keys
