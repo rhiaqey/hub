@@ -15,6 +15,7 @@ ARG BINARY
 ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive
 LABEL org.opencontainers.image.description="Rhiaqey ${BINARY}"
+USER root
 RUN apt-get update \
     && apt-get install -y \
       ca-certificates \
@@ -22,7 +23,7 @@ RUN apt-get update \
       libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 RUN update-ca-certificates
+USER 1001
 COPY --from=builder /usr/local/cargo/bin/${BINARY} /usr/local/bin/${BINARY}
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=trace
-CMD [ "sh", "-c", "${BINARY}" ]
