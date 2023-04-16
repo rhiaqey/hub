@@ -90,6 +90,10 @@ hub:
   private_port: 3001
   public_port: 3002
   log_level: "rhiaqey=debug"
+  keys:
+    name: "rhiaqey-keys"
+    private: "private_key"
+    public: "public_key"
   redis:
     sentinel_mode: false
     address: "redis:6379"

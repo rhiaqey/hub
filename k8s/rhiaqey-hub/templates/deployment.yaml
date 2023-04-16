@@ -81,6 +81,16 @@ spec:
               value: {{ .Values.hub.public_port | quote }}
             - name: PRIVATE_PORT
               value: {{ .Values.hub.private_port | quote }}
+            - name: PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.hub.keys.name }}
+                  key: {{ .Values.hub.keys.private }}
+            - name: PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.hub.keys.name }}
+                  key: {{ .Values.hub.keys.public }}
             - name: RUST_LOG
               value: {{ .Values.hub.log_level | quote }}
             {{ if .Values.hub.redis.sentinel_mode }}
