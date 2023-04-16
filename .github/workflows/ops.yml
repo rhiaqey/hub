@@ -10,7 +10,7 @@ env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: rhiaqey/ops
 
 jobs:
   Build:
@@ -69,6 +69,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             BINARY=ops
+            FEATURES=cli
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker

@@ -1,5 +1,6 @@
 FROM rust:1.68-slim-bullseye as builder
 ARG BINARY
+ARG FEATURES
 RUN apt-get update \
     && apt-get install -y \
       cmake \
@@ -8,7 +9,7 @@ RUN apt-get update \
 WORKDIR /usr/src/
 COPY . .
 ENV RUST_BACKTRACE=1
-RUN cargo install --bin ${BINARY} --path .
+RUN cargo install --bin ${BINARY} --features ${FEATURES} --path .
 
 FROM debian:bullseye-slim
 ARG BINARY
