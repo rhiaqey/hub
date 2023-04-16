@@ -5,7 +5,7 @@ use axum::response::IntoResponse;
 use axum::TypedHeader;
 use headers_client_ip::XRealIP;
 use http::{HeaderMap, StatusCode};
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use serde::Deserialize;
 use sha256::digest;
 use std::collections::HashMap;
@@ -109,6 +109,8 @@ pub async fn get_auth(
     state: Arc<SharedState>,
 ) -> impl IntoResponse {
     let mut api_host: Option<String> = None;
+
+    info!("headers dump {:?}", headers);
 
     if headers.contains_key("x-api-host") {
         api_host = Some(
