@@ -1,4 +1,4 @@
-name: Hub
+name: Ops
 
 on:
   push:
