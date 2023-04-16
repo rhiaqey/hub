@@ -131,10 +131,10 @@ pub fn get_ip(real_ip: Option<TypedHeader<XRealIP>>, headers: &HeaderMap) -> Opt
     let mut ip: Option<String> = None;
 
     if real_ip.is_some() {
-        debug!("x-real-ip found");
+        debug!("x-real-ip header found");
         ip = Some(real_ip.unwrap().to_string());
     } else if headers.contains_key("x-forwarded-for") {
-        debug!("x-forwarded-for detected");
+        debug!("x-forwarded-for header found");
         ip = Some(
             headers
                 .get("x-forwarded-for")
@@ -152,7 +152,7 @@ pub fn get_hostname(hostname: String, headers: &HeaderMap) -> Option<String> {
     let mut hostname: Option<String> = Some(hostname);
 
     if headers.contains_key("x-forwarded-host") {
-        debug!("header contains x-forwarded-host");
+        debug!("x-forwarded-host header found");
         hostname = Some(
             headers
                 .get("x-forwarded-host")
@@ -170,7 +170,7 @@ pub fn get_api_key(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -
     let mut api_key: Option<String> = None;
 
     if headers.contains_key("x-api-key") {
-        debug!("header contains x-api-key");
+        debug!("x-api-key header found");
         api_key = Some(
             headers
                 .get("x-api-key")
@@ -180,10 +180,10 @@ pub fn get_api_key(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -
                 .to_string(),
         );
     } else if let Some(key) = qs.api_key.clone() {
-        debug!("qa contains api key");
+        debug!("api_key qs found");
         api_key = Some(key)
     } else if headers.contains_key("x-forwarded-uri") {
-        debug!("forwarded-uri found");
+        debug!("x-forwarded-uri header found");
         api_key = extract_api_key_from_relative_path(
             headers.get("x-forwarded-uri").unwrap().to_str().unwrap(),
         )
@@ -196,7 +196,7 @@ pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) 
     let mut api_host: Option<String> = None;
 
     if headers.contains_key("x-api-host") {
-        debug!("header contains x-api-host");
+        debug!("x-api-host header found");
         api_host = Some(
             headers
                 .get("x-api-host")
@@ -206,10 +206,10 @@ pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) 
                 .to_string(),
         );
     } else if let Some(host) = qs.host.clone() {
-        debug!("qa contains host");
+        debug!("host qs found");
         api_host = Some(host)
     } else if headers.contains_key("x-forwarded-uri") {
-        debug!("forwarded-uri found");
+        debug!("x-forwarded-uri header found");
         api_host = extract_api_host_from_relative_path(
             headers.get("x-forwarded-uri").unwrap().to_str().unwrap(),
         )
@@ -239,7 +239,7 @@ pub async fn get_auth(
 
     let hostname = get_hostname(hostname, &headers);
     if hostname.is_none() {
-        warn!("failed to identify hostname");
+        warn!("hostname was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     } else {
         let source_host = hostname.unwrap();
@@ -255,7 +255,7 @@ pub async fn get_auth(
 
     let ip = get_ip(ip, &headers);
     if ip.is_none() {
-        warn!("failed to extract ip");
+        warn!("ip was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
