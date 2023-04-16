@@ -4,6 +4,10 @@
 
 Early development stage ( mostly for educational purposes 
 
+## Ops
+
+![Hub](https://github.com/rhiaqey/hub/actions/workflows/ops.yml/badge.svg)
+
 ## Run in github.dev
 
 ### Commands
