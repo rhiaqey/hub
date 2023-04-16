@@ -37,10 +37,7 @@ http = "0.2"
 headers-client-ip = { version = "0.1" }
 rsa = { version = "0.8", features = [ "pem" ] }
 rand = "0.8"
-clap = { version = "4.2.2", features = ["derive"], optional = true }
-
-[features]
-cli = ["dep:clap"]
+clap = { version = "4.2.2", features = ["derive"] }
 
 [[bin]]
 name = "hub"
@@ -49,4 +46,3 @@ src = "src/bin/hub.rs"
 [[bin]]
 name = "ops"
 src = "src/bin/ops.rs"
-required-features = [ "cli" ]

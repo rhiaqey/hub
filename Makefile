@@ -66,7 +66,7 @@ run:
 
 .PHONY: ops
 ops:
-	cargo +nightly run --features=cli --bin \
+	cargo +nightly run --bin \
 		ops -- generate-keys --write .
 
 .PHONY: hub1
