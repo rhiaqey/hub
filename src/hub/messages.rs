@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::{debug, trace};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
@@ -16,7 +16,7 @@ pub struct MessageHandler {
     pub redis: Arc<Mutex<Client>>,
 }
 
-/// On message handler per channel
+/// Message handler per channel
 impl MessageHandler {
     pub async fn create(
         hub_id: String,
@@ -44,7 +44,10 @@ impl MessageHandler {
         let mut notify_message = stream_message.clone();
         notify_message.hub_id = Some(self.hub_id.clone());
 
-        let raw_message = serde_json::to_string(&stream_message).unwrap();
+        let raw_message = stream_message.to_string().unwrap();
+        trace!("raw message encoded to string {}", raw_message);
+
+        // TODO: handle duplicates here
 
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
         let snapshot_topic = topics::hub_channel_snapshot_topic(
@@ -53,10 +56,12 @@ impl MessageHandler {
             stream_message.key,
             stream_message.category.unwrap_or(String::from("default")),
         );
+
         let raw = serde_json::to_string(&RPCMessage {
             data: RPCMessageData::NotifyClients(notify_message),
         })
         .unwrap();
+        trace!("rpc message encoded to string {}", raw);
 
         self.redis
             .lock()
@@ -64,8 +69,7 @@ impl MessageHandler {
             .publish(clean_topic.clone(), raw)
             .await
             .unwrap();
-
-        info!("message sent to pubsub {}", clean_topic);
+        trace!("message sent to pubsub {}", clean_topic);
 
         let xadd_options = XAddOptions::default();
         let trim_options = XTrimOptions::max_len(XTrimOperator::Equal, channel_size);
@@ -83,6 +87,6 @@ impl MessageHandler {
             .await
             .unwrap();
 
-        info!("message sent to clean xstream {}: {id}", clean_topic);
+        debug!("message sent to clean xstream {}: {id}", clean_topic);
     }
 }
