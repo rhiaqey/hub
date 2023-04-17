@@ -15,7 +15,9 @@ use url::Url;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationQueryParams {
+    #[serde(rename = "api_key")]
     pub api_key: Option<String>,
+    #[serde(rename = "host")]
     pub host: Option<String>,
 }
 
