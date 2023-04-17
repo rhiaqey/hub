@@ -19,11 +19,13 @@ pub struct AuthenticationQueryParams {
 }
 
 pub fn extract_api_host_from_relative_path(relative_path: &str) -> Option<String> {
+    trace!("extract host from relative path {relative_path}");
+
     let full = format!("http://localhost{}", relative_path);
 
     return match Url::parse(full.as_str()) {
         Ok(parts) => {
-            trace!("we parsed full url into parts {full}");
+            trace!("we parsed full url {full} into parts");
 
             let queries: HashMap<_, _> = parts.query_pairs().collect();
             if queries.contains_key("host") {
@@ -223,6 +225,11 @@ pub async fn get_auth(
     qs: Query<AuthenticationQueryParams>,
     state: Arc<SharedState>,
 ) -> impl IntoResponse {
+    trace!("[dump] hostname: {hostname}");
+    trace!("[dump] headers: {:?}", headers);
+    trace!("[dump] ip: {:?}", ip);
+    trace!("[dump] qs: {:?}", qs);
+
     let api_host = get_api_host(&qs, &headers);
     if api_host.is_none() {
         warn!("api host was not found");
