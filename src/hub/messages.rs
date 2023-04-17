@@ -13,7 +13,7 @@ pub struct MessageHandler {
     hub_id: String,
     pub namespace: String,
     pub channel: Channel,
-    pub redis: Option<Arc<Mutex<Client>>>,
+    pub redis: Arc<Mutex<Client>>,
 }
 
 /// On message handler per channel
@@ -29,7 +29,7 @@ impl MessageHandler {
             hub_id,
             namespace,
             channel,
-            redis: Some(Arc::new(Mutex::new(connection))),
+            redis: Arc::new(Mutex::new(connection)),
         }
     }
 
@@ -59,8 +59,6 @@ impl MessageHandler {
         .unwrap();
 
         self.redis
-            .as_mut()
-            .unwrap()
             .lock()
             .await
             .publish(clean_topic.clone(), raw)
@@ -74,8 +72,6 @@ impl MessageHandler {
 
         let id: String = self
             .redis
-            .as_mut()
-            .unwrap()
             .lock()
             .await
             .xadd(
