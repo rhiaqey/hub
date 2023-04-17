@@ -11,6 +11,7 @@ use log::info;
 use prometheus::{Encoder, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_cookies::CookieManagerLayer;
 
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK
@@ -48,8 +49,8 @@ pub async fn start_private_http_server(
             "/auth",
             get({
                 let shared_state = Arc::clone(&shared_state);
-                move |ip, Host(hostname): Host, headers, query| {
-                    get_auth(hostname, ip, headers, query, shared_state)
+                move |ip, Host(hostname): Host, headers, cookies, query| {
+                    get_auth(hostname, ip, headers, cookies, query, shared_state)
                 }
             }),
         )
@@ -80,7 +81,8 @@ pub async fn start_private_http_server(
                 let shared_state = Arc::clone(&shared_state);
                 move |body| update_settings(body, shared_state)
             }),
-        );
+        )
+        .layer(CookieManagerLayer::new());
 
     info!("running private http server @ 0.0.0.0:{}", port);
 

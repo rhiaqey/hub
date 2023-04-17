@@ -10,6 +10,7 @@ use serde::Deserialize;
 use sha256::digest;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tower_cookies::{Cookie, Cookies};
 use url::Url;
 
 #[derive(Debug, Deserialize)]
@@ -166,7 +167,11 @@ pub fn get_hostname(hostname: String, headers: &HeaderMap) -> Option<String> {
     hostname
 }
 
-pub fn get_api_key(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -> Option<String> {
+pub fn get_api_key(
+    qs: &Query<AuthenticationQueryParams>,
+    headers: &HeaderMap,
+    cookies: &Cookies,
+) -> Option<String> {
     let mut api_key: Option<String> = None;
 
     if headers.contains_key("x-api-key") {
@@ -187,12 +192,19 @@ pub fn get_api_key(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -
         api_key = extract_api_key_from_relative_path(
             headers.get("x-forwarded-uri").unwrap().to_str().unwrap(),
         )
+    } else if let Some(cookie) = cookies.get("x-api-key") {
+        debug!("x-api-key cookie found");
+        api_key = Some(cookie.to_string());
     }
 
     api_key
 }
 
-pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -> Option<String> {
+pub fn get_api_host(
+    qs: &Query<AuthenticationQueryParams>,
+    headers: &HeaderMap,
+    cookies: &Cookies,
+) -> Option<String> {
     let mut api_host: Option<String> = None;
 
     if headers.contains_key("x-api-host") {
@@ -213,6 +225,9 @@ pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) 
         api_host = extract_api_host_from_relative_path(
             headers.get("x-forwarded-uri").unwrap().to_str().unwrap(),
         )
+    } else if let Some(cookie) = cookies.get("x-api-host") {
+        debug!("x-api-host cookie found");
+        api_host = Some(cookie.to_string());
     }
 
     api_host
@@ -222,21 +237,23 @@ pub async fn get_auth(
     hostname: String,
     ip: Option<TypedHeader<XRealIP>>,
     headers: HeaderMap,
+    cookies: Cookies,
     qs: Query<AuthenticationQueryParams>,
     state: Arc<SharedState>,
 ) -> impl IntoResponse {
     trace!("[dump] hostname: {hostname}");
     trace!("[dump] headers: {:?}", headers);
+    trace!("[dump] cookies: {:?}", cookies);
     trace!("[dump] ip: {:?}", ip);
     trace!("[dump] qs: {:?}", qs);
 
-    let api_host = get_api_host(&qs, &headers);
+    let api_host = get_api_host(&qs, &headers, &cookies);
     if api_host.is_none() {
         warn!("api host was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
-    let api_key = get_api_key(&qs, &headers);
+    let api_key = get_api_key(&qs, &headers, &cookies);
     if api_key.is_none() {
         warn!("api key was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
@@ -265,14 +282,16 @@ pub async fn get_auth(
     }
 
     if valid_api_key(
-        digest(api_key.unwrap()),
-        api_host.unwrap(),
+        digest(api_key.clone().unwrap()),
+        api_host.clone().unwrap(),
         ip.unwrap(),
         state,
     )
     .await
     {
         info!("granting access");
+        cookies.add(Cookie::new("x-api-key", api_key.unwrap()));
+        cookies.add(Cookie::new("x-api-host", api_host.unwrap()));
         (StatusCode::OK, "Access granted")
     } else {
         warn!("forbidden access");
