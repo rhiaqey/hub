@@ -23,17 +23,17 @@ pub fn extract_api_host_from_relative_path(relative_path: &str) -> Option<String
 
     return match Url::parse(full.as_str()) {
         Ok(parts) => {
-            trace!("we parsed full url into parts");
+            trace!("we parsed full url into parts {full}");
 
             let queries: HashMap<_, _> = parts.query_pairs().collect();
             if queries.contains_key("host") {
-                let api_key = queries.get("host").unwrap().to_string();
+                let host = queries.get("host").unwrap().to_string();
                 debug!("host was found");
 
-                return Some(api_key);
+                return Some(host);
             }
 
-            warn!("could ot find host part");
+            warn!("could not find host part");
 
             return None;
         }
