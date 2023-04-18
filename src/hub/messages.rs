@@ -1,11 +1,13 @@
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk::channel::Channel;
 use rustis::client::Client;
-use rustis::commands::{PubSubCommands, StreamCommands, XAddOptions, XTrimOperator, XTrimOptions};
+use rustis::commands::{
+    PubSubCommands, StreamCommands, StreamEntry, XAddOptions, XTrimOperator, XTrimOptions,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -14,6 +16,13 @@ pub struct MessageHandler {
     pub namespace: String,
     pub channel: Channel,
     pub redis: Arc<Mutex<Client>>,
+}
+
+enum MessageProcessResult {
+    Allow,
+    AllowUnprocessed,
+    Deny(String),
+    CheckIfMessageExists,
 }
 
 /// Message handler per channel
@@ -33,6 +42,73 @@ impl MessageHandler {
         }
     }
 
+    async fn compare_by_timestamp(
+        &mut self,
+        new_message: &StreamMessage,
+        topic: &String,
+    ) -> MessageProcessResult {
+        debug!("checking if message should be processed");
+
+        // 1. if the new message has timestamp=0 means do not check at all.
+        //    Just let it pass through.
+        let new_timestamp = new_message.timestamp.unwrap_or(0);
+        if new_timestamp == 0 {
+            debug!("new message has timestamp = 0");
+            // allow it without checking
+            return MessageProcessResult::AllowUnprocessed;
+        }
+
+        let results: Vec<StreamEntry<String>> = self
+            .redis
+            .lock()
+            .await
+            .xrevrange(topic, "+", "-", Some(1))
+            .await
+            .unwrap_or(vec![]);
+
+        if results.len() == 0 {
+            // allow it since we have not stored data to compare against
+            return MessageProcessResult::AllowUnprocessed;
+        }
+
+        // Checking only the first result
+        let last_entry = results.iter().next().unwrap();
+        let Some(last_message) = last_entry.items.get("raw") else {
+            warn!("last message in raw not found");
+            // allow it as the stored one did not have correct format
+            return MessageProcessResult::AllowUnprocessed;
+        };
+
+        let decoded = StreamMessage::from_string(last_message.as_str());
+        if let Err(e) = decoded {
+            warn!("stored message could not be deserialized {e}");
+            // allow it as the stored failed to decode
+            return MessageProcessResult::AllowUnprocessed;
+        }
+
+        // =========================================================================================
+
+        let stored_message = decoded.unwrap();
+        let old_timestamp = stored_message.timestamp.unwrap_or(0);
+
+        // 2. If old timestamp if more recent do not process the new one.
+        if old_timestamp > new_timestamp {
+            // do not allow it as it is not fresh data
+            return MessageProcessResult::Deny(String::from("old timestamp"));
+        }
+
+        // 3. If new timestamp has the same with the stored one, then we need to check if message
+        //    exists in the whole list. Must compare against all stored message and compare tags.
+        if old_timestamp == new_timestamp {
+            // we need to further examine the message
+            return MessageProcessResult::CheckIfMessageExists;
+        }
+
+        // We are allowing anything else that does not meet out criteria to
+        // deny processing the message.
+        MessageProcessResult::Allow
+    }
+
     pub async fn handle_raw_stream_message_from_publishers(
         &mut self,
         stream_message: StreamMessage,
@@ -44,22 +120,46 @@ impl MessageHandler {
         let mut notify_message = stream_message.clone();
         notify_message.hub_id = Some(self.hub_id.clone());
 
-        let raw_message = stream_message.to_string().unwrap();
-        trace!("raw message encoded to string {}", raw_message);
-
-        // TODO: handle duplicates here
-
-        let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
-            stream_message.channel,
-            stream_message.key,
-            stream_message.category.unwrap_or(String::from("default")),
+            stream_message.channel.clone(),
+            stream_message.key.clone(),
+            stream_message
+                .category
+                .clone()
+                .unwrap_or(String::from("default")),
         );
 
-        let raw = serde_json::to_string(&RPCMessage {
+        match self
+            .compare_by_timestamp(&stream_message, &snapshot_topic)
+            .await
+        {
+            MessageProcessResult::Allow => {
+                trace!("allowing message to proceed (check by tags)");
+            }
+            MessageProcessResult::AllowUnprocessed => {
+                trace!("allowing message to proceed unprocessed");
+            }
+            MessageProcessResult::Deny(reason) => {
+                warn!("raw message should not be processed further due to: {reason}");
+                return;
+            }
+            MessageProcessResult::CheckIfMessageExists => {
+                debug!("must compare message against all");
+            }
+        }
+
+        let Ok(raw_message) = stream_message.to_string() else {
+            warn!("failed to message to string");
+            return;
+        };
+
+        let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
+
+        let raw = &RPCMessage {
             data: RPCMessageData::NotifyClients(notify_message),
-        })
+        }
+        .to_string()
         .unwrap();
         trace!("rpc message encoded to string {}", raw);
 
