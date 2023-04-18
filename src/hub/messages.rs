@@ -25,6 +25,34 @@ enum MessageProcessResult {
     CheckIfMessageExists,
 }
 
+impl MessageProcessResult {
+    pub fn should_allow(&self) -> bool {
+        self == MessageProcessResult::Allow
+    }
+
+    pub fn should_allow_unprocessed(&self) -> bool {
+        self == MessageProcessResult::AllowUnprocessed
+    }
+
+    pub fn should_deny(&self) -> bool {
+        match self {
+            MessageProcessResult::Deny(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn get_deny_reason(&self) -> Option<String> {
+        match self {
+            MessageProcessResult::Deny(reason) => Some(reason.to_string()),
+            _ => None,
+        }
+    }
+
+    pub fn should_check_if_message_exists(&self) -> bool {
+        self == MessageProcessResult::CheckIfMessageExists
+    }
+}
+
 /// Message handler per channel
 impl MessageHandler {
     pub async fn create(
@@ -130,23 +158,30 @@ impl MessageHandler {
                 .unwrap_or(String::from("default")),
         );
 
-        match self
+        let compare_timestamps = self
             .compare_by_timestamp(&stream_message, &snapshot_topic)
-            .await
-        {
-            MessageProcessResult::Allow => {
-                trace!("allowing message to proceed (check by tags)");
-            }
-            MessageProcessResult::AllowUnprocessed => {
-                trace!("allowing message to proceed unprocessed");
-            }
-            MessageProcessResult::Deny(reason) => {
-                warn!("raw message should not be processed further due to: {reason}");
-                return;
-            }
-            MessageProcessResult::CheckIfMessageExists => {
-                debug!("must compare message against all");
-            }
+            .await;
+
+        if compare_timestamps.should_deny() {
+            warn!(
+                "raw message should not be processed further due to: {}",
+                compare_timestamps.get_deny_reason().unwrap()
+            );
+            return;
+        }
+
+        if compare_timestamps.should_check_if_message_exists() {
+            // TODO: check here against all messages
+            trace!("must compare message against all");
+        }
+
+        if compare_timestamps.should_allow() {
+            // TODO: proceed here to compare by tag
+            trace!("allowing message to proceed (check by tags)");
+        }
+
+        if compare_timestamps.should_allow_unprocessed() {
+            trace!("allowing message to proceed unprocessed");
         }
 
         let Ok(raw_message) = stream_message.to_string() else {
