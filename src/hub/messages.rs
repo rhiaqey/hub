@@ -18,39 +18,12 @@ pub struct MessageHandler {
     pub redis: Arc<Mutex<Client>>,
 }
 
+#[derive(PartialEq)]
 enum MessageProcessResult {
-    Allow,
+    Allow(StreamMessage),
     AllowUnprocessed,
     Deny(String),
     CheckIfMessageExists,
-}
-
-impl MessageProcessResult {
-    pub fn should_allow(&self) -> bool {
-        self == MessageProcessResult::Allow
-    }
-
-    pub fn should_allow_unprocessed(&self) -> bool {
-        self == MessageProcessResult::AllowUnprocessed
-    }
-
-    pub fn should_deny(&self) -> bool {
-        match self {
-            MessageProcessResult::Deny(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn get_deny_reason(&self) -> Option<String> {
-        match self {
-            MessageProcessResult::Deny(reason) => Some(reason.to_string()),
-            _ => None,
-        }
-    }
-
-    pub fn should_check_if_message_exists(&self) -> bool {
-        self == MessageProcessResult::CheckIfMessageExists
-    }
 }
 
 /// Message handler per channel
@@ -70,12 +43,33 @@ impl MessageHandler {
         }
     }
 
+    async fn compare_by_tags(
+        &mut self,
+        new_msg: &StreamMessage,
+        old_msg: &StreamMessage,
+    ) -> MessageProcessResult {
+        trace!("checking if message should be processed (compare by tags)");
+
+        let new_tag = new_msg.tag.clone().unwrap_or(String::from(""));
+        let old_tag = old_msg.tag.clone().unwrap_or(String::from(""));
+
+        if old_tag.is_empty() && new_tag.is_empty() {
+            return MessageProcessResult::AllowUnprocessed;
+        }
+
+        if old_tag == new_tag {
+            return MessageProcessResult::Deny(String::from("due to same tags"));
+        }
+
+        MessageProcessResult::AllowUnprocessed
+    }
+
     async fn compare_by_timestamp(
         &mut self,
         new_message: &StreamMessage,
         topic: &String,
     ) -> MessageProcessResult {
-        debug!("checking if message should be processed");
+        trace!("checking if message should be processed (compare by timestamps)");
 
         // 1. if the new message has timestamp=0 means do not check at all.
         //    Just let it pass through.
@@ -132,9 +126,16 @@ impl MessageHandler {
             return MessageProcessResult::CheckIfMessageExists;
         }
 
+        trace!(
+            "clear to proceed as timestamp is valid {} - {} - {}",
+            old_timestamp,
+            new_timestamp,
+            old_timestamp > new_timestamp
+        );
+
         // We are allowing anything else that does not meet out criteria to
         // deny processing the message.
-        MessageProcessResult::Allow
+        MessageProcessResult::Allow(stored_message)
     }
 
     pub async fn handle_raw_stream_message_from_publishers(
@@ -145,8 +146,8 @@ impl MessageHandler {
         debug!("handle raw stream message");
 
         let channel_size = stream_message.size.unwrap_or(channel_size) as i64;
-        let mut notify_message = stream_message.clone();
-        notify_message.hub_id = Some(self.hub_id.clone());
+        let mut new_message = stream_message.clone();
+        new_message.hub_id = Some(self.hub_id.clone());
 
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
@@ -162,25 +163,30 @@ impl MessageHandler {
             .compare_by_timestamp(&stream_message, &snapshot_topic)
             .await;
 
-        if compare_timestamps.should_deny() {
-            warn!(
-                "raw message should not be processed further due to: {}",
-                compare_timestamps.get_deny_reason().unwrap()
-            );
+        if let MessageProcessResult::Deny(reason) = compare_timestamps {
+            warn!("raw message should not be processed further due to: {reason}");
             return;
         }
 
-        if compare_timestamps.should_check_if_message_exists() {
+        if let MessageProcessResult::CheckIfMessageExists = compare_timestamps {
             // TODO: check here against all messages
             trace!("must compare message against all");
         }
 
-        if compare_timestamps.should_allow() {
-            // TODO: proceed here to compare by tag
+        if let MessageProcessResult::Allow(ref old_message) = compare_timestamps {
             trace!("allowing message to proceed (check by tags)");
+
+            let compare_tags = self.compare_by_tags(&new_message, old_message).await;
+
+            if let MessageProcessResult::Deny(reason) = compare_tags {
+                warn!("raw message should not be processed further due to: {reason}");
+                return;
+            }
+
+            trace!("message tags are not same");
         }
 
-        if compare_timestamps.should_allow_unprocessed() {
+        if let MessageProcessResult::AllowUnprocessed = compare_timestamps {
             trace!("allowing message to proceed unprocessed");
         }
 
@@ -192,11 +198,10 @@ impl MessageHandler {
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
 
         let raw = &RPCMessage {
-            data: RPCMessageData::NotifyClients(notify_message),
+            data: RPCMessageData::NotifyClients(new_message),
         }
         .to_string()
         .unwrap();
-        trace!("rpc message encoded to string {}", raw);
 
         self.redis
             .lock()
