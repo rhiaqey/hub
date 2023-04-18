@@ -64,6 +64,43 @@ impl MessageHandler {
         MessageProcessResult::AllowUnprocessed
     }
 
+    async fn compare_against_all(
+        &mut self,
+        new_message: &StreamMessage,
+        topic: &String,
+    ) -> MessageProcessResult {
+        trace!("checking if message should be processed 1-to-many (compare by tags)");
+
+        let new_message = new_message.clone();
+        let new_tag = new_message.tag.unwrap_or("".to_string());
+
+        let results: Vec<StreamEntry<String>> = self
+            .redis
+            .lock()
+            .await
+            .xrevrange(topic, "+", "-", Some(self.channel.size))
+            .await
+            .unwrap_or(vec![]);
+
+        if results.len() == 0 {
+            // allow it since we have not stored data to compare against
+            return MessageProcessResult::AllowUnprocessed;
+        }
+
+        // Checking all results
+        for last_entry in results.iter() {
+            let old_tag = last_entry.items.get("tag");
+            if let Some(last_tag) = old_tag {
+                if new_tag == last_tag.to_string() {
+                    warn!("tag \"{new_tag}\" already found stored");
+                    return MessageProcessResult::Deny(String::from("tag already found"));
+                }
+            }
+        }
+
+        MessageProcessResult::AllowUnprocessed
+    }
+
     async fn compare_by_timestamp(
         &mut self,
         new_message: &StreamMessage,
@@ -169,8 +206,18 @@ impl MessageHandler {
         }
 
         if let MessageProcessResult::CheckIfMessageExists = compare_timestamps {
-            // TODO: check here against all messages
             trace!("must compare message against all");
+
+            let compare_against_all = self
+                .compare_against_all(&new_message, &snapshot_topic)
+                .await;
+
+            if let MessageProcessResult::Deny(reason) = compare_against_all {
+                warn!("raw message should not be processed further due to: {reason}");
+                return;
+            }
+
+            trace!("message tags are not same 1-to-many");
         }
 
         if let MessageProcessResult::Allow(ref old_message) = compare_timestamps {
@@ -211,6 +258,7 @@ impl MessageHandler {
             .unwrap();
         trace!("message sent to pubsub {}", clean_topic);
 
+        let tag = stream_message.tag.unwrap_or(String::from(""));
         let xadd_options = XAddOptions::default();
         let trim_options = XTrimOptions::max_len(XTrimOperator::Equal, channel_size);
 
@@ -221,7 +269,7 @@ impl MessageHandler {
             .xadd(
                 snapshot_topic.clone(),
                 "*",
-                [("raw", raw_message)],
+                [("raw", raw_message), ("tag", tag)],
                 xadd_options.trim_options(trim_options),
             )
             .await
