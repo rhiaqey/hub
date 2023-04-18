@@ -70,6 +70,7 @@ impl MessageHandler {
         topic: &String,
     ) -> MessageProcessResult {
         trace!("checking if message should be processed 1-to-many (compare by tags)");
+        trace!("checking topic {}", topic);
 
         let new_message = new_message.clone();
         let new_tag = new_message.tag.unwrap_or("".to_string());
@@ -86,6 +87,8 @@ impl MessageHandler {
             // allow it since we have not stored data to compare against
             return MessageProcessResult::AllowUnprocessed;
         }
+
+        trace!("found {}", results.len());
 
         // Checking all results
         for last_entry in results.iter() {
@@ -107,6 +110,7 @@ impl MessageHandler {
         topic: &String,
     ) -> MessageProcessResult {
         trace!("checking if message should be processed (compare by timestamps)");
+        trace!("checking topic {}", topic);
 
         // 1. if the new message has timestamp=0 means do not check at all.
         //    Just let it pass through.

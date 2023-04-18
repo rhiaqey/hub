@@ -86,15 +86,20 @@ impl StreamingChannel {
                     continue;
                 }
 
-                if let Some(v) = results.unwrap().get(0) {
-                    if let Some(raw) = v.1.get(0).unwrap().items.get("raw") {
-                        let stream_message: StreamMessage =
-                            serde_json::from_str(raw.as_str()).unwrap();
-                        message_handler
-                            .lock()
-                            .await
-                            .handle_raw_stream_message_from_publishers(stream_message, channel.size)
-                            .await;
+                for (_ /* topic */, items) in results.unwrap_or(vec![]).iter() {
+                    for item in items.iter() {
+                        if let Some(raw) = item.items.get("raw") {
+                            if let Ok(stream_message) = serde_json::from_str::<StreamMessage>(raw) {
+                                message_handler
+                                    .lock()
+                                    .await
+                                    .handle_raw_stream_message_from_publishers(
+                                        stream_message,
+                                        channel.size,
+                                    )
+                                    .await;
+                            }
+                        }
                     }
                 }
 
