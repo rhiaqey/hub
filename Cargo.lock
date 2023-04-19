@@ -1092,7 +1092,7 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 [[package]]
 name = "rhiaqey-common"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/common.git#0fdba7ee28b5ead9a587a4f33c4f54def9ba488f"
+source = "git+https://github.com/rhiaqey/common.git#b71114bef86d4dd2db41ad3b61d152d634a031fa"
 dependencies = [
  "env_logger",
  "envy",
