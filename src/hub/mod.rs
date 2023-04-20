@@ -65,7 +65,7 @@ impl Hub {
             return None;
         }
 
-        let key = topics::hub_raw_to_hub_clean_pubsub_topic(self.env.namespace.clone());
+        let key = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
 
         let stream = client.unwrap().subscribe(key.clone()).await.unwrap();
 
@@ -73,7 +73,7 @@ impl Hub {
     }
 
     pub async fn get_channels(&self) -> Vec<Channel> {
-        let channels_key = topics::hub_channels_key(self.env.namespace.clone());
+        let channels_key = topics::hub_channels_key(self.get_namespace());
 
         let result: String = self
             .redis

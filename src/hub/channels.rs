@@ -3,7 +3,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
-use log::{debug, warn};
+use log::{debug, trace, warn};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
@@ -86,8 +86,11 @@ impl StreamingChannel {
                     continue;
                 }
 
+                let mut ids: Vec<String> = vec![];
+
                 for (_ /* topic */, items) in results.unwrap_or(vec![]).iter() {
                     for item in items.iter() {
+                        ids.push(item.stream_id.clone());
                         if let Some(raw) = item.items.get("raw") {
                             if let Ok(stream_message) = serde_json::from_str::<StreamMessage>(raw) {
                                 message_handler
@@ -99,6 +102,18 @@ impl StreamingChannel {
                                     )
                                     .await;
                             }
+                        }
+                    }
+                }
+
+                if ids.len() > 0 {
+                    trace!("must ack {} stream ids", ids.len());
+                    match redis.lock().await.xack(topic.clone(), "hub", ids).await {
+                        Ok(res) => {
+                            trace!("ack {res} stream ids");
+                        }
+                        Err(e) => {
+                            warn!("failed to ack stream ids {e}");
                         }
                     }
                 }
