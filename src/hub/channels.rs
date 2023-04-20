@@ -88,7 +88,7 @@ impl StreamingChannel {
 
                 let mut ids: Vec<String> = vec![];
 
-                for (_ /* topic */, items) in results.unwrap_or(vec![]).iter() {
+                for (_ /* topic */, items) in results.unwrap().iter() {
                     for item in items.iter() {
                         ids.push(item.stream_id.clone());
                         if let Some(raw) = item.items.get("raw") {
@@ -106,16 +106,38 @@ impl StreamingChannel {
                     }
                 }
 
-                if ids.len() > 0 {
-                    trace!("must ack {} stream ids", ids.len());
-                    match redis.lock().await.xack(topic.clone(), "hub", ids).await {
+                if ids.len() == 0 {
+                    continue;
+                }
+
+                trace!("must ack {} stream ids", ids.len());
+
+                let result = match redis
+                    .lock()
+                    .await
+                    .xack(topic.clone(), "hub", ids.clone())
+                    .await
+                {
+                    Ok(res) => {
+                        trace!("ack {res} stream ids");
+                        true
+                    }
+                    Err(e) => {
+                        warn!("failed to ack stream ids {e}");
+                        false
+                    }
+                };
+
+                if result {
+                    trace!("must delete {} stream ids", ids.len());
+                    match redis.lock().await.xdel(topic.clone(), ids).await {
                         Ok(res) => {
-                            trace!("ack {res} stream ids");
+                            trace!("del {res} stream ids");
                         }
                         Err(e) => {
-                            warn!("failed to ack stream ids {e}");
+                            warn!("failed to del stream ids {e}");
                         }
-                    }
+                    };
                 }
 
                 thread::sleep(duration);
