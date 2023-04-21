@@ -93,8 +93,9 @@ build:
 
 .PHONY: prod
 prod:
-	cargo +nightly build --release
-	ls -lah target/release/hub
+	cargo +nightly build --release --bin hub
+	cargo +nightly build --release --bin ops --features=cli
+	ls -lah target/release
 
 .PHONY: docker-build
 docker-build:
