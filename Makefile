@@ -62,11 +62,11 @@ hub: run
 
 .PHONY: run
 run:
-	cargo +nightly run --bin hub
+	cargo run --bin hub
 
 .PHONY: ops
 ops:
-	cargo +nightly run --bin \
+	cargo run --bin \
 		ops -- generate-keys --write .
 
 .PHONY: hub1
@@ -77,24 +77,24 @@ hub2:
 	ID=hub2 \
 	PRIVATE_PORT=3010 \
 	PUBLIC_PORT=3020 \
-		cargo +nightly run --bin hub
+		cargo run --bin hub
 
 .PHONY: run-prod
 run-prod:
-	cargo +nightly run --release --bin hub
+	cargo run --release --bin hub
 
 .PHONY: dev
 dev: build
 
 .PHONY: build
 build:
-	cargo +nightly build
+	cargo build
 	ls -lah target/debug/hub
 
 .PHONY: prod
 prod:
-	cargo +nightly build --release --bin hub
-	cargo +nightly build --release --bin ops --features=cli
+	cargo build --release --bin hub
+	cargo build --release --bin ops --features=cli
 	ls -lah target/release
 
 .PHONY: docker-build
