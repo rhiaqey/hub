@@ -35,7 +35,7 @@ sha2 = "0.10"
 url = "2.3"
 http = "0.2"
 headers-client-ip = { version = "0.1" }
-rsa = { version = "0.8", features = [ "pem" ] }
+rsa = { version = "0.9", features = [ "pem" ] }
 rand = "0.8"
 clap = { version = "4.2", features = ["derive"], optional = true }
 tower-cookies = "0.9"
