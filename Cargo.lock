@@ -1091,7 +1091,7 @@ checksum = "a5996294f19bd3aae0453a862ad728f60e6600695733dd5df01da90c54363a3c"
 [[package]]
 name = "rhiaqey-common"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/common.git#8f50eaacb6a5cf8c57e3475e4fe51d0b0fe7012d"
+source = "git+https://github.com/rhiaqey/common.git#4452f1d30e13689d3e89378b95f111813bcb7242"
 dependencies = [
  "env_logger",
  "envy",
@@ -1141,7 +1141,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/sdk.git#3f1268bbdce8ba07c308753b3a06492b5ed8631f"
+source = "git+https://github.com/rhiaqey/sdk.git#0f1d9ad20257dd0bf5bce1aa8908c23b52f3917a"
 dependencies = [
  "async-trait",
  "serde",
