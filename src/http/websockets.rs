@@ -1,5 +1,6 @@
 use crate::http::client::WebSocketClient;
 use crate::http::state::SharedState;
+
 use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, Query, WebSocketUpgrade};
@@ -99,8 +100,8 @@ async fn handle_client(
 
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
-        channel: "".to_string(),
-        key: "".to_string(),
+        channel: "".into(),
+        key: "".into(),
         value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
             client_id: client_id.to_string(),
             hub_id: hub_id.to_string(),
@@ -124,8 +125,8 @@ async fn handle_client(
         let mut data = client_message.clone();
 
         data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
-        data.channel = channel.name.clone();
-        data.key = channel.name.clone();
+        data.channel = channel.name.clone().into();
+        data.key = channel.name.clone().into();
         data.value = ClientMessageValue::ClientChannelSubscription(
             ClientMessageValueClientChannelSubscription { channel },
         );
@@ -137,7 +138,7 @@ async fn handle_client(
             warn!("could not send subscription message");
         }
 
-        let streaming_channel = streaming_channels.get_mut(channel_name.as_str());
+        let streaming_channel = streaming_channels.get_mut(&*channel_name);
         if let Some(chx) = streaming_channel {
             let snapshot = chx.get_snapshot().await;
             for stream_message in snapshot {

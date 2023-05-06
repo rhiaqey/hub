@@ -131,3 +131,7 @@ sentinel2:
 		-e ALLOW_EMPTY_PASSWORD=yes \
 		-e REDIS_MASTER_HOST=localhost \
 		bitnami/redis-sentinel:7.0.11
+
+.PHONY: test
+test:
+	cargo test

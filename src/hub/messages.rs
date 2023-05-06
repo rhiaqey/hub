@@ -192,7 +192,7 @@ impl MessageHandler {
 
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
-            stream_message.channel.clone(),
+            stream_message.channel.clone().into(),
             stream_message.key.clone(),
             stream_message
                 .category

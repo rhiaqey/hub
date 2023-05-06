@@ -1,7 +1,8 @@
-pub mod auth;
-pub mod channels;
-pub mod client;
-pub mod server;
-pub mod settings;
-pub mod state;
-pub mod websockets;
+pub(crate) mod auth;
+pub(crate) mod channels;
+pub(crate) mod client;
+pub(crate) mod server;
+pub(crate) mod settings;
+pub(crate) mod sse;
+pub(crate) mod state;
+pub(crate) mod websockets;
