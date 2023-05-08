@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -15,7 +16,6 @@ use rustis::commands::{
 };
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
-use uuid::Uuid;
 
 pub struct StreamingChannel {
     hub_id: String,
@@ -24,7 +24,7 @@ pub struct StreamingChannel {
     pub redis: Option<Arc<Mutex<Client>>>,
     pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
     join_handler: Option<Arc<JoinHandle<u32>>>,
-    pub clients: Arc<Mutex<Vec<Uuid>>>,
+    pub clients: Arc<Mutex<Vec<Cow<'static, str>>>>,
 }
 
 impl StreamingChannel {
@@ -151,7 +151,7 @@ impl StreamingChannel {
         return self.channel.name.to_string();
     }
 
-    pub async fn add_client(&mut self, connection_id: Uuid) {
+    pub async fn add_client(&mut self, connection_id: Cow<'static, str>) {
         self.clients.lock().await.push(connection_id);
     }
 

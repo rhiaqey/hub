@@ -6,17 +6,17 @@ use rhiaqey_sdk::channel::ChannelList;
 use rhiaqey_sdk::message::MessageValue;
 use rustis::client::Client;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
-use uuid::Uuid;
 
 pub struct SharedState {
     pub env: Arc<Env>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-    pub clients: Arc<Mutex<HashMap<Uuid, WebSocketClient>>>,
+    pub clients: Arc<Mutex<HashMap<Cow<'static, str>, WebSocketClient>>>,
 }
 
 impl SharedState {

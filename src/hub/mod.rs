@@ -23,10 +23,10 @@ use rhiaqey_sdk::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
 use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
 use sha256::digest;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Hub {
@@ -34,7 +34,7 @@ pub struct Hub {
     pub settings: Arc<RwLock<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-    pub clients: Arc<Mutex<HashMap<Uuid, WebSocketClient>>>,
+    pub clients: Arc<Mutex<HashMap<Cow<'static, str>, WebSocketClient>>>,
 }
 
 impl Hub {
@@ -248,7 +248,7 @@ impl Hub {
                                                 Ok(_) => trace!("message sent to {client_id}"),
                                                 Err(e) => {
                                                     warn!("failed to sent message: {e}");
-                                                    to_delete.push(*client_id);
+                                                    to_delete.push(client_id);
                                                 }
                                             }
                                         },

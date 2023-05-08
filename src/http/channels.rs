@@ -184,7 +184,7 @@ pub async fn assign_channels(
             payload
                 .channels
                 .iter()
-                .find(|y| x.name.as_str() == *y)
+                .find(|y| x.name.as_ref() == y.as_str())
                 .is_some()
         })
         .map(|x| x.clone())

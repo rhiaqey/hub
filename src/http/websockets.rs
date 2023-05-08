@@ -1,5 +1,6 @@
 use crate::http::client::WebSocketClient;
 use crate::http::state::SharedState;
+use std::borrow::Cow;
 
 use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{Message, WebSocket};
@@ -12,10 +13,10 @@ use rhiaqey_common::client::{
     ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
 };
 use rhiaqey_sdk::channel::Channel;
+use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -64,14 +65,16 @@ async fn handle_ws_connection(
     channels: Vec<String>,
     state: Arc<SharedState>,
 ) {
-    let client_id = Uuid::new_v4();
+    let client_id = generate_ulid_string();
     info!("connection {who} established");
-    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state).await });
+    tokio::task::spawn(async move {
+        handle_client(Cow::from(client_id), socket, channels, state).await
+    });
 }
 
 /// Handle each client here
 async fn handle_client(
-    client_id: Uuid,
+    client_id: Cow<'static, str>,
     socket: WebSocket,
     channels: Vec<String>,
     state: Arc<SharedState>,
@@ -86,7 +89,7 @@ async fn handle_client(
     for channel in channels {
         let streaming_channel = streaming_channels.get_mut(channel.as_str());
         if let Some(chx) = streaming_channel {
-            chx.add_client(client_id).await;
+            chx.add_client(client_id.clone()).await;
 
             let snapshot = chx.get_snapshot().await;
             trace!("snapshot ready with {} elements", snapshot.len());
@@ -114,7 +117,7 @@ async fn handle_client(
 
     let raw = serde_json::to_vec(&client_message).unwrap();
 
-    let mut client = WebSocketClient::create(client_id, socket);
+    let mut client = WebSocketClient::create(client_id.clone(), socket);
 
     if let Err(e) = client.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);

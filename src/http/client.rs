@@ -7,17 +7,16 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
-use uuid::Uuid;
 
 pub struct WebSocketClient {
-    id: Uuid,
+    id: Cow<'static, str>,
     sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     receiver: Arc<Mutex<SplitStream<WebSocket>>>,
     join_handler: Option<Arc<JoinHandle<()>>>,
 }
 
 impl WebSocketClient {
-    pub fn create(client_id: Uuid, socket: WebSocket) -> WebSocketClient {
+    pub fn create(client_id: Cow<'static, str>, socket: WebSocket) -> WebSocketClient {
         let (sender, receiver) = socket.split();
         WebSocketClient {
             id: client_id,
@@ -27,8 +26,8 @@ impl WebSocketClient {
         }
     }
 
-    pub fn get_id(&self) -> Uuid {
-        self.id
+    pub fn get_id(&self) -> Cow<'static, str> {
+        self.id.clone()
     }
 
     pub fn listen(&mut self) {
