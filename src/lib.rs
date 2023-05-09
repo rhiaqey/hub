@@ -1,2 +1,2 @@
-pub mod http;
+pub(crate) mod http;
 pub mod hub;

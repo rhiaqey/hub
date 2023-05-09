@@ -1,7 +1,7 @@
-pub mod channels;
-pub mod messages;
-pub mod metrics;
-pub mod settings;
+pub(crate) mod channels;
+pub(crate) mod messages;
+pub(crate) mod metrics;
+pub(crate) mod settings;
 
 use crate::http::client::WebSocketClient;
 use crate::http::server::{start_private_http_server, start_public_http_server};
