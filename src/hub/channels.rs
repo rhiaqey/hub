@@ -183,9 +183,11 @@ impl StreamingChannel {
 
         for (_key, entries) in results {
             for entry in entries {
-                for (_key, value) in entry.items.into_iter() {
-                    let raw: StreamMessage = serde_json::from_str(value.as_str()).unwrap();
-                    messages.push(raw);
+                for (key, value) in entry.items.into_iter() {
+                    if key.eq("raw") {
+                        let raw: StreamMessage = serde_json::from_str(value.as_str()).unwrap();
+                        messages.push(raw);
+                    }
                 }
             }
         }
