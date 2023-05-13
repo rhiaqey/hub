@@ -13,7 +13,7 @@ pub struct Params {
 
 pub async fn sse_handler(Query(params): Query<Params>, state: Arc<SharedState>) {
     info!("[GET] Handle SSE connection");
-    handle_ws_connection(
+    handle_sse_connection(
         params.channels.split(",").map(|x| x.to_string()).collect(),
         state,
     )
@@ -21,7 +21,7 @@ pub async fn sse_handler(Query(params): Query<Params>, state: Arc<SharedState>) 
 }
 
 /// Handle each websocket connection here
-async fn handle_ws_connection(channels: Vec<String>, state: Arc<SharedState>) {
+async fn handle_sse_connection(channels: Vec<String>, state: Arc<SharedState>) {
     let client_id = generate_ulid_string();
     info!("connection {client_id} established");
     handle_client(client_id, channels, state).await;
