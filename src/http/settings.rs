@@ -6,7 +6,7 @@ use log::{info, warn};
 use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::topics;
-use rhiaqey_sdk::message::MessageValue;
+use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::commands::{PubSubCommands, StringCommands};
 use std::sync::Arc;
 

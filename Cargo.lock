@@ -1091,13 +1091,13 @@ checksum = "a5996294f19bd3aae0453a862ad728f60e6600695733dd5df01da90c54363a3c"
 [[package]]
 name = "rhiaqey-common"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/common.git#31cb5131dc4b1d20e28af12f18ef4d4aec32b40a"
+source = "git+https://github.com/rhiaqey/common.git#b2886859c8c86527612c8cfa092787ea4a0dff2f"
 dependencies = [
  "env_logger",
  "envy",
  "log",
  "rand",
- "rhiaqey-sdk",
+ "rhiaqey-sdk-rs",
  "rmp-serde",
  "rsa",
  "rustis",
@@ -1124,7 +1124,7 @@ dependencies = [
  "prometheus",
  "rand",
  "rhiaqey-common",
- "rhiaqey-sdk",
+ "rhiaqey-sdk-rs",
  "rsa",
  "rustis",
  "rusty_ulid",
@@ -1138,9 +1138,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "rhiaqey-sdk"
+name = "rhiaqey-sdk-rs"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/sdk.git#8cb17bca10b0d05ff59816b1e48677c54093f7d0"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#a146daa0bfd6d64ec371260fd6fa70ba69bc4e37"
 dependencies = [
  "async-trait",
  "serde",
@@ -1451,9 +1451,9 @@ checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
 
 [[package]]
 name = "syn"
-version = "2.0.15"
+version = "2.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a34fcf3e8b60f57e6a14301a2e916d323af98b0ea63c599441eec8558660c822"
+checksum = "a6f671d4b5ffdb8eadec19c0ae67fe2639df8684bd7bc4b83d986b8db549cf01"
 dependencies = [
  "proc-macro2",
  "quote",

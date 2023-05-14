@@ -3,7 +3,7 @@ use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
-use rhiaqey_sdk::channel::Channel;
+use rhiaqey_sdk_rs::channel::Channel;
 use rustis::client::Client;
 use rustis::commands::{
     PubSubCommands, StreamCommands, StreamEntry, XAddOptions, XTrimOperator, XTrimOptions,

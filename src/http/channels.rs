@@ -7,7 +7,7 @@ use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::topics;
-use rhiaqey_sdk::channel::ChannelList;
+use rhiaqey_sdk_rs::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
 use rustis::commands::{PubSubCommands, StreamCommands, StringCommands, XGroupCreateOptions};
 use rustis::resp::Value;
