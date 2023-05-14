@@ -133,7 +133,7 @@ pub async fn create_channels(
             .streams
             .lock()
             .await
-            .insert(streaming_channel_name, streaming_channel);
+            .insert(streaming_channel_name.into(), streaming_channel);
 
         total_channels += 1;
     }

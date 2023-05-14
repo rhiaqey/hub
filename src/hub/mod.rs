@@ -33,7 +33,7 @@ pub struct Hub {
     pub env: Arc<Env>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
-    pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    pub streams: Arc<Mutex<HashMap<Cow<'static, str>, StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<Cow<'static, str>, WebSocketClient>>>,
 }
 
@@ -223,7 +223,7 @@ impl Hub {
 
                             // get streaming channel by channel name
                             let all_hub_streams = streams.lock().await;
-                            let streaming_channel = all_hub_streams.get(&stream_message.channel);
+                            let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
                             if streaming_channel.is_some() {
                                 debug!("streaming channel found");
 
@@ -328,7 +328,7 @@ pub async fn run() {
         hub.streams
             .lock()
             .await
-            .insert(streaming_channel_name, streaming_channel);
+            .insert(streaming_channel_name.into(), streaming_channel);
 
         total_channels += 1;
     }

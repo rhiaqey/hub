@@ -15,7 +15,7 @@ pub struct SharedState {
     pub env: Arc<Env>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
-    pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    pub streams: Arc<Mutex<HashMap<Cow<'static, str>, StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<Cow<'static, str>, WebSocketClient>>>,
 }
 
