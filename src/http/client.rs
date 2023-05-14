@@ -55,7 +55,7 @@ impl WebSocketClient {
                             .await
                             .send(Message::Close(Some(CloseFrame {
                                 code: axum::extract::ws::close_code::NORMAL,
-                                reason: Cow::from("invalid body"),
+                                reason: "invalid body".into(),
                             })))
                             .await
                         {
