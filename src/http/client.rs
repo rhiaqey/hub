@@ -73,6 +73,8 @@ impl WebSocketClient {
                     }
                 }
             }
+
+            warn!("must close client connection")
         });
 
         self.join_handler = Some(Arc::new(join_handler));

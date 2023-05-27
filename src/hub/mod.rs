@@ -186,6 +186,7 @@ impl Hub {
 
         let mut pubsub_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
 
+        let hub_id = self.get_id();
         let streams = self.streams.clone();
         let clients = self.clients.clone();
 
@@ -233,7 +234,10 @@ impl Hub {
 
                                 let mut all_hub_clients = clients.lock().await;
 
-                                let client_message = ClientMessage::from(stream_message);
+                                let mut client_message = ClientMessage::from(stream_message);
+                                if client_message.hub_id.is_none() {
+                                    client_message.hub_id = Some(hub_id.clone());
+                                }
 
                                 let raw = serde_json::to_vec(&client_message).unwrap();
 
