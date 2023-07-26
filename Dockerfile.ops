@@ -11,7 +11,7 @@ COPY . .
 ENV RUST_BACKTRACE=1
 RUN cargo install --bin ${BINARY} --features ${FEATURES} --path .
 
-FROM bitnami/kubectl:1.26.4
+FROM bitnami/kubectl:1.27.4
 ARG BINARY
 ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive
