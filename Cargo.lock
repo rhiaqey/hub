@@ -1161,7 +1161,7 @@ checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
 [[package]]
 name = "rhiaqey-common"
 version = "0.1.0"
-source = "git+https://github.com/rhiaqey/common.git#07900d0386c3880a2b0863de1eb44da4a0617a73"
+source = "git+https://github.com/rhiaqey/common.git#1f38d16d3dc42b1afc50d03c0fd393d9a94e0df3"
 dependencies = [
  "env_logger",
  "envy",
@@ -1170,7 +1170,7 @@ dependencies = [
  "rhiaqey-sdk-rs",
  "rmp-serde",
  "rsa",
- "rustis 0.11.1",
+ "rustis",
  "serde",
  "serde_json",
  "sha2",
@@ -1196,7 +1196,7 @@ dependencies = [
  "rhiaqey-common",
  "rhiaqey-sdk-rs",
  "rsa",
- "rustis 0.12.0",
+ "rustis",
  "rusty_ulid",
  "serde",
  "serde_json",
@@ -1268,31 +1268,6 @@ name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
-
-[[package]]
-name = "rustis"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7b6a32fafd07d978c66d3e29f3758d72bc0e812df9342e2dd7e5d75cb0d5679"
-dependencies = [
- "atoi",
- "bytes",
- "crc16",
- "dtoa",
- "fast-float",
- "futures-channel",
- "futures-util",
- "itoa",
- "log",
- "memchr",
- "rand",
- "serde",
- "smallvec",
- "socket2 0.4.9",
- "tokio",
- "tokio-util",
- "url",
-]
 
 [[package]]
 name = "rustis"
