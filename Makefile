@@ -130,7 +130,7 @@ sentinel2:
 	docker run -it --rm --name redis-sentinel-2 -p 26380:26379 \
 		-e ALLOW_EMPTY_PASSWORD=yes \
 		-e REDIS_MASTER_HOST=localhost \
-		bitnami/redis-sentinel:7.0.12
+		bitnami/redis-sentinel:7.2.1
 
 .PHONY: test
 test:
