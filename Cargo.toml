@@ -41,7 +41,7 @@ rsa = { version = "0.9", features = [ "pem" ] }
 rand = "0.8"
 clap = { version = "4.4", features = ["derive"], optional = true }
 tower-cookies = "0.9"
-rusty_ulid = "2.0.0"
+rusty_ulid = "2.0"
 
 [features]
 cli = ["dep:clap"]
