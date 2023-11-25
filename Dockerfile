@@ -1,4 +1,4 @@
-FROM rust:1.72-slim-bullseye as builder
+FROM rust:1.74-slim-bullseye as builder
 ARG BINARY
 RUN apt-get update \
     && apt-get install -y \
