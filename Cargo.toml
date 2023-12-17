@@ -29,19 +29,20 @@ futures = "0.3"
 prometheus = { version = "0.13", features = [ "process" ] }
 rustis = { version = "0.12", features = [ "redis-json", "tokio-runtime" ] }
 tokio = { version = "1.35", features = ["full"] }
-axum = { version = "0.6", features = ["headers", "http2", "json", "macros",
+axum = { version = "0.7", features = ["http2", "json", "macros",
     "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
-hyper = { version = "0.14", features = ["full"] }
+hyper = { version = "1.0", features = ["full"] }
 sha256 = "1.4"
 sha2 = "0.10"
 url = "2.5"
-http = "0.2"
+http = "1.0"
 headers-client-ip = { version = "0.1" }
 rsa = { version = "0.9", features = [ "pem" ] }
 rand = "0.8"
 clap = { version = "4.4", features = ["derive"], optional = true }
-tower-cookies = "0.9"
 rusty_ulid = "2.0"
+axum-extra = { version = "0.9", features = ["typed-header", "cookie"] }
+axum-client-ip = "0.5"
 
 [features]
 cli = ["dep:clap"]

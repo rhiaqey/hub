@@ -1,17 +1,18 @@
 use crate::http::state::SharedState;
 use crate::hub::settings::HubSettingsIPs;
-use axum::extract::Query;
+use axum::extract::{Query, Host};
 use axum::response::IntoResponse;
-use axum::TypedHeader;
-use headers_client_ip::XRealIP;
-use http::{HeaderMap, StatusCode};
+use axum::{extract::State, http::HeaderMap};
+use axum_extra::extract::CookieJar;
+use axum_extra::extract::cookie::Cookie;
+use http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
-use sha256::digest;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tower_cookies::{Cookie, Cookies};
 use url::Url;
+use sha256::digest;
+use axum_client_ip::InsecureClientIp;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationQueryParams {
@@ -130,27 +131,6 @@ pub async fn valid_api_key(
     return false;
 }
 
-pub fn get_ip(real_ip: Option<TypedHeader<XRealIP>>, headers: &HeaderMap) -> Option<String> {
-    let mut ip: Option<String> = None;
-
-    if real_ip.is_some() {
-        debug!("x-real-ip header found");
-        ip = Some(real_ip.unwrap().to_string());
-    } else if headers.contains_key("x-forwarded-for") {
-        debug!("x-forwarded-for header found");
-        ip = Some(
-            headers
-                .get("x-forwarded-for")
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
-        );
-    }
-
-    ip
-}
-
 pub fn get_hostname(hostname: String, headers: &HeaderMap) -> Option<String> {
     let mut hostname: Option<String> = Some(hostname);
 
@@ -172,7 +152,7 @@ pub fn get_hostname(hostname: String, headers: &HeaderMap) -> Option<String> {
 pub fn get_api_key(
     qs: &Query<AuthenticationQueryParams>,
     headers: &HeaderMap,
-    cookies: &Cookies,
+    cookies: &CookieJar,
 ) -> Option<String> {
     let mut api_key: Option<String> = None;
 
@@ -205,7 +185,7 @@ pub fn get_api_key(
 pub fn get_api_host(
     qs: &Query<AuthenticationQueryParams>,
     headers: &HeaderMap,
-    cookies: &Cookies,
+    cookies: &CookieJar,
 ) -> Option<String> {
     let mut api_host: Option<String> = None;
 
@@ -236,26 +216,28 @@ pub fn get_api_host(
 }
 
 pub async fn get_auth(
-    hostname: String,
-    ip: Option<TypedHeader<XRealIP>>,
-    headers: HeaderMap,
-    cookies: Cookies,
-    qs: Query<AuthenticationQueryParams>,
-    state: Arc<SharedState>,
+    headers: HeaderMap,                                         // external and internal headers
+    insecure_ip: InsecureClientIp,                              // external
+    // secure_ip: SecureClientIp,                               // internal
+    Host(hostname): Host,                               // external host
+    qs: Query<AuthenticationQueryParams>,                       // external query string
+    State(state): State<Arc<SharedState>>,    // global state
+    jar: CookieJar,                                             // global
 ) -> impl IntoResponse {
-    trace!("[dump] hostname: {hostname}");
     trace!("[dump] headers: {:?}", headers);
-    trace!("[dump] cookies: {:?}", cookies);
-    trace!("[dump] ip: {:?}", ip);
+    trace!("[dump] insecure ip: {:?}", insecure_ip);
+    trace!("[dump] host: {:?}", hostname);
     trace!("[dump] qs: {:?}", qs);
+    trace!("[dump] settings: {:?}", state.as_ref().settings);
+    trace!("[dump] cookies: {:?}", jar);
 
-    let api_host = get_api_host(&qs, &headers, &cookies);
+    let api_host = get_api_host(&qs, &headers, &jar);
     if api_host.is_none() {
         warn!("api host was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
-    let api_key = get_api_key(&qs, &headers, &cookies);
+    let api_key = get_api_key(&qs, &headers, &jar);
     if api_key.is_none() {
         warn!("api key was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
@@ -277,23 +259,20 @@ pub async fn get_auth(
         }
     }
 
-    let ip = get_ip(ip, &headers);
-    if ip.is_none() {
-        warn!("ip was not found");
-        return (StatusCode::UNAUTHORIZED, "Unauthorized access");
-    }
+    let ip = insecure_ip.0.to_string();
 
     if valid_api_key(
         digest(api_key.clone().unwrap()),
         api_host.clone().unwrap(),
-        ip.unwrap(),
+        ip,
         state,
     )
     .await
     {
         info!("granting access");
-        cookies.add(Cookie::new("x-api-key", api_key.unwrap()));
-        cookies.add(Cookie::new("x-api-host", api_host.unwrap()));
+        let _ = jar
+            .add(Cookie::new("x-api-key", api_key.unwrap()))
+            .add(Cookie::new("x-api-host", api_host.unwrap()));
         (StatusCode::OK, "Access granted")
     } else {
         warn!("forbidden access");
