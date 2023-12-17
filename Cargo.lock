@@ -1318,7 +1318,6 @@ dependencies = [
  "sha2",
  "sha256",
  "tokio",
- "tower-cookies",
  "url",
 ]
 
@@ -1811,23 +1810,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "tower-cookies"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fd0118512cf0b3768f7fcccf0bef1ae41d68f2b45edc1e77432b36c97c56c6d"
-dependencies = [
- "async-trait",
- "axum-core",
- "cookie",
- "futures-util",
- "http 1.0.0",
- "parking_lot",
- "pin-project-lite",
- "tower-layer",
- "tower-service",
 ]
 
 [[package]]

@@ -3,7 +3,6 @@ use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
-use axum::extract::Host;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
@@ -12,7 +11,6 @@ use log::info;
 use prometheus::{Encoder, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower_cookies::CookieManagerLayer;
 
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK

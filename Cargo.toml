@@ -35,15 +35,14 @@ hyper = { version = "1.0", features = ["full"] }
 sha256 = "1.4"
 sha2 = "0.10"
 url = "2.5"
-http = "1.0.0"
+http = "1.0"
 headers-client-ip = { version = "0.1" }
 rsa = { version = "0.9", features = [ "pem" ] }
 rand = "0.8"
 clap = { version = "4.4", features = ["derive"], optional = true }
-tower-cookies = "0.10.0"
 rusty_ulid = "2.0"
 axum-extra = { version = "0.9", features = ["typed-header", "cookie"] }
-axum-client-ip = "0.5.0"
+axum-client-ip = "0.5"
 
 [features]
 cli = ["dep:clap"]
