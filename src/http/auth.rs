@@ -5,7 +5,7 @@ use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
 use axum_extra::extract::CookieJar;
 use axum_extra::extract::cookie::Cookie;
-use http::StatusCode;
+use hyper::http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
 use std::collections::HashMap;
