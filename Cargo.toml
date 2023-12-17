@@ -36,7 +36,6 @@ sha256 = "1.4"
 sha2 = "0.10"
 url = "2.5"
 http = "1.0"
-headers-client-ip = { version = "0.1" }
 rsa = { version = "0.9", features = [ "pem" ] }
 rand = "0.8"
 clap = { version = "4.4", features = ["derive"], optional = true }
