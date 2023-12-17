@@ -1,17 +1,20 @@
 use crate::http::state::SharedState;
 use crate::hub::settings::HubSettingsIPs;
-use axum::extract::Query;
+use axum::extract::{Query, Host, ConnectInfo};
 use axum::response::IntoResponse;
-use axum::TypedHeader;
+use axum::{extract::State, http::{Method, HeaderMap}};
+use axum_extra::TypedHeader;
 use headers_client_ip::XRealIP;
-use http::{HeaderMap, StatusCode};
+use http::{StatusCode};
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
 use sha256::digest;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_cookies::{Cookie, Cookies};
 use url::Url;
+use axum_client_ip::{SecureClientIp, SecureClientIpSource, InsecureClientIp};
 
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationQueryParams {
@@ -236,17 +239,33 @@ pub fn get_api_host(
 }
 
 pub async fn get_auth(
-    hostname: String,
+    headers: HeaderMap,                     // external and internal headers
+    insecure_ip: InsecureClientIp,          // external
+    // secure_ip: SecureClientIp,           // internal
+    Host(hostname): Host,           // external host
+    qs: Query<AuthenticationQueryParams>,   // external query string
+    State(state): State<Arc<SharedState>>,
+    // 
+    // state: State<SharedState>
+    /*hostname: String,
     ip: Option<TypedHeader<XRealIP>>,
     headers: HeaderMap,
     cookies: Cookies,
     qs: Query<AuthenticationQueryParams>,
-    state: Arc<SharedState>,
+    state: Arc<SharedState>
+    ,*/
 ) -> impl IntoResponse {
+    // trace!("[dump] addr ip:     {:?}", addr);
+    trace!("[dump] insecure ip: {:?}", insecure_ip);
+    trace!("[dump] headers: {:?}", headers);
+    trace!("[dump] qs: {:?}", qs);
+    trace!("[dump] settings: {:?}", state.as_ref().settings);
+    // trace!("[dump] secure ip:   {:?}", secure_ip);
+    // trace!("[dump] secure ip: {:?}", insecure_ip.0.to_string());
+    /*
     trace!("[dump] hostname: {hostname}");
     trace!("[dump] headers: {:?}", headers);
     trace!("[dump] cookies: {:?}", cookies);
-    trace!("[dump] ip: {:?}", ip);
     trace!("[dump] qs: {:?}", qs);
 
     let api_host = get_api_host(&qs, &headers, &cookies);
@@ -298,5 +317,7 @@ pub async fn get_auth(
     } else {
         warn!("forbidden access");
         (StatusCode::UNAUTHORIZED, "Unauthorized access")
-    }
+    }*/
+    // (StatusCode::UNAUTHORIZED, "Unauthorized access")
+    (StatusCode::OK, format!("{} - {}", hostname.to_lowercase(), insecure_ip.0.to_string()))
 }

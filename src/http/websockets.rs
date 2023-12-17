@@ -5,8 +5,8 @@ use std::borrow::Cow;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, Query, WebSocketUpgrade};
+use axum_extra::{headers, TypedHeader};
 use axum::response::IntoResponse;
-use axum::{headers, TypedHeader};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
