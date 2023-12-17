@@ -178,7 +178,6 @@ impl Hub {
         let private_state = Arc::clone(&shared_state);
 
         tokio::spawn(async move {
-            info!("running");
             start_private_http_server(private_port, private_state).await;
         });
 
