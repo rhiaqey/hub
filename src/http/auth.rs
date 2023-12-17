@@ -4,6 +4,7 @@ use axum::extract::{Query, Host, ConnectInfo};
 use axum::response::IntoResponse;
 use axum::{extract::State, http::{Method, HeaderMap}};
 use axum_extra::TypedHeader;
+use axum_extra::extract::CookieJar;
 use headers_client_ip::XRealIP;
 use http::{StatusCode};
 use log::{debug, info, trace, warn};
@@ -239,35 +240,22 @@ pub fn get_api_host(
 }
 
 pub async fn get_auth(
-    headers: HeaderMap,                     // external and internal headers
-    insecure_ip: InsecureClientIp,          // external
-    // secure_ip: SecureClientIp,           // internal
-    Host(hostname): Host,           // external host
-    qs: Query<AuthenticationQueryParams>,   // external query string
-    State(state): State<Arc<SharedState>>,
-    // 
-    // state: State<SharedState>
-    /*hostname: String,
-    ip: Option<TypedHeader<XRealIP>>,
-    headers: HeaderMap,
-    cookies: Cookies,
-    qs: Query<AuthenticationQueryParams>,
-    state: Arc<SharedState>
-    ,*/
+    headers: HeaderMap,                                         // external and internal headers
+    insecure_ip: InsecureClientIp,                              // external
+    // secure_ip: SecureClientIp,                               // internal
+    Host(hostname): Host,                               // external host
+    qs: Query<AuthenticationQueryParams>,                       // external query string
+    State(state): State<Arc<SharedState>>,    // global state
+    jar: CookieJar,                                             // global
 ) -> impl IntoResponse {
-    // trace!("[dump] addr ip:     {:?}", addr);
-    trace!("[dump] insecure ip: {:?}", insecure_ip);
     trace!("[dump] headers: {:?}", headers);
+    trace!("[dump] insecure ip: {:?}", insecure_ip);
+    trace!("[dump] host: {:?}", hostname);
     trace!("[dump] qs: {:?}", qs);
     trace!("[dump] settings: {:?}", state.as_ref().settings);
-    // trace!("[dump] secure ip:   {:?}", secure_ip);
-    // trace!("[dump] secure ip: {:?}", insecure_ip.0.to_string());
-    /*
-    trace!("[dump] hostname: {hostname}");
-    trace!("[dump] headers: {:?}", headers);
-    trace!("[dump] cookies: {:?}", cookies);
-    trace!("[dump] qs: {:?}", qs);
+    trace!("[dump] cookies: {:?}", jar);
 
+    /*
     let api_host = get_api_host(&qs, &headers, &cookies);
     if api_host.is_none() {
         warn!("api host was not found");
