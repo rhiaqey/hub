@@ -66,8 +66,10 @@ run:
 
 .PHONY: ops
 ops:
-	cargo run --bin \
-		ops -- generate-keys --write .
+	cargo run \
+		--bin ops \
+		--features cli \
+		-- generate-keys --write .
 
 .PHONY: hub1
 hub1: run

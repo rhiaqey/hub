@@ -3,15 +3,14 @@ use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
-use axum::extract::Host;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
+use axum_client_ip::SecureClientIpSource;
 use log::info;
 use prometheus::{Encoder, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower_cookies::CookieManagerLayer;
 
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK
@@ -39,7 +38,7 @@ async fn get_version() -> &'static str {
 pub async fn start_private_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
-) -> hyper::Result<()> {
+) {
     let app = Router::new()
         .route("/alive", get(get_ready))
         .route("/ready", get(get_ready))
@@ -47,12 +46,13 @@ pub async fn start_private_http_server(
         .route("/version", get(get_version))
         .route(
             "/auth",
-            get({
+            get(/*{
                 let shared_state = Arc::clone(&shared_state);
-                move |ip, Host(hostname): Host, headers, cookies, query| {
-                    get_auth(hostname, ip, headers, cookies, query, shared_state)
-                }
-            }),
+                move |Host(hostname): Host, headers, cookies, query| get_auth(hostname, shared_state)
+                // move |ip, Host(hostname): Host, headers, cookies, query| {
+                    // get_auth(hostname, ip, headers, cookies, query, shared_state)
+                // }*/
+                get_auth),
         )
         .route(
             "/admin/channels",
@@ -82,23 +82,25 @@ pub async fn start_private_http_server(
                 move |body| update_settings(body, shared_state)
             }),
         )
-        .layer(CookieManagerLayer::new());
+        // .layer(CookieManagerLayer::new())
+        .layer(SecureClientIpSource::ConnectInfo.into_extension())
+        .with_state(shared_state);
 
-    info!("running private http server @ 0.0.0.0:{}", port);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    info!("running private http server @ {}", listener.local_addr().unwrap());
 
-    axum::Server::bind(&format!("0.0.0.0:{}", port).parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-}
-
-async fn get_home() -> impl IntoResponse {
-    (StatusCode::OK, "OK")
+    axum::serve(
+        listener,
+        // app.into_make_service()
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    ).await.unwrap();
 }
 
 pub async fn start_public_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
-) -> hyper::Result<()> {
+) {
     let app = Router::new().route("/", get(get_home)).route(
         "/ws",
         get({
@@ -109,9 +111,13 @@ pub async fn start_public_http_server(
         }),
     );
 
-    info!("running public http server @ 0.0.0.0:{}", port);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    info!("running public http server @ {}", listener.local_addr().unwrap());
 
-    axum::Server::bind(&format!("0.0.0.0:{}", port).parse().unwrap())
-        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
+}
+
+async fn get_home() -> impl IntoResponse {
+    (StatusCode::OK, "OK")
 }

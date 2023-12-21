@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::http::state::SharedState;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::Query;
