@@ -101,21 +101,20 @@ pub async fn start_public_http_server(
     port: u16,
     shared_state: Arc<SharedState>,
 ) {
-    let app = Router::new().route("/", get(get_home)).route(
-        "/ws",
-        get({
-            let shared_state = Arc::clone(&shared_state);
-            move |query_params, ws, user_agent, info| {
-                ws_handler(query_params, ws, user_agent, info, shared_state)
-            }
-        }),
-    );
+    let app = Router::new()
+        .route("/", get(get_home))
+        .route("/ws", get(ws_handler))
+        .with_state(shared_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     info!("running public http server @ {}", listener.local_addr().unwrap());
 
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
+    axum::serve(
+        listener,
+        // app.into_make_service()
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    ).await.unwrap();
 }
 
 async fn get_home() -> impl IntoResponse {

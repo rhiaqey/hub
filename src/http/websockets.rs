@@ -4,7 +4,8 @@ use std::borrow::Cow;
 
 use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{Message, WebSocket};
-use axum::extract::{ConnectInfo, Query, WebSocketUpgrade};
+use axum::extract::{Query, WebSocketUpgrade, State};
+use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
 use axum::response::IntoResponse;
 use log::{debug, info, trace, warn};
@@ -15,7 +16,6 @@ use rhiaqey_common::client::{
 use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[derive(Deserialize)]
@@ -29,11 +29,12 @@ pub struct Params {
 /// This is the last point where we can extract TCP/IP metadata such as IP address of the client
 /// as well as things from HTTP headers such as user-agent of the browser etc.
 pub async fn ws_handler(
-    Query(params): Query<Params>,
     ws: WebSocketUpgrade,
+    // headers: HeaderMap,
+    Query(params): Query<Params>,
+    insecure_ip: InsecureClientIp,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    state: Arc<SharedState>,
+    State(state): State<Arc<SharedState>>,
 ) -> impl IntoResponse {
     info!("[GET] Handle websocket connection");
 
@@ -43,16 +44,19 @@ pub async fn ws_handler(
         String::from("Unknown browser")
     };
 
-    debug!("`{}` at {} connected.", user_agent, addr.to_string());
-    debug!("params extracted {:?}", params.channels);
+    let ip = insecure_ip.0.to_string();
+    debug!("`{}` at {} connected.", user_agent, ip);
+
+    let channels: Vec<String> = params.channels.split(",").map(|x| x.to_string()).collect();
+    debug!("channel from params extracted {:?}", channels);
 
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| {
         handle_ws_connection(
             socket,
-            addr,
-            params.channels.split(",").map(|x| x.to_string()).collect(),
+            ip,
+            channels,
             state,
         )
     })
@@ -61,12 +65,12 @@ pub async fn ws_handler(
 /// Handle each websocket connection here
 async fn handle_ws_connection(
     socket: WebSocket,
-    who: SocketAddr,
+    ip: String,
     channels: Vec<String>,
     state: Arc<SharedState>,
 ) {
     let client_id = generate_ulid_string();
-    info!("connection {who} established");
+    info!("connection {ip} established");
     tokio::task::spawn(async move {
         handle_client(Cow::from(client_id), socket, channels, state).await
     });
