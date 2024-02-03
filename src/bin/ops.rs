@@ -2,6 +2,7 @@ use clap::{arg, Command};
 use rsa::pkcs1::LineEnding;
 use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
 use rsa::{RsaPrivateKey, RsaPublicKey};
+use std::fs;
 
 fn cli() -> Command {
     Command::new("ops")
@@ -59,17 +60,23 @@ fn main() {
                 println!("storing generated keys in {dir}");
 
                 let filename = directory.with_file_name("priv.pem");
-                println!(
-                    "checking if {} exists",
-                    filename.canonicalize().unwrap().display()
-                );
-
                 let exists = filename.exists();
+                let canonical_path = filename.canonicalize().unwrap();
+                let absolute_path = canonical_path.display();
+                println!("checking if {} exists", absolute_path);
+
                 println!(
                     "priv.pem file exists {} in {}",
                     exists,
                     directory.canonicalize().unwrap().display()
                 );
+
+                let contents = fs::read_to_string(absolute_path.to_string());
+                if contents.is_err() {
+                    println!("error reading content {}", contents.unwrap_err())
+                } else {
+                    println!("file was read successfully");
+                }
 
                 if *skip && exists {
                     println!("file already exist. skipping writing files to fs");
