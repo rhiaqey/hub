@@ -69,7 +69,7 @@ ops:
 	cargo run \
 		--bin ops \
 		--features cli \
-		-- generate-keys --write .
+		-- generate-keys --skip --write .
 
 .PHONY: hub1
 hub1: run
@@ -118,21 +118,21 @@ docker-run:
 redis:
 	docker run -it --rm --name redis -p 6379:6379 \
 		-e ALLOW_EMPTY_PASSWORD=yes \
-		bitnami/redis:7.2.3
+		bitnami/redis:7.2.4
 
 .PHONY: sentinel
 sentinel:
 	docker run -it --rm --name redis-sentinel -p 26379:26379 \
 		-e ALLOW_EMPTY_PASSWORD=yes \
 		-e REDIS_MASTER_HOST=localhost \
-		bitnami/redis-sentinel:7.2.3
+		bitnami/redis-sentinel:7.2.4
 
 .PHONY: sentinel2
 sentinel2:
 	docker run -it --rm --name redis-sentinel-2 -p 26380:26379 \
 		-e ALLOW_EMPTY_PASSWORD=yes \
 		-e REDIS_MASTER_HOST=localhost \
-		bitnami/redis-sentinel:7.2.3
+		bitnami/redis-sentinel:7.2.4
 
 .PHONY: test
 test:

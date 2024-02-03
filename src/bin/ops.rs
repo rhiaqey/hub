@@ -16,6 +16,11 @@ fn cli() -> Command {
                     arg!(-w --write <DIR>)
                         .value_parser(clap::value_parser!(std::path::PathBuf))
                         .required(false),
+                )
+                .arg(
+                    arg!(-s - -skip)
+                        .value_parser(clap::value_parser!(bool))
+                        .required(false),
                 ),
         )
 }
@@ -38,6 +43,8 @@ fn main() {
 
             let (private_key, public_key) = generate_keys(None);
 
+            let skip = sub_matches.get_one::<bool>("skip").unwrap_or(&false);
+
             if let Some(directory) = sub_matches.get_one::<std::path::PathBuf>("write") {
                 if !directory.is_dir() {
                     panic!("{} is not a valid directory", directory.to_str().unwrap());
@@ -47,15 +54,28 @@ fn main() {
 
                 println!("storing generated keys in {dir}");
 
-                private_key
-                    .write_pkcs8_pem_file(format!("{dir}/priv.pem"), LineEnding::LF)
-                    .expect("failed to write private pem file");
+                let exists = directory.with_file_name("priv.pem").exists();
 
-                public_key
-                    .write_public_key_pem_file(format!("{dir}/pub.pem"), LineEnding::LF)
-                    .expect("failed to write public pem file")
+                if *skip && exists {
+                    println!("file already exist. skipping writing files to fs");
+                } else {
+                    private_key
+                        .write_pkcs8_pem_file(format!("{dir}/priv.pem"), LineEnding::LF)
+                        .expect("failed to write private pem file");
+
+                    println!("private key was written");
+
+                    public_key
+                        .write_public_key_pem_file(format!("{dir}/pub.pem"), LineEnding::LF)
+                        .expect("failed to write public pem file");
+
+                    println!("public key was written");
+                }
             }
         }
-        _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
+        _ => {
+            println!("unknown command");
+            unreachable!()
+        }
     }
 }
