@@ -59,7 +59,11 @@ fn main() {
                 println!("storing generated keys in {dir}");
 
                 let exists = directory.with_file_name("priv.pem").exists();
-                println!("previous flag exists {}", exists);
+                println!(
+                    "priv.pem file exists {} in {}",
+                    exists,
+                    directory.canonicalize().unwrap().display()
+                );
 
                 if *skip && exists {
                     println!("file already exist. skipping writing files to fs");
