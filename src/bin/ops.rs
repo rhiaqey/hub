@@ -58,7 +58,13 @@ fn main() {
                 let dir = directory.to_str().unwrap();
                 println!("storing generated keys in {dir}");
 
-                let exists = directory.with_file_name("priv.pem").exists();
+                let filename = directory.with_file_name("priv.pem");
+                println!(
+                    "checking if {} exists",
+                    filename.canonicalize().unwrap().display()
+                );
+
+                let exists = filename.exists();
                 println!(
                     "priv.pem file exists {} in {}",
                     exists,
