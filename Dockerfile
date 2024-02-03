@@ -25,6 +25,7 @@ ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=trace
+ENV USER=$USER
 
 LABEL org.opencontainers.image.description="Rhiaqey ${BINARY}"
 

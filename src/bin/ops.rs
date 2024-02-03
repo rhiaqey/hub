@@ -44,17 +44,22 @@ fn main() {
             let (private_key, public_key) = generate_keys(None);
 
             let skip = sub_matches.get_one::<bool>("skip").unwrap_or(&false);
+            if *skip {
+                println!("skip flag is set")
+            }
 
             if let Some(directory) = sub_matches.get_one::<std::path::PathBuf>("write") {
-                if !directory.is_dir() {
+                if directory.is_dir() {
+                    println!("directory found");
+                } else {
                     panic!("{} is not a valid directory", directory.to_str().unwrap());
                 }
 
                 let dir = directory.to_str().unwrap();
-
                 println!("storing generated keys in {dir}");
 
                 let exists = directory.with_file_name("priv.pem").exists();
+                println!("previous flag exists {}", exists);
 
                 if *skip && exists {
                     println!("file already exist. skipping writing files to fs");
