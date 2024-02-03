@@ -1,4 +1,4 @@
-FROM rust:1.75-slim-bookworm as builder
+FROM rust:1.75-slim-bullseye as builder
 ARG BINARY
 RUN apt-get update \
     && apt-get install -y \
@@ -10,7 +10,7 @@ COPY . .
 ENV RUST_BACKTRACE=1
 RUN cargo install --bin ${BINARY} --path .
 
-FROM debian:bookworm-slim
+FROM debian:bullseye-slim
 ARG BINARY
 ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive

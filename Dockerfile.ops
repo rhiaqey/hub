@@ -1,4 +1,4 @@
-FROM rust:1.75-slim-bookworm as builder
+FROM rust:1.75-slim-bullseye as builder
 ARG BINARY
 ARG FEATURES
 RUN apt-get update \
@@ -11,7 +11,7 @@ COPY . .
 ENV RUST_BACKTRACE=1
 RUN cargo install --bin ${BINARY} --features ${FEATURES} --path .
 
-FROM bitnami/kubectl:1.29.0
+FROM bitnami/kubectl:1.29.1-debian-11-r3
 ARG BINARY
 ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive
