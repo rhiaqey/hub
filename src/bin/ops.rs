@@ -56,31 +56,24 @@ fn main() {
                     panic!("{} is not a valid directory", directory.to_str().unwrap());
                 }
 
-                let dir = directory.to_str().unwrap();
+                let dir = directory.canonicalize().unwrap().display().to_string();
                 println!("storing generated keys in {dir}");
 
-                let filename = directory.with_file_name("priv.pem");
-                let exists = filename.exists();
-                let canonical_path = filename.canonicalize().unwrap();
-                let absolute_path = canonical_path.display();
-                println!("checking if {} exists", absolute_path);
+                let mut exists = false;
 
-                println!(
-                    "priv.pem file exists {} in {}",
-                    exists,
-                    directory.canonicalize().unwrap().display()
-                );
-
-                let contents = fs::read_to_string(absolute_path.to_string());
+                let contents = fs::read_to_string(format!("{}/priv.pem", dir));
                 if contents.is_err() {
-                    println!("error reading content {}", contents.unwrap_err())
+                    println!("error reading content from directory {}/priv.pem", dir)
                 } else {
+                    exists = true;
                     println!("file was read successfully");
                 }
 
                 if *skip && exists {
                     println!("file already exist. skipping writing files to fs");
                 } else {
+                    println!("writing pem files");
+
                     private_key
                         .write_pkcs8_pem_file(format!("{dir}/priv.pem"), LineEnding::LF)
                         .expect("failed to write private pem file");

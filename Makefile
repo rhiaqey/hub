@@ -137,3 +137,7 @@ sentinel2:
 .PHONY: test
 test:
 	cargo test
+
+.PHONY: docker-build-ops
+docker-build-ops:
+	docker build --squash --build-arg BINARY=ops --build-arg FEATURES=cli -t ops:latest -f Dockerfile.ops .
