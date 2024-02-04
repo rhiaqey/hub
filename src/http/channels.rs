@@ -157,12 +157,12 @@ pub async fn assign_channels(
     debug!("[POST] Payload {:?}", payload);
 
     let client = state.redis.lock().await.clone().unwrap();
-
-    // get channels
+    debug!("client lock acquired");
 
     let channels_key = topics::hub_channels_key(state.get_namespace());
-    let result: String = client.get(channels_key.clone()).await.unwrap();
+    debug!("channels key {}", channels_key);
 
+    let result: String = client.get(channels_key.clone()).await.unwrap();
     debug!("got channels {}", result);
 
     let channel_list: Result<ChannelList, _> = serde_json::from_str(result.as_str());
