@@ -1,4 +1,4 @@
-use crate::http::auth::get_auth;
+use crate::http::auth::{get_auth, get_status};
 use crate::http::channels::{assign_channels, create_channels, delete_channels};
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
@@ -35,10 +35,7 @@ async fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-pub async fn start_private_http_server(
-    port: u16,
-    shared_state: Arc<SharedState>,
-) {
+pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>) {
     let app = Router::new()
         .route("/alive", get(get_ready))
         .route("/ready", get(get_ready))
@@ -46,14 +43,17 @@ pub async fn start_private_http_server(
         .route("/version", get(get_version))
         .route(
             "/auth",
-            get(/*{
+            get(
+                /*{
                 let shared_state = Arc::clone(&shared_state);
                 move |Host(hostname): Host, headers, cookies, query| get_auth(hostname, shared_state)
                 // move |ip, Host(hostname): Host, headers, cookies, query| {
                     // get_auth(hostname, ip, headers, cookies, query, shared_state)
                 // }*/
-                get_auth),
+                get_auth,
+            ),
         )
+        .route("/admin/status", get(get_status))
         .route(
             "/admin/channels",
             put({
@@ -88,19 +88,21 @@ pub async fn start_private_http_server(
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    info!("running private http server @ {}", listener.local_addr().unwrap());
+    info!(
+        "running private http server @ {}",
+        listener.local_addr().unwrap()
+    );
 
     axum::serve(
         listener,
         // app.into_make_service()
         app.into_make_service_with_connect_info::<SocketAddr>(),
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 }
 
-pub async fn start_public_http_server(
-    port: u16,
-    shared_state: Arc<SharedState>,
-) {
+pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>) {
     let app = Router::new()
         .route("/", get(get_home))
         .route("/ws", get(ws_handler))
@@ -108,13 +110,18 @@ pub async fn start_public_http_server(
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    info!("running public http server @ {}", listener.local_addr().unwrap());
+    info!(
+        "running public http server @ {}",
+        listener.local_addr().unwrap()
+    );
 
     axum::serve(
         listener,
         // app.into_make_service()
         app.into_make_service_with_connect_info::<SocketAddr>(),
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 }
 
 async fn get_home() -> impl IntoResponse {

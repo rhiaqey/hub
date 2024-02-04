@@ -1,18 +1,18 @@
 use crate::http::state::SharedState;
 use crate::hub::settings::HubSettingsIPs;
-use axum::extract::{Query, Host};
+use axum::extract::{Host, Query};
 use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
-use axum_extra::extract::CookieJar;
+use axum_client_ip::InsecureClientIp;
 use axum_extra::extract::cookie::Cookie;
+use axum_extra::extract::CookieJar;
 use hyper::http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
+use sha256::digest;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
-use sha256::digest;
-use axum_client_ip::InsecureClientIp;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationQueryParams {
@@ -216,13 +216,13 @@ pub fn get_api_host(
 }
 
 pub async fn get_auth(
-    headers: HeaderMap,                                         // external and internal headers
-    insecure_ip: InsecureClientIp,                              // external
+    headers: HeaderMap,            // external and internal headers
+    insecure_ip: InsecureClientIp, // external
     // secure_ip: SecureClientIp,                               // internal
-    Host(hostname): Host,                               // external host
-    qs: Query<AuthenticationQueryParams>,                       // external query string
-    State(state): State<Arc<SharedState>>,    // global state
-    jar: CookieJar,                                             // global
+    Host(hostname): Host,                  // external host
+    qs: Query<AuthenticationQueryParams>,  // external query string
+    State(state): State<Arc<SharedState>>, // global state
+    jar: CookieJar,                        // global
 ) -> impl IntoResponse {
     trace!("[dump] headers: {:?}", headers);
     trace!("[dump] insecure ip: {:?}", insecure_ip);
@@ -278,4 +278,15 @@ pub async fn get_auth(
         warn!("forbidden access");
         (StatusCode::UNAUTHORIZED, "Unauthorized access")
     }
+}
+
+pub async fn get_status(// headers: HeaderMap,            // external and internal headers
+    // insecure_ip: InsecureClientIp, // external
+    // secure_ip: SecureClientIp,                               // internal
+    // Host(hostname): Host,                  // external host
+    // qs: Query<AuthenticationQueryParams>,  // external query string
+    // State(state): State<Arc<SharedState>>, // global state
+    // jar: CookieJar,                        // global
+) -> impl IntoResponse {
+    (StatusCode::OK, "Everything looks good")
 }

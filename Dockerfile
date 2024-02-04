@@ -27,7 +27,7 @@ ENV RUST_BACKTRACE=1
 ENV RUST_LOG=trace
 ENV USER=$USER
 
-LABEL org.opencontainers.image.description="Rhiaqey ${BINARY}"
+LABEL org.opencontainers.image.description="Rhiaqey Hub ${BINARY}"
 
 RUN apt-get update \
     && apt-get install -y \
