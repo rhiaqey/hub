@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 use std::sync::Arc;
-use std::thread;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
@@ -82,11 +81,31 @@ impl StreamingChannel {
 
                 if let Err(e) = results {
                     warn!("error with retrieving results: {}", e);
-                    thread::sleep(Duration::from_secs(1));
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                     continue;
                 }
 
-                let mut ids: Vec<String> = vec![];
+                // let mut ids: Vec<String> = vec![];
+
+                for (_ /* topic */, items) in results.unwrap().iter() {
+                    for item in items.iter() {
+                        // ids.push(item.stream_id.clone());
+                        if let Some(raw) = item.items.get("raw") {
+                            if let Ok(stream_message) = serde_json::from_str::<StreamMessage>(raw) {
+                                message_handler
+                                    .lock()
+                                    .await
+                                    .handle_raw_stream_message_from_publishers(
+                                        stream_message,
+                                        channel.size,
+                                    )
+                                    .await;
+                            }
+                        }
+                    }
+                }
+
+                /*
 
                 for (_ /* topic */, items) in results.unwrap().iter() {
                     for item in items.iter() {
@@ -139,8 +158,8 @@ impl StreamingChannel {
                         }
                     };
                 }
-
-                thread::sleep(duration);
+                */
+                tokio::time::sleep(duration).await;
             }
         });
 
