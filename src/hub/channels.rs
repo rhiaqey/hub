@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
-use log::{debug, warn};
+use log::{debug, trace, warn};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
@@ -67,9 +67,9 @@ impl StreamingChannel {
             let topic = topics::publishers_to_hub_stream_topic(namespace, channel.name);
 
             loop {
-                let results: rustis::Result<Vec<(String, Vec<StreamEntry<String>>)>> = redis
-                    .lock()
-                    .await
+                let lxd = redis.lock().await;
+
+                let results: rustis::Result<Vec<(String, Vec<StreamEntry<String>>)>> = lxd
                     .xreadgroup(
                         "hub",
                         id.clone(),
@@ -81,31 +81,12 @@ impl StreamingChannel {
 
                 if let Err(e) = results {
                     warn!("error with retrieving results: {}", e);
+                    drop(lxd);
                     tokio::time::sleep(Duration::from_secs(1)).await;
                     continue;
                 }
 
-                // let mut ids: Vec<String> = vec![];
-
-                for (_ /* topic */, items) in results.unwrap().iter() {
-                    for item in items.iter() {
-                        // ids.push(item.stream_id.clone());
-                        if let Some(raw) = item.items.get("raw") {
-                            if let Ok(stream_message) = serde_json::from_str::<StreamMessage>(raw) {
-                                message_handler
-                                    .lock()
-                                    .await
-                                    .handle_raw_stream_message_from_publishers(
-                                        stream_message,
-                                        channel.size,
-                                    )
-                                    .await;
-                            }
-                        }
-                    }
-                }
-
-                /*
+                let mut ids: Vec<String> = vec![];
 
                 for (_ /* topic */, items) in results.unwrap().iter() {
                     for item in items.iter() {
@@ -126,17 +107,14 @@ impl StreamingChannel {
                 }
 
                 if ids.len() == 0 {
+                    drop(lxd);
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                     continue;
                 }
 
                 trace!("must ack {} stream ids", ids.len());
 
-                let result = match redis
-                    .lock()
-                    .await
-                    .xack(topic.clone(), "hub", ids.clone())
-                    .await
-                {
+                let result = match lxd.xack(topic.clone(), "hub", ids.clone()).await {
                     Ok(res) => {
                         trace!("ack {res} stream ids");
                         true
@@ -149,7 +127,7 @@ impl StreamingChannel {
 
                 if result {
                     trace!("must delete {} stream ids", ids.len());
-                    match redis.lock().await.xdel(topic.clone(), ids).await {
+                    match lxd.xdel(topic.clone(), ids).await {
                         Ok(res) => {
                             trace!("del {res} stream ids");
                         }
@@ -158,7 +136,8 @@ impl StreamingChannel {
                         }
                     };
                 }
-                */
+
+                drop(lxd);
                 tokio::time::sleep(duration).await;
             }
         });
