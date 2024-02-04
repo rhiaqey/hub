@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
@@ -129,7 +129,7 @@ impl StreamingChannel {
                     trace!("must delete {} stream ids", ids.len());
                     match lxd.xdel(topic.clone(), ids).await {
                         Ok(res) => {
-                            trace!("del {res} stream ids");
+                            info!("received {res} stream messages");
                         }
                         Err(e) => {
                             warn!("failed to del stream ids {e}");
