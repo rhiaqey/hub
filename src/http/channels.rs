@@ -154,6 +154,7 @@ pub async fn assign_channels(
     state: Arc<SharedState>,
 ) -> impl IntoResponse {
     info!("[POST] Assign channels");
+    debug!("[POST] Payload {:?}", payload);
 
     let client = state.redis.lock().await.clone().unwrap();
 
