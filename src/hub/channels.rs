@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
-use log::{debug, info, trace, warn};
+use log::{debug, warn};
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
