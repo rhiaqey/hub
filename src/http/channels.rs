@@ -16,8 +16,8 @@ use rustis::Result as RedisResult;
 use std::sync::Arc;
 
 pub async fn delete_channels(
+    State(state): State<Arc<SharedState>>,
     Json(payload): Json<DeleteChannelsRequest>,
-    state: Arc<SharedState>,
 ) -> impl IntoResponse {
     info!("[Delete] Delete channels");
 
@@ -87,7 +87,7 @@ pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<Channel
                 debug!("{} channels found", channel_list.channels.len());
                 return Json(channel_list);
             }
-        },
+        }
         Err(err) => {
             warn!("error fetching channels {}", err);
         }
@@ -97,8 +97,8 @@ pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<Channel
 }
 
 pub async fn create_channels(
+    State(state): State<Arc<SharedState>>,
     Json(payload): Json<CreateChannelsRequest>,
-    state: Arc<SharedState>,
 ) -> impl IntoResponse {
     info!("[PUT] Creating channels");
 
@@ -174,8 +174,8 @@ pub async fn create_channels(
 }
 
 pub async fn assign_channels(
+    State(state): State<Arc<SharedState>>,
     Json(payload): Json<AssignChannelsRequest>,
-    state: Arc<SharedState>,
 ) -> impl IntoResponse {
     info!("[POST] Assign channels");
     debug!("[POST] Payload {:?}", payload);

@@ -41,48 +41,13 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/ready", get(get_ready))
         .route("/metrics", get(get_metrics))
         .route("/version", get(get_version))
-        .route(
-            "/auth",
-            get(
-                /*{
-                let shared_state = Arc::clone(&shared_state);
-                move |Host(hostname): Host, headers, cookies, query| get_auth(hostname, shared_state)
-                // move |ip, Host(hostname): Host, headers, cookies, query| {
-                    // get_auth(hostname, ip, headers, cookies, query, shared_state)
-                // }*/
-                get_auth,
-            ),
-        )
+        .route("/auth", get(get_auth))
         .route("/admin/status", get(get_status))
         .route("/admin/channels", get(get_channels))
-        .route(
-            "/admin/channels",
-            put({
-                let shared_state = Arc::clone(&shared_state);
-                move |body| create_channels(body, shared_state)
-            }),
-        )
-        .route(
-            "/admin/channels",
-            delete({
-                let shared_state = Arc::clone(&shared_state);
-                move |body| delete_channels(body, shared_state)
-            }),
-        )
-        .route(
-            "/admin/channels/assign",
-            post({
-                let shared_state = Arc::clone(&shared_state);
-                move |body| assign_channels(body, shared_state)
-            }),
-        )
-        .route(
-            "/admin/settings/update",
-            post({
-                let shared_state = Arc::clone(&shared_state);
-                move |body| update_settings(body, shared_state)
-            }),
-        )
+        .route("/admin/channels", put(create_channels))
+        .route("/admin/channels", delete(delete_channels))
+        .route("/admin/channels/assign", post(assign_channels))
+        .route("/admin/settings/update", post(update_settings))
         // .layer(CookieManagerLayer::new())
         .layer(SecureClientIpSource::ConnectInfo.into_extension())
         .with_state(shared_state);

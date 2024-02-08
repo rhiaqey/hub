@@ -1,4 +1,5 @@
 use crate::http::state::{SharedState, UpdateSettingsRequest};
+use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 use hyper::StatusCode;
@@ -100,8 +101,8 @@ async fn update_settings_for_publishers(
 }
 
 pub async fn update_settings(
+    State(state): State<Arc<SharedState>>,
     Json(payload): Json<UpdateSettingsRequest>,
-    state: Arc<SharedState>,
 ) -> impl IntoResponse {
     info!("[POST] Update settings");
 
