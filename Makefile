@@ -6,7 +6,7 @@ export ID=fc5e1420-cbec-11ed-afa1-0242ac120002
 export NAME=hub
 export NAMESPACE=rhiaqey
 export RUST_BACKTRACE=full
-export RUST_LOG=rhiaqey=trace
+export RUST_LOG=rhiaqey_hub=trace
 export PRIVATE_PORT=3001
 export PUBLIC_PORT=3002
 

@@ -3,10 +3,11 @@ use crate::http::state::{
 };
 use crate::hub::channels::StreamingChannel;
 use crate::hub::metrics::TOTAL_CHANNELS;
+use axum::extract::State;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
-use rhiaqey_common::topics;
+use rhiaqey_common::topics::{self};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
 use rustis::commands::{PubSubCommands, StreamCommands, StringCommands, XGroupCreateOptions};
@@ -70,6 +71,29 @@ pub async fn delete_channels(
         .unwrap();
 
     StatusCode::NO_CONTENT
+}
+
+pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<ChannelList> {
+    info!("[GET] Get channels");
+
+    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
+    info!("channels key {}", hub_channels_key);
+
+    let client = state.redis.clone().lock().await.clone().unwrap();
+
+    match client.get::<_, String>(hub_channels_key).await {
+        Ok(channels) => {
+            if let Ok(channel_list) = serde_json::from_str::<ChannelList>(channels.as_str()) {
+                debug!("{} channels found", channel_list.channels.len());
+                return Json(channel_list);
+            }
+        },
+        Err(err) => {
+            warn!("error fetching channels {}", err);
+        }
+    };
+
+    Json(ChannelList::default())
 }
 
 pub async fn create_channels(
