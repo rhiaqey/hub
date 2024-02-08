@@ -28,6 +28,7 @@ impl SharedState {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateChannelsRequest {
+    /// List of new channels
     #[serde(flatten)]
     pub channels: ChannelList,
 }
@@ -35,19 +36,24 @@ pub struct CreateChannelsRequest {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct AssignChannelsRequest {
+    /// Publisher's name
     pub name: String,
+    /// List of registered channels
     pub channels: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteChannelsRequest {
+    /// List of registered channels
     pub channels: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateSettingsRequest {
+    /// Publisher's name
     pub name: String,
+    /// Publisher's settings
     pub settings: MessageValue,
 }
