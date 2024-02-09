@@ -34,6 +34,7 @@ RUN apt-get update \
       ca-certificates \
       net-tools \
       libssl-dev \
+      curl \
     && rm -rf /var/lib/apt/lists/*
 RUN update-ca-certificates
 RUN useradd -ms /bin/bash $USER
