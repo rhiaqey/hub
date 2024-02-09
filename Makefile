@@ -1,4 +1,4 @@
-export REDIS_PASSWORD=somethingstrong
+export REDIS_PASSWORD=welcome
 export REDIS_ADDRESS=localhost:6379
 export REDIS_SENTINEL_ADDRESSES=localhost:26379
 

@@ -181,51 +181,47 @@ pub async fn assign_channels(
     debug!("[POST] Payload {:?}", payload);
 
     let client = state.redis.lock().await.clone().unwrap();
-    debug!("client lock acquired");
+    trace!("client lock acquired");
 
+    // calculate channels key
     let channels_key = topics::hub_channels_key(state.get_namespace());
-    debug!("channels key {}", channels_key);
+    trace!("channels key {}", channels_key);
 
+    // get all channels in the system
     let result: String = client.get(channels_key.clone()).await.unwrap();
-    debug!("got channels {}", result);
+    trace!("got channels {}", result);
 
-    let channel_list: Result<ChannelList, _> = serde_json::from_str(result.as_str());
-    if channel_list.is_err() {
-        warn!(
-            "error parsing channel list {}: {}",
-            result,
-            channel_list.unwrap_err()
-        );
-        return (StatusCode::BAD_REQUEST, Json(vec![]));
-    }
+    let all_channels: ChannelList =
+        serde_json::from_str(result.as_str()).unwrap_or(ChannelList::default());
 
-    // populate channels with details e.g. size
-
-    let channels = channel_list
-        .unwrap()
+    // find only valid channels
+    let valid_channels = all_channels
         .channels
         .iter()
         .filter(|x| {
+            // extract only the valid ones
             payload
                 .channels
                 .iter()
-                .find(|y| x.name.as_ref() == y.as_str())
+                .find(|y| x.name == y.as_str())
                 .is_some()
         })
         .map(|x| x.clone())
         .collect::<Vec<_>>();
-
-    // update publisher's channels
 
     let publishers_key =
         topics::publisher_channels_key(state.get_namespace(), payload.name.clone());
 
     debug!("saving channels for publisher {}", publishers_key);
 
-    let content = serde_json::to_string(&ChannelList {
-        channels: channels.clone(),
-    })
+    let content = serde_json::to_string(
+        &valid_channels
+            .iter()
+            .map(|x| x.name.clone())
+            .collect::<Vec<_>>(),
+    )
     .unwrap();
+
     client.set(publishers_key, content).await.unwrap();
 
     // stream to publisher
@@ -236,7 +232,7 @@ pub async fn assign_channels(
 
     let content = serde_json::to_string(&RPCMessage {
         data: RPCMessageData::AssignChannels(ChannelList {
-            channels: channels.clone(),
+            channels: valid_channels.clone(),
         }),
     })
     .unwrap();
@@ -244,5 +240,5 @@ pub async fn assign_channels(
 
     // return response
 
-    (StatusCode::OK, Json(channels))
+    (StatusCode::OK, Json(valid_channels))
 }

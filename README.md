@@ -2,7 +2,7 @@
 
 ![Hub](https://github.com/rhiaqey/hub/actions/workflows/hub.yml/badge.svg)
 
-Early development stage ( mostly for educational purposes 
+Early development stage ( mostly for educational purposes )
 
 ## Ops
 
