@@ -180,6 +180,8 @@ pub async fn assign_channels(
     info!("[POST] Assign channels");
     debug!("[POST] Payload {:?}", payload);
 
+    let channel_name = payload.name;
+
     let client = state.redis.lock().await.clone().unwrap();
     trace!("client lock acquired");
 
@@ -210,23 +212,27 @@ pub async fn assign_channels(
         .collect::<Vec<_>>();
 
     let publishers_key =
-        topics::publisher_channels_key(state.get_namespace(), payload.name.clone());
+        topics::publisher_channels_key(state.get_namespace(), channel_name.clone());
 
     debug!("saving channels for publisher {}", publishers_key);
 
-    let content = serde_json::to_string(
-        &valid_channels
-            .iter()
-            .map(|x| x.name.clone())
-            .collect::<Vec<_>>(),
-    )
+    let assigned_channels = valid_channels
+        .iter()
+        .map(|x| x.name.to_string())
+        .collect::<Vec<_>>();
+
+    let content = serde_json::to_string(&AssignChannelsRequest {
+        name: channel_name.clone(),
+        channels: assigned_channels,
+    })
     .unwrap();
 
     client.set(publishers_key, content).await.unwrap();
 
     // stream to publisher
 
-    let stream_topic = topics::hub_to_publisher_pubsub_topic(state.get_namespace(), payload.name);
+    let stream_topic =
+        topics::hub_to_publisher_pubsub_topic(state.get_namespace(), channel_name.clone());
 
     debug!("streaming to topic {}", stream_topic);
 
