@@ -38,6 +38,16 @@ async fn get_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+pub async fn get_admin() -> impl IntoResponse {
+    let admin = include_str!("../../html/index.html");
+
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "text/html")],
+        admin,
+    )
+}
+
 pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>) {
     let app = Router::new()
         .route("/alive", get(get_ready))
@@ -45,6 +55,7 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/metrics", get(get_metrics))
         .route("/version", get(get_version))
         .route("/auth", get(get_auth))
+        .route("/admin", get(get_admin))
         .route("/admin/api/status", get(get_status))
         .route("/admin/api/channels", get(get_channels))
         .route("/admin/api/channels", put(create_channels))
