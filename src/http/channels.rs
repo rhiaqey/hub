@@ -93,13 +93,37 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
         pipeline.get::<_, ()>(x).queue(); // get channels back
     });
 
-    let pipeline_result: RedisResult<Value> = pipeline.execute().await;
+    if keys.len() == 0 {
+        return (
+            StatusCode::OK,
+            [(hyper::header::CONTENT_TYPE, "application/json")],
+            vec![],
+        )
+            .into_response();
+    }
 
-    (
-        StatusCode::OK,
-        [(hyper::header::CONTENT_TYPE, "application/json")],
-        pipeline_result.unwrap().to_string(),
-    )
+    match pipeline.execute::<Value>().await {
+        Ok(result) => {
+            debug!("retrieved results");
+
+            (
+                StatusCode::OK,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                result.to_string(),
+            )
+                .into_response()
+        }
+        Err(err) => {
+            warn!("there is an error with pipeline execute {err}");
+
+            (
+                StatusCode::OK,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                vec![],
+            )
+        }
+        .into_response(),
+    }
 }
 
 pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<ChannelList> {
