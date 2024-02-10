@@ -154,7 +154,7 @@ impl MessageHandler {
         let stored_message = decoded.unwrap();
         let old_timestamp = stored_message.timestamp.unwrap_or(0);
 
-        // 2. If old timestamp if more recent do not process the new one.
+        // 2. If old timestamp is more recent do not process the new one.
         if old_timestamp > new_timestamp {
             // do not allow it as it is not fresh data
             return MessageProcessResult::Deny(String::from("old timestamp"));
@@ -248,6 +248,7 @@ impl MessageHandler {
 
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
 
+        // Prepare to broadcast to all hubs that we have clean message
         let raw = &RPCMessage {
             data: RPCMessageData::NotifyClients(new_message),
         }
@@ -260,6 +261,7 @@ impl MessageHandler {
             .publish(clean_topic.clone(), raw)
             .await
             .unwrap();
+
         trace!("message sent to pubsub {}", clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
@@ -279,6 +281,6 @@ impl MessageHandler {
             .await
             .unwrap();
 
-        debug!("message sent to clean xstream {}: {id}", clean_topic);
+        trace!("message sent to clean xstream {}: {id}", clean_topic);
     }
 }

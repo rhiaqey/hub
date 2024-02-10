@@ -15,7 +15,7 @@ use log::{debug, info, trace, warn};
 use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::error::RhiaqeyError;
-use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
+use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RhiaqeyBufVec};
 use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
@@ -96,6 +96,31 @@ impl Hub {
         channel_list.channels
     }
 
+    pub async fn set_schema(&self, data: PublisherRegistrationMessage) {
+        let schema_key = topics::publisher_schema_key(data.namespace, data.name);
+        debug!("schema key {schema_key}");
+
+        match serde_json::to_string(&data.schema) {
+            Ok(schema) => {
+                debug!("schema {schema} arrived");
+
+                self.redis
+                    .lock()
+                    .await
+                    .as_mut()
+                    .expect("Failed to acquire redis lock")
+                    .set(schema_key, schema)
+                    .await
+                    .expect("Failed to store in redis");
+
+                trace!("schema saved");
+            }
+            Err(err) => {
+                warn!("serde json error {err}");
+            }
+        }
+    }
+
     pub async fn read_settings(&self) -> Result<HubSettings, RhiaqeyError> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
 
@@ -140,6 +165,7 @@ impl Hub {
 
     pub async fn setup(config: Env) -> Result<Hub, String> {
         let redis_connection = redis::connect(config.redis.clone()).await;
+
         let result: String = redis_connection
             .clone()
             .unwrap()
@@ -211,6 +237,11 @@ impl Hub {
                     }
 
                     match data.unwrap().data {
+                        RPCMessageData::RegisterPublisher(data) => {
+                            info!("setting publisher schema");
+                            self.set_schema(data).await;
+                        }
+                        // this comes from other hub to notify all other hubs
                         RPCMessageData::UpdateSettings() => {
                             info!("updating settings request message arrived");
                             match self.read_settings().await {
@@ -223,6 +254,9 @@ impl Hub {
                                 }
                             }
                         }
+                        // hub raw to hub clean
+                        // from xstream to pubsub
+                        // from load balanced to broadcast
                         RPCMessageData::NotifyClients(stream_message) => {
                             info!("notify clients request message arrived");
 
@@ -299,8 +333,8 @@ pub async fn run() {
 
     let mut hub = match Hub::setup(env).await {
         Ok(exec) => exec,
-        Err(error) => {
-            panic!("failed to setup hub: {error}");
+        Err(err) => {
+            panic!("failed to setup hub: {}", err);
         }
     };
 
@@ -344,7 +378,7 @@ pub async fn run() {
     info!("added {} streams", total_channels);
 
     TOTAL_CHANNELS.set(total_channels as f64);
-    TOTAL_CLIENTS.set(0 as f64);
+    TOTAL_CLIENTS.set(0f64);
 
     hub.start().await.expect("[hub]: Failed to start");
 }
