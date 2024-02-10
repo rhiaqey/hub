@@ -10,7 +10,9 @@ use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::topics::{self};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
-use rustis::commands::{PubSubCommands, StreamCommands, StringCommands, XGroupCreateOptions};
+use rustis::commands::{
+    GenericCommands, PubSubCommands, StreamCommands, StringCommands, XGroupCreateOptions,
+};
 use rustis::resp::Value;
 use rustis::Result as RedisResult;
 use std::sync::Arc;
@@ -165,6 +167,33 @@ pub async fn create_channels(
     info!("added {} streams", total_channels);
 
     TOTAL_CHANNELS.set(total_channels as f64);
+
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "application/json")],
+        pipeline_result.unwrap().to_string(),
+    )
+}
+
+pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+    info!("[GET] Get channel assignments");
+
+    let client = state.redis.clone().lock().await.clone().unwrap();
+
+    // find assigned channel keys
+
+    let publishers_key = topics::publisher_channels_key(state.get_namespace(), "*".to_string());
+    debug!("publishers key {publishers_key}");
+
+    let keys: Vec<String> = client.keys(publishers_key).await.unwrap_or(vec![]);
+    debug!("found {} keys", keys.len());
+
+    let mut pipeline = client.create_pipeline();
+    keys.iter().for_each(|x| {
+        pipeline.get::<_, ()>(x).queue(); // get channels back
+    });
+
+    let pipeline_result: RedisResult<Value> = pipeline.execute().await;
 
     (
         StatusCode::OK,
