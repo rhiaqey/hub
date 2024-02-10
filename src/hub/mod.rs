@@ -97,12 +97,18 @@ impl Hub {
     }
 
     pub async fn set_schema(&self, data: PublisherRegistrationMessage) {
-        let schema_key = topics::publisher_schema_key(data.namespace, data.name);
+        let msg = data.clone();
+
+        let name = data.name;
+        let namespace = data.namespace;
+        let schema_key = topics::publisher_schema_key(namespace, name.clone());
+
         debug!("schema key {schema_key}");
 
-        match serde_json::to_string(&data.schema) {
+        match serde_json::to_string(&msg) {
             Ok(schema) => {
-                debug!("schema {schema} arrived");
+                let id = data.id;
+                debug!("schema arrived for {}:{}", id, name);
 
                 self.redis
                     .lock()

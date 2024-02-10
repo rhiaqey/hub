@@ -75,6 +75,33 @@ pub async fn delete_channels(
     StatusCode::NO_CONTENT
 }
 
+pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+    info!("[GET] Get publishers");
+
+    let client = state.redis.clone().lock().await.clone().unwrap();
+
+    // find assigned publisher keys
+
+    let schema_key = topics::publisher_schema_key(state.get_namespace(), "*".to_string());
+    info!("schema key {}", schema_key);
+
+    let keys: Vec<String> = client.keys(schema_key).await.unwrap_or(vec![]);
+    debug!("found {} keys", keys.len());
+
+    let mut pipeline = client.create_pipeline();
+    keys.iter().for_each(|x| {
+        pipeline.get::<_, ()>(x).queue(); // get channels back
+    });
+
+    let pipeline_result: RedisResult<Value> = pipeline.execute().await;
+
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "application/json")],
+        pipeline_result.unwrap().to_string(),
+    )
+}
+
 pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<ChannelList> {
     info!("[GET] Get channels");
 
