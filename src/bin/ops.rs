@@ -1,5 +1,5 @@
 use clap::{arg, Command};
-use rsa::pkcs1::LineEnding;
+use rsa::pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey, LineEnding};
 use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use std::fs;
@@ -75,13 +75,13 @@ fn main() {
                     println!("writing pem files");
 
                     private_key
-                        .write_pkcs8_pem_file(format!("{dir}/priv.pem"), LineEnding::LF)
+                        .write_pkcs1_pem_file(format!("{dir}/priv.pem"), LineEnding::LF)
                         .expect("failed to write private pem file");
 
                     println!("private key was written");
 
                     public_key
-                        .write_public_key_pem_file(format!("{dir}/pub.pem"), LineEnding::LF)
+                        .write_pkcs1_pem_file(format!("{dir}/pub.pem"), LineEnding::LF)
                         .expect("failed to write public pem file");
 
                     println!("public key was written");
