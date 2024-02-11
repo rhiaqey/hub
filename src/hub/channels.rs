@@ -158,7 +158,7 @@ impl StreamingChannel {
         debug!("keys are here {:?}", keys);
 
         if keys.len() == 0 {
-            return Vec::new();
+            return vec![];
         }
 
         let mut messages = Vec::new();

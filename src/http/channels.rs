@@ -88,11 +88,6 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
     let keys: Vec<String> = client.keys(schema_key).await.unwrap_or(vec![]);
     debug!("found {} keys", keys.len());
 
-    let mut pipeline = client.create_pipeline();
-    keys.iter().for_each(|x| {
-        pipeline.get::<_, ()>(x).queue(); // get channels back
-    });
-
     if keys.len() == 0 {
         return (
             StatusCode::OK,
@@ -101,6 +96,11 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
         )
             .into_response();
     }
+
+    let mut pipeline = client.create_pipeline();
+    keys.iter().for_each(|x| {
+        pipeline.get::<_, ()>(x).queue(); // get channels back
+    });
 
     match pipeline.execute::<Value>().await {
         Ok(result) => {
@@ -239,11 +239,6 @@ pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> i
     let keys: Vec<String> = client.keys(publishers_key).await.unwrap_or(vec![]);
     debug!("found {} keys", keys.len());
 
-    let mut pipeline = client.create_pipeline();
-    keys.iter().for_each(|x| {
-        pipeline.get::<_, ()>(x).queue(); // get channels back
-    });
-
     if keys.len() == 0 {
         return (
             StatusCode::OK,
@@ -252,6 +247,11 @@ pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> i
         )
             .into_response();
     }
+
+    let mut pipeline = client.create_pipeline();
+    keys.iter().for_each(|x| {
+        pipeline.get::<_, ()>(x).queue(); // get channels back
+    });
 
     match pipeline.execute::<Value>().await {
         Ok(result) => {
