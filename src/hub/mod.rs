@@ -249,11 +249,11 @@ impl Hub {
                         }
                         // this comes from other hub to notify all other hubs
                         RPCMessageData::UpdateSettings() => {
-                            info!("updating settings request message arrived");
+                            debug!("received update settings rpc");
                             match self.read_settings().await {
                                 Ok(settings) => {
                                     self.set_settings(settings).await;
-                                    debug!("settings updated correctly");
+                                    info!("settings updated successfully");
                                 },
                                 Err(err) => {
                                     warn!("error decoding to hub settings: {err}")
@@ -264,8 +264,7 @@ impl Hub {
                         // from xstream to pubsub
                         // from load balanced to broadcast
                         RPCMessageData::NotifyClients(stream_message) => {
-                            info!("notify clients request message arrived");
-
+                            debug!("received notify clients rpc");
                             // get streaming channel by channel name
                             let all_hub_streams = streams.lock().await;
                             let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
@@ -320,7 +319,9 @@ impl Hub {
                                         }
                                     }
 
-                                    TOTAL_CLIENTS.set(all_hub_clients.len() as f64);
+                                    let total_clients = all_hub_clients.len();
+                                    TOTAL_CLIENTS.set(total_clients as f64);
+                                    info!("total clients set to {total_clients}");
                                 }
                             }
                         }
