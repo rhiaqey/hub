@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum HubSettingsIPs {
@@ -70,6 +71,28 @@ pub struct HubSecurity {
 pub struct HubSettings {
     #[serde(alias = "Security")]
     pub security: HubSecurity,
+}
+
+impl HubSettings {
+    pub fn schema() -> Value {
+        json!({
+            "$id": "https://example.com/hub-settings.schema.json",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "description": "Hub settings",
+            "type": "object",
+            "properties": {
+                "Security": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "examples": "strong-api-key"
+                    }
+                }
+            },
+            "required": [ "Security" ],
+            "additionalProperties": false
+        })
+    }
 }
 
 #[cfg(test)]
