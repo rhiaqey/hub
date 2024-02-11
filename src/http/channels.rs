@@ -6,7 +6,7 @@ use crate::hub::metrics::TOTAL_CHANNELS;
 use axum::extract::State;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
-use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
+use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::topics::{self};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
@@ -89,12 +89,7 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
     debug!("found {} keys", keys.len());
 
     if keys.len() == 0 {
-        return (
-            StatusCode::OK,
-            [(hyper::header::CONTENT_TYPE, "application/json")],
-            vec![],
-        )
-            .into_response();
+        return Json::<Vec<PublisherRegistrationMessage>>(vec![]).into_response();
     }
 
     let mut pipeline = client.create_pipeline();
@@ -115,14 +110,8 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
         }
         Err(err) => {
             warn!("there is an error with pipeline execute {err}");
-
-            (
-                StatusCode::OK,
-                [(hyper::header::CONTENT_TYPE, "application/json")],
-                vec![],
-            )
+            Json::<Vec<PublisherRegistrationMessage>>(vec![]).into_response()
         }
-        .into_response(),
     }
 }
 
@@ -240,12 +229,7 @@ pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> i
     debug!("found {} keys", keys.len());
 
     if keys.len() == 0 {
-        return (
-            StatusCode::OK,
-            [(hyper::header::CONTENT_TYPE, "application/json")],
-            vec![],
-        )
-            .into_response();
+        return Json::<Vec<AssignChannelsRequest>>(vec![]).into_response();
     }
 
     let mut pipeline = client.create_pipeline();
@@ -266,14 +250,8 @@ pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> i
         }
         Err(err) => {
             warn!("there is an error with pipeline execute {err}");
-
-            (
-                StatusCode::OK,
-                [(hyper::header::CONTENT_TYPE, "application/json")],
-                vec![],
-            )
+            Json::<Vec<AssignChannelsRequest>>(vec![]).into_response()
         }
-        .into_response(),
     }
 }
 
