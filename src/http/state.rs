@@ -20,8 +20,16 @@ pub struct SharedState {
 }
 
 impl SharedState {
+    pub fn get_id(&self) -> String {
+        return self.env.id.to_string();
+    }
+
+    pub fn get_name(&self) -> String {
+        return self.env.name.to_string();
+    }
+
     pub fn get_namespace(&self) -> String {
-        return self.env.namespace.clone();
+        return self.env.namespace.to_string();
     }
 }
 

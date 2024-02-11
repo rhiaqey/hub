@@ -3,6 +3,7 @@ use crate::http::state::{
 };
 use crate::hub::channels::StreamingChannel;
 use crate::hub::metrics::TOTAL_CHANNELS;
+use crate::hub::settings::HubSettings;
 use axum::extract::State;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
@@ -15,6 +16,7 @@ use rustis::commands::{
 };
 use rustis::resp::Value;
 use rustis::Result as RedisResult;
+use serde_json::json;
 use std::sync::Arc;
 
 pub async fn delete_channels(
@@ -113,6 +115,25 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
             Json::<Vec<PublisherRegistrationMessage>>(vec![]).into_response()
         }
     }
+}
+
+pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+    let id = state.get_id();
+    let name = state.get_name();
+    let namespace = state.get_namespace();
+    let schema = HubSettings::schema();
+
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "application/json")],
+        json!({
+            "Id": id,
+            "Name": name,
+            "Namespace": namespace,
+            "Schema": schema
+        })
+        .to_string(),
+    )
 }
 
 pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<ChannelList> {
