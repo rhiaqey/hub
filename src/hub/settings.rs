@@ -76,17 +76,33 @@ pub struct HubSettings {
 impl HubSettings {
     pub fn schema() -> Value {
         json!({
-            "$id": "https://example.com/hub-settings.schema.json",
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "description": "Hub settings",
+            "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
                 "Security": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "examples": "strong-api-key"
-                    }
+                    "type": "object",
+                    "properties": {
+                        "ApiKeys": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "ApiKey": {
+                                        "type": "string",
+                                        "examples": [ "strong-api-key" ]
+                                    },
+                                    "Host": {
+                                        "type": "string",
+                                        "examples": [ "localhost:3001" ]
+                                    }
+                                },
+                                "required": [ "ApiKey", "Host" ],
+                                "additionalProperties": false
+                            }
+                        }
+                    },
+                    "required": [ "ApiKeys" ],
+                    "additionalProperties": false
                 }
             },
             "required": [ "Security" ],

@@ -41,8 +41,7 @@ clap = { version = "4.5", features = ["derive"], optional = true }
 rusty_ulid = "2.0"
 axum-extra = { version = "0.9", features = ["typed-header", "cookie"] }
 axum-client-ip = "0.5"
-axum-util = "0.2.2"
-tower-http = { version = "0.5.1", features = [ "cors" ] }
+jsonschema = "0.17"
 
 [features]
 cli = ["dep:clap"]
