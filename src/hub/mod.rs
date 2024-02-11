@@ -102,7 +102,6 @@ impl Hub {
         let name = data.name;
         let namespace = data.namespace;
         let schema_key = topics::publisher_schema_key(namespace, name.clone());
-
         debug!("schema key {schema_key}");
 
         match serde_json::to_string(&msg) {
@@ -114,10 +113,10 @@ impl Hub {
                     .lock()
                     .await
                     .as_mut()
-                    .expect("Failed to acquire redis lock")
+                    .expect("failed to acquire redis lock")
                     .set(schema_key, schema)
                     .await
-                    .expect("Failed to store in redis");
+                    .expect("failed to store in redis");
 
                 trace!("schema saved");
             }
