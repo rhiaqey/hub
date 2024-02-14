@@ -108,5 +108,6 @@ pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>)
 }
 
 async fn get_home() -> impl IntoResponse {
+    info!("[GET] Handle home");
     (StatusCode::OK, "OK")
 }
