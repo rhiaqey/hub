@@ -3,8 +3,6 @@ use serde_json::{json, Value};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum HubSettingsIPs {
-    #[serde(alias = "Whitelisted")]
-    Whitelisted(Vec<String>),
     #[serde(alias = "Blacklisted")]
     Blacklisted(Vec<String>),
 }
@@ -45,14 +43,7 @@ impl PartialEq for HubSettingsApiKey {
         }
 
         match self_ips.unwrap() {
-            HubSettingsIPs::Whitelisted(self_whitelisted_ips) => match other_ips.unwrap() {
-                HubSettingsIPs::Whitelisted(other_whitelisted_ips) => self_whitelisted_ips
-                    .iter()
-                    .any(|self_whitelisted_ip| other_whitelisted_ips.contains(self_whitelisted_ip)),
-                HubSettingsIPs::Blacklisted(_) => false,
-            },
             HubSettingsIPs::Blacklisted(self_blacklisted_ips) => match other_ips.unwrap() {
-                HubSettingsIPs::Whitelisted(_) => false,
                 HubSettingsIPs::Blacklisted(other_blacklisted_ips) => self_blacklisted_ips
                     .iter()
                     .any(|self_blacklisted_ip| other_blacklisted_ips.contains(self_blacklisted_ip)),
@@ -94,6 +85,18 @@ impl HubSettings {
                                     "Host": {
                                         "type": "string",
                                         "examples": [ "localhost:3001" ]
+                                    },
+                                    "IPs": {
+                                        "type": "object",
+                                        "properties": {
+                                            "Blacklisted": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "format": "ipv4"
+                                                }
+                                            }
+                                        }
                                     }
                                 },
                                 "required": [ "ApiKey", "Host" ],
@@ -113,7 +116,6 @@ impl HubSettings {
 
 #[cfg(test)]
 mod tests {
-    use crate::hub::settings::HubSettingsIPs::{Blacklisted, Whitelisted};
     use crate::hub::settings::{HubSettingsApiKey, HubSettingsIPs};
 
     #[test]
@@ -130,24 +132,11 @@ mod tests {
     }
 
     #[test]
-    fn can_serialize_whitelisted_ips() {
-        let key1 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(Whitelisted(vec!["192.168.0.3".to_string()])),
-        };
-
-        let result = serde_json::to_string(&key1);
-        assert_eq!(result.is_ok(), true);
-        println!("{}", result.unwrap());
-    }
-
-    #[test]
     fn can_serialize_blacklisted_ips() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
             host: "localhost".to_string(),
-            ips: Some(Blacklisted(vec!["192.168.0.3".to_string()])),
+            ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.3".to_string()])),
         };
 
         let result = serde_json::to_string(&key1);
@@ -246,71 +235,5 @@ mod tests {
             ])),
         };
         assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn partial_eq_works_with_same_whitelisted_ips() {
-        let key1 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
-        };
-        let key2 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
-        };
-        assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn partial_eq_works_with_different_whitelisted_ips() {
-        let key1 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
-        };
-        let key2 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.2".to_string()])),
-        };
-        assert_ne!(key1, key2);
-    }
-
-    #[test]
-    fn partial_eq_works_with_multiple_different_whitelisted_ips() {
-        let key1 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
-        };
-        let key2 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Whitelisted(vec![
-                "192.168.0.1".to_string(),
-                "192.168.0.2".to_string(),
-            ])),
-        };
-        assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn partial_eq_works_with_multiple_mix_ips() {
-        let key1 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Whitelisted(vec!["192.168.0.1".to_string()])),
-        };
-        let key2 = HubSettingsApiKey {
-            api_key: "abc".to_string(),
-            host: "localhost".to_string(),
-            ips: Some(HubSettingsIPs::Blacklisted(vec![
-                "192.168.0.3".to_string(),
-                "192.168.0.2".to_string(),
-            ])),
-        };
-        assert_ne!(key1, key2);
     }
 }
