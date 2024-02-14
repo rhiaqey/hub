@@ -211,6 +211,8 @@ pub async fn get_auth(
     qs: Query<AuthenticationQueryParams>,  // external query string
     State(state): State<Arc<SharedState>>, // global state
 ) -> impl IntoResponse {
+    info!("[GET] Handle auth");
+
     trace!("[dump] headers: {:?}", headers);
     trace!("[dump] insecure ip: {:?}", insecure_ip);
     trace!("[dump] host: {:?}", hostname);
