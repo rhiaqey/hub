@@ -129,7 +129,7 @@ impl StreamingChannel {
                     trace!("must delete {} stream ids", ids.len());
                     match lxd.xdel(topic.clone(), ids).await {
                         Ok(res) => {
-                            info!("received {res} stream messages");
+                            debug!("received {res} stream messages");
                         }
                         Err(e) => {
                             warn!("failed to del stream ids {e}");

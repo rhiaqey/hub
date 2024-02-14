@@ -305,7 +305,7 @@ impl Hub {
                                 }
 
                                 if to_delete.is_empty() {
-                                    info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
+                                    debug!("message sent to {:?} client(s)", all_stream_channel_clients.len());
                                 } else {
                                     warn!("disconnecting {} clients", to_delete.len());
 
