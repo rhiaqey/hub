@@ -65,7 +65,7 @@ pub fn extract_api_key_from_relative_path(relative_path: &str) -> Option<String>
                 return Some(api_key);
             }
 
-            warn!("could ot find api_key part");
+            warn!("could not find api_key part");
 
             return None;
         }
