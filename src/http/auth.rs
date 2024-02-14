@@ -90,19 +90,21 @@ pub async fn valid_api_key(
         .iter()
         .find(|key| key.api_key == api_key && key.host == api_host);
 
-    if security_api_key.is_some() {
-        debug!("security api key found");
-    } else {
+    if security_api_key.is_none() {
         warn!("security api key not found");
+        return false;
     }
 
     if let Some(xxx) = security_api_key {
         let xip = xxx.ips.clone();
 
         if xip.is_none() {
-            warn!("security api key does not contain any ip requirements");
-            return true;
+            debug!("security api key does not contain any ip requirements");
+            warn!("need to setup at least 1 API key");
+            return false;
         }
+
+        // TODO: Implement whitelisted and blacklisted IPs
 
         if let Some(xyz) = xip {
             return match xyz {
@@ -149,11 +151,7 @@ pub fn get_hostname(hostname: String, headers: &HeaderMap) -> Option<String> {
     hostname
 }
 
-pub fn get_api_key(
-    qs: &Query<AuthenticationQueryParams>,
-    headers: &HeaderMap,
-    cookies: &CookieJar,
-) -> Option<String> {
+pub fn get_api_key(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -> Option<String> {
     let mut api_key: Option<String> = None;
 
     if headers.contains_key("x-api-key") {
@@ -174,19 +172,12 @@ pub fn get_api_key(
         api_key = extract_api_key_from_relative_path(
             headers.get("x-forwarded-uri").unwrap().to_str().unwrap(),
         )
-    } else if let Some(cookie) = cookies.get("x-api-key") {
-        debug!("x-api-key cookie found");
-        api_key = Some(cookie.to_string());
     }
 
     api_key
 }
 
-pub fn get_api_host(
-    qs: &Query<AuthenticationQueryParams>,
-    headers: &HeaderMap,
-    cookies: &CookieJar,
-) -> Option<String> {
+pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -> Option<String> {
     let mut api_host: Option<String> = None;
 
     if headers.contains_key("x-api-host") {
@@ -207,9 +198,6 @@ pub fn get_api_host(
         api_host = extract_api_host_from_relative_path(
             headers.get("x-forwarded-uri").unwrap().to_str().unwrap(),
         )
-    } else if let Some(cookie) = cookies.get("x-api-host") {
-        debug!("x-api-host cookie found");
-        api_host = Some(cookie.to_string());
     }
 
     api_host
@@ -222,22 +210,20 @@ pub async fn get_auth(
     Host(hostname): Host,                  // external host
     qs: Query<AuthenticationQueryParams>,  // external query string
     State(state): State<Arc<SharedState>>, // global state
-    jar: CookieJar,                        // global
 ) -> impl IntoResponse {
     trace!("[dump] headers: {:?}", headers);
     trace!("[dump] insecure ip: {:?}", insecure_ip);
     trace!("[dump] host: {:?}", hostname);
     trace!("[dump] qs: {:?}", qs);
     trace!("[dump] settings: {:?}", state.as_ref().settings);
-    trace!("[dump] cookies: {:?}", jar);
 
-    let api_host = get_api_host(&qs, &headers, &jar);
+    let api_host = get_api_host(&qs, &headers);
     if api_host.is_none() {
         warn!("api host was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
-    let api_key = get_api_key(&qs, &headers, &jar);
+    let api_key = get_api_key(&qs, &headers);
     if api_key.is_none() {
         warn!("api key was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
@@ -247,32 +233,27 @@ pub async fn get_auth(
     if hostname.is_none() {
         warn!("hostname was not found");
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
-    } else {
-        let source_host = hostname.unwrap();
-        let target_host = api_host.clone().unwrap();
-        if source_host != target_host {
-            warn!(
-                "api host {} was different from hostname {}",
-                target_host, source_host
-            );
-            return (StatusCode::UNAUTHORIZED, "Unauthorized access");
-        }
     }
 
-    let ip = insecure_ip.0.to_string();
+    let source_host = hostname.unwrap();
+    let target_host = api_host.clone().unwrap();
+    if source_host != target_host {
+        warn!(
+            "api host {} was different from hostname {}",
+            target_host, source_host
+        );
+        return (StatusCode::UNAUTHORIZED, "Unauthorized access");
+    }
 
     if valid_api_key(
         digest(api_key.clone().unwrap()),
         api_host.clone().unwrap(),
-        ip,
+        insecure_ip.0.to_string(),
         state,
     )
     .await
     {
         info!("granting access");
-        let _ = jar
-            .add(Cookie::new("x-api-key", api_key.unwrap()))
-            .add(Cookie::new("x-api-host", api_host.unwrap()));
         (StatusCode::OK, "Access granted")
     } else {
         warn!("forbidden access");
