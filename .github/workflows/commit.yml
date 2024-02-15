@@ -1,0 +1,38 @@
+name: Commit
+
+on:
+  push:
+  pull_request:
+    branches:
+      - master
+
+env:
+  CI: true
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: make build
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      # Build and push Docker image with Buildx (don't push on PR)
+      # https://github.com/docker/build-push-action
+      - name: Build docker image
+        id: build
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56
+        with:
+          context: .
+          push: false
+          build-args: |
+            BINARY=hub
