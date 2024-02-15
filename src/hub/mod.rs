@@ -21,9 +21,7 @@ use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
-use rustis::commands::{
-    ConnectionCommands, FlushingMode, PingOptions, PubSubCommands, ServerCommands, StringCommands,
-};
+use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
 use sha256::digest;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -60,18 +58,11 @@ impl Hub {
         self.env.namespace.clone()
     }
 
-    pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Option<PubSubStream> {
-        let client = connect_and_ping(self.env.redis.clone()).await;
-        if client.is_none() {
-            warn!("failed to connect with ping");
-            return None;
-        }
-
+    pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Result<PubSubStream, RhiaqeyError> {
+        let client = connect_and_ping(self.env.redis.clone()).await?;
         let key = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
-
-        let stream = client.unwrap().subscribe(key.clone()).await.unwrap();
-
-        Some(stream)
+        let stream = client.subscribe(key.clone()).await?;
+        Ok(stream)
     }
 
     pub async fn get_channels(&self) -> Vec<Channel> {
@@ -171,13 +162,7 @@ impl Hub {
     }
 
     pub async fn setup(config: Env) -> Result<Hub, RhiaqeyError> {
-        let redis_connection = redis::connect(config.redis.clone()).await;
-
-        let Some(ref client) = redis_connection else {
-            return Err("client could not be acquired".to_string().into());
-        };
-
-        client.flushdb(FlushingMode::Sync).await?;
+        let client = redis::connect(config.redis.clone()).await?;
 
         let result: String = client
             .ping(PingOptions::default().message("hello"))
@@ -192,7 +177,7 @@ impl Hub {
             env: Arc::from(config),
             settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
-            redis: Arc::new(Mutex::new(redis_connection)),
+            redis: Arc::new(Mutex::new(Some(client))),
             clients: Arc::new(Mutex::new(HashMap::new())),
         })
     }
