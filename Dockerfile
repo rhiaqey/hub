@@ -13,7 +13,7 @@ WORKDIR /usr/src/
 COPY . .
 
 RUN cargo install --bin hub --path .
-RUN cargo install --bin ops --path .
+RUN cargo install --bin ops --features=cli --path .
 
 FROM debian:bullseye-slim
 
