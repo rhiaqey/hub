@@ -38,6 +38,7 @@ jobs:
           cargo tag patch
           GIT_TAG="$(cargo tag current)"
           echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
+          echo "Found $GIT_TAG tag"
 
       - name: Extract git branch
         run: |
