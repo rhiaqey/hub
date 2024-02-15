@@ -22,16 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Prepare tag
         run: |
           cargo install cargo-tag
@@ -39,6 +29,7 @@ jobs:
           GIT_TAG="$(cargo tag current)"
           echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
           echo "Found $GIT_TAG tag"
+          git tag
 
       - name: Extract git branch
         run: |
