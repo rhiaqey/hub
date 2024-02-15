@@ -1,7 +1,5 @@
 FROM rust:1.75-slim-bullseye as builder
 
-ARG BINARY
-
 ENV RUST_BACKTRACE=1
 
 RUN apt-get update \
@@ -14,7 +12,8 @@ WORKDIR /usr/src/
 
 COPY . .
 
-RUN cargo install --bin ${BINARY} --path .
+RUN cargo install --bin hub --path .
+RUN cargo install --bin ops --path .
 
 FROM debian:bullseye-slim
 
@@ -39,7 +38,8 @@ RUN apt-get update \
 RUN update-ca-certificates
 RUN useradd -ms /bin/bash $USER
 
-COPY --from=builder --chown=$USER:$USER /usr/local/cargo/bin/${BINARY} /usr/local/bin/${BINARY}
+COPY --from=builder --chown=$USER:$USER /usr/local/cargo/bin/hub /usr/local/bin/hub
+COPY --from=builder --chown=$USER:$USER /usr/local/cargo/bin/ops /usr/local/bin/ops
 
 USER $USER
 

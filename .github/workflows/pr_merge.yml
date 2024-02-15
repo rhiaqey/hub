@@ -7,7 +7,7 @@ on:
 
 env:
   CI: true
-  IMAGE_NAME: rhiaqey/ops
+  IMAGE_NAME: rhiaqey/hub
   CARGO_TERM_COLOR: always
   CARGO_TAG_NAME: "GitHub Actions"
   CARGO_TAG_EMAIL: "github-actions@users.noreply.github.com"
