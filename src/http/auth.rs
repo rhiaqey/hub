@@ -1,5 +1,4 @@
 use crate::http::state::SharedState;
-use crate::hub::settings::HubSettingsIPs;
 use axum::extract::{Host, Query};
 use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
@@ -11,6 +10,9 @@ use sha256::digest;
 use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
+
+#[cfg(not(debug_assertions))]
+use crate::hub::settings::HubSettingsIPs;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationQueryParams {
@@ -74,12 +76,26 @@ pub fn extract_api_key_from_relative_path(relative_path: &str) -> Option<String>
     };
 }
 
+#[cfg(debug_assertions)]
+pub async fn valid_api_key(
+    _api_key: String,
+    _api_host: String,
+    _ip: String,
+    _state: Arc<SharedState>,
+) -> bool {
+    debug!("[DEBUG]: checking is key/host is valid");
+    return true;
+}
+
+#[cfg(not(debug_assertions))]
 pub async fn valid_api_key(
     api_key: String,
     api_host: String,
     ip: String,
     state: Arc<SharedState>,
 ) -> bool {
+    debug!("[RELEASE]: checking is key/host is valid");
+
     let settings = state.settings.read().unwrap();
 
     let security_api_key = settings

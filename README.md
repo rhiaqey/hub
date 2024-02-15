@@ -1,6 +1,6 @@
 # Hub
 
-![Hub](https://github.com/rhiaqey/hub/actions/workflows/commit.yml/badge.svg)
+![Hub](https://github.com/rhiaqey/hub/actions/workflows/pr_merge.yml/badge.svg)
 
 Early development stage ( mostly for educational purposes )
 
