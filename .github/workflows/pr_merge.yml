@@ -29,7 +29,7 @@ jobs:
           GIT_TAG="$(cargo tag current)"
           echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
           echo "Found $GIT_TAG tag"
-          git tag
+          git tag -d $GIT_TAG
 
       - name: Extract git branch
         run: |
@@ -77,6 +77,6 @@ jobs:
 
           [skip ci]
           "
-
+          git tag $GIT_TAG
           git push origin $GIT_TAG
           git push origin $GIT_BRANCH
