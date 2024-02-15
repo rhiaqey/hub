@@ -4,8 +4,6 @@ use axum::extract::{Host, Query};
 use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
 use axum_client_ip::InsecureClientIp;
-use axum_extra::extract::cookie::Cookie;
-use axum_extra::extract::CookieJar;
 use hyper::http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
@@ -108,15 +106,6 @@ pub async fn valid_api_key(
 
         if let Some(xyz) = xip {
             return match xyz {
-                HubSettingsIPs::Whitelisted(ips) => {
-                    let result = ips.contains(&ip);
-
-                    if result {
-                        debug!("ip is whitelisted {}", result);
-                    }
-
-                    result
-                }
                 HubSettingsIPs::Blacklisted(ips) => {
                     let result = ips.contains(&ip);
 
