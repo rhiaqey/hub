@@ -21,7 +21,9 @@ use rhiaqey_common::{redis, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
-use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
+use rustis::commands::{
+    ConnectionCommands, FlushingMode, PingOptions, PubSubCommands, ServerCommands, StringCommands,
+};
 use sha256::digest;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -168,17 +170,22 @@ impl Hub {
         trace!("new settings updated");
     }
 
-    pub async fn setup(config: Env) -> Result<Hub, String> {
+    pub async fn setup(config: Env) -> Result<Hub, RhiaqeyError> {
         let redis_connection = redis::connect(config.redis.clone()).await;
 
-        let result: String = redis_connection
-            .clone()
-            .unwrap()
+        let Some(ref client) = redis_connection else {
+            return Err("client could not be acquired".to_string().into());
+        };
+
+        client.flushdb(FlushingMode::Sync).await?;
+
+        let result: String = client
             .ping(PingOptions::default().message("hello"))
             .await
-            .unwrap();
+            .map_err(|x| x.to_string())?;
+
         if result != "hello" {
-            return Err("ping failed".to_string());
+            return Err("ping failed".to_string().into());
         }
 
         Ok(Hub {

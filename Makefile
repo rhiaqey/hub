@@ -79,10 +79,6 @@ hub2:
 	PUBLIC_PORT=3020 \
 		cargo run --bin hub
 
-.PHONY: run-prod
-run-prod:
-	cargo run --release --bin hub
-
 .PHONY: dev
 dev: build
 
@@ -99,7 +95,15 @@ prod:
 
 .PHONY: docker-build
 docker-build:
-	docker build --squash --build-arg BINARY=hub -t hub:latest -f Dockerfile .
+	docker build . \
+ 		--build-arg BINARY=hub \
+ 		-t rhiaqey/hub:dev \
+ 		-f Dockerfile \
+ 		--squash
+
+.PHONY: docker-push
+docker-push:
+	docker push rhiaqey/hub:dev
 
 .PHONY: docker-run
 docker-run:
@@ -136,6 +140,5 @@ sentinel2:
 test:
 	cargo test
 
-.PHONY: docker-build-ops
-docker-build-ops:
-	docker build --squash --build-arg BINARY=ops --build-arg FEATURES=cli -t ops:latest -f Dockerfile.ops .
+.PHONY: docker
+docker: docker-build docker-push
