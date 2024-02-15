@@ -22,9 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install cargo-tag
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-tag
+
       - name: Prepare tag
         run: |
-          cargo install cargo-tag
           cargo tag patch
           GIT_TAG="$(cargo tag current)"
           echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
