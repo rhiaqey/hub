@@ -31,10 +31,10 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
-        run: cargo build
+        run: cargo build --features all
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --features all
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action

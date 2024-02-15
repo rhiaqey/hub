@@ -45,6 +45,7 @@ jsonschema = "0.17"
 
 [features]
 cli = ["dep:clap"]
+all = ["cli"]
 
 [[bin]]
 name = "hub"
