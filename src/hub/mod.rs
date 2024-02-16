@@ -377,5 +377,7 @@ pub async fn run() {
     TOTAL_CHANNELS.set(total_channels as f64);
     TOTAL_CLIENTS.set(0f64);
 
-    hub.start().await.expect("[hub]: Failed to start");
+    if let Err(err) = hub.start().await {
+        panic!("error starting hub: {}", err);
+    }
 }

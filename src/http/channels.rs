@@ -185,7 +185,7 @@ pub async fn create_channels(
             .forget();
     }
 
-    pipeline.get::<_, ()>(hub_channels_key).queue(); // get channels back
+    pipeline.get::<_, ()>(&hub_channels_key).queue(); // get channels back
     let pipeline_result: RedisResult<Value> = pipeline.execute().await;
 
     trace!("pipeline result: {:?}", pipeline_result);
