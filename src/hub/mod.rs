@@ -23,7 +23,6 @@ use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
 use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
 use sha256::digest;
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
@@ -33,8 +32,8 @@ pub struct Hub {
     pub env: Arc<Env>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
-    pub streams: Arc<Mutex<HashMap<Cow<'static, str>, StreamingChannel>>>,
-    pub clients: Arc<Mutex<HashMap<Cow<'static, str>, WebSocketClient>>>,
+    pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
 }
 
 impl Hub {

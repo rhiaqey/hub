@@ -1,13 +1,12 @@
 use crate::http::client::WebSocketClient;
 use crate::http::state::SharedState;
-use std::borrow::Cow;
 
 use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{Message, WebSocket};
-use axum::extract::{Query, WebSocketUpgrade, State};
+use axum::extract::{Query, State, WebSocketUpgrade};
+use axum::response::IntoResponse;
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
-use axum::response::IntoResponse;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
@@ -52,14 +51,7 @@ pub async fn ws_handler(
 
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| {
-        handle_ws_connection(
-            socket,
-            ip,
-            channels,
-            state,
-        )
-    })
+    ws.on_upgrade(move |socket| handle_ws_connection(socket, ip, channels, state))
 }
 
 /// Handle each websocket connection here
@@ -71,14 +63,12 @@ async fn handle_ws_connection(
 ) {
     let client_id = generate_ulid_string();
     info!("connection {ip} established");
-    tokio::task::spawn(async move {
-        handle_client(Cow::from(client_id), socket, channels, state).await
-    });
+    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state).await });
 }
 
 /// Handle each client here
 async fn handle_client(
-    client_id: Cow<'static, str>,
+    client_id: String,
     socket: WebSocket,
     channels: Vec<String>,
     state: Arc<SharedState>,

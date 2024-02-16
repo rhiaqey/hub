@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -23,7 +22,7 @@ pub struct StreamingChannel {
     pub redis: Option<Arc<Mutex<Client>>>,
     pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
     join_handler: Option<Arc<JoinHandle<u32>>>,
-    pub clients: Arc<Mutex<Vec<Cow<'static, str>>>>,
+    pub clients: Arc<Mutex<Vec<String>>>,
 }
 
 impl StreamingChannel {
@@ -149,7 +148,7 @@ impl StreamingChannel {
         return self.channel.name.to_string();
     }
 
-    pub async fn add_client(&mut self, connection_id: Cow<'static, str>) {
+    pub async fn add_client(&mut self, connection_id: String) {
         self.clients.lock().await.push(connection_id);
     }
 

@@ -3,20 +3,19 @@ use axum::Error;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::{debug, warn};
-use std::borrow::Cow;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 pub struct WebSocketClient {
-    id: Cow<'static, str>,
+    id: String,
     sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     receiver: Arc<Mutex<SplitStream<WebSocket>>>,
     join_handler: Option<Arc<JoinHandle<()>>>,
 }
 
 impl WebSocketClient {
-    pub fn create(client_id: Cow<'static, str>, socket: WebSocket) -> WebSocketClient {
+    pub fn create(client_id: String, socket: WebSocket) -> WebSocketClient {
         let (sender, receiver) = socket.split();
         WebSocketClient {
             id: client_id,
@@ -26,7 +25,7 @@ impl WebSocketClient {
         }
     }
 
-    pub fn get_id(&self) -> Cow<'static, str> {
+    pub fn get_id(&self) -> String {
         self.id.clone()
     }
 

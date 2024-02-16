@@ -197,8 +197,10 @@ pub async fn create_channels(
     let namespace = state.env.namespace.clone();
 
     for channel in &payload.channels.channels {
+        let mut streams = state.streams.lock().await;
+
         let channel_name = channel.name.clone();
-        if state.streams.lock().await.contains_key(&*channel_name) {
+        if streams.contains_key(&*channel_name) {
             warn!("channel {} already exists", channel_name);
             continue;
         }
@@ -206,7 +208,6 @@ pub async fn create_channels(
         let mut streaming_channel =
             StreamingChannel::create(hub_id.clone(), namespace.clone(), channel.clone()).await;
 
-        let streaming_channel_name = streaming_channel.get_name();
         streaming_channel.setup(state.env.redis.clone()).await;
 
         info!(
@@ -215,13 +216,7 @@ pub async fn create_channels(
         );
 
         streaming_channel.start().await;
-
-        state
-            .streams
-            .lock()
-            .await
-            .insert(streaming_channel_name.into(), streaming_channel);
-
+        streams.insert(streaming_channel.get_name(), streaming_channel);
         total_channels += 1;
     }
 
