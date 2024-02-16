@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
+use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::redis::connect_and_ping;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::stream::StreamMessage;
@@ -38,8 +39,8 @@ impl StreamingChannel {
         }
     }
 
-    pub async fn setup(&mut self, config: RedisSettings) {
-        let connection = connect_and_ping(config.clone()).await.unwrap();
+    pub async fn setup(&mut self, config: RedisSettings) -> Result<(), RhiaqeyError> {
+        let connection = connect_and_ping(config.clone()).await?;
         self.redis = Some(Arc::new(Mutex::new(connection)));
         self.message_handler = Some(Arc::new(Mutex::new(
             MessageHandler::create(
@@ -50,6 +51,7 @@ impl StreamingChannel {
             )
             .await,
         )));
+        Ok(())
     }
 
     pub async fn start(&mut self) {

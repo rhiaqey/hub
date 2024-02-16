@@ -343,10 +343,11 @@ pub async fn run() {
 
     let mut total_channels = 0;
     let channels = hub.get_channels().await;
+    let mut streams = hub.streams.lock().await;
 
     for channel in channels {
         let channel_name = channel.name.clone();
-        if hub.streams.lock().await.contains_key(&*channel_name) {
+        if streams.contains_key(&*channel_name) {
             warn!("channel {} already exists", channel_name);
             continue;
         }
@@ -355,7 +356,10 @@ pub async fn run() {
             StreamingChannel::create(hub.get_id(), namespace.clone(), channel.clone()).await;
 
         let streaming_channel_name = streaming_channel.get_name();
-        streaming_channel.setup(hub.env.redis.clone()).await;
+        if let Err(err) = streaming_channel.setup(hub.env.redis.clone()).await {
+            warn!("error stream setup for channel {} - {}", channel_name, err);
+            continue;
+        }
 
         info!(
             "starting up streaming channel {}",
@@ -363,17 +367,13 @@ pub async fn run() {
         );
 
         streaming_channel.start().await;
-
-        hub.streams
-            .lock()
-            .await
-            .insert(streaming_channel_name.into(), streaming_channel);
-
+        streams.insert(streaming_channel_name.into(), streaming_channel);
         total_channels += 1;
     }
 
     info!("added {} streams", total_channels);
 
+    drop(streams);
     TOTAL_CHANNELS.set(total_channels as f64);
     TOTAL_CLIENTS.set(0f64);
 
