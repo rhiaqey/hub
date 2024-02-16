@@ -198,8 +198,8 @@ pub async fn create_channels(
     let mut streams = state.streams.lock().await;
 
     for channel in &payload.channels.channels {
-        let channel_name = channel.name.clone();
-        if streams.contains_key(&*channel_name) {
+        let channel_name = channel.name.to_string();
+        if streams.contains_key(&channel_name) {
             warn!("channel {} already exists", channel_name);
             continue;
         }
