@@ -4,22 +4,23 @@
 
 Early development stage ( mostly for educational purposes )
 
-## Run in github.dev
+## Settings
 
-### Commands
-
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-rustup toolchain install nightly
-cargo build --release
-cargo build
+```json
+{
+	"Security": {
+     	"ApiKeys": [
+          {
+           	"ApiKey": "some_api_key",
+            "Host": "some_host",
+            "IPs": {
+              "Blacklisted": [
+                "192.168.0.0"
+              ]
+            }
+          }
+        ] 
+    }
+}
 ```
 
-### Plugins
-
-```
-rust-analyzer
-better-toml
-docker
-```
