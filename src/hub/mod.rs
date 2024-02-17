@@ -105,10 +105,10 @@ impl Hub {
                     .lock()
                     .await
                     .as_mut()
-                    .expect("failed to acquire redis lock")
+                    .expect("failed to acquire redis lock for schema")
                     .set(schema_key, schema)
                     .await
-                    .expect("failed to store in redis");
+                    .expect("failed to store schema in redis");
 
                 trace!("schema saved");
             }

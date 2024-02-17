@@ -29,8 +29,8 @@ fn validate_settings_for_hub(message: &MessageValue) -> Result<bool, RhiaqeyErro
         Ok(_) => Ok(true),
         Err(errors) => {
             for error in errors {
-                debug!("hub setting schema validation error: {}", error);
-                debug!(
+                warn!("hub setting schema validation error: {}", error);
+                warn!(
                     "hub setting schema validation instance path: {}",
                     error.instance_path
                 );
