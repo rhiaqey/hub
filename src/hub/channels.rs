@@ -65,7 +65,7 @@ impl StreamingChannel {
 
         let join_handler = tokio::task::spawn(async move {
             let id = id.clone();
-            let topic = topics::publishers_to_hub_stream_topic(namespace, channel.name);
+            let topic = topics::publishers_to_hub_stream_topic(namespace, channel.name.to_string());
 
             loop {
                 let lxd = redis.lock().await;
@@ -199,7 +199,7 @@ impl StreamingChannel {
     async fn get_snapshot_keys(&mut self) -> Vec<String> {
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
-            self.channel.name.clone(),
+            self.channel.name.to_string(),
             String::from("*"),
             String::from("*"),
         );

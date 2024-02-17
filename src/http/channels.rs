@@ -177,7 +177,10 @@ pub async fn create_channels(
     for channel in &payload.channels.channels {
         pipeline
             .xgroup_create(
-                topics::publishers_to_hub_stream_topic(state.get_namespace(), channel.name.clone()),
+                topics::publishers_to_hub_stream_topic(
+                    state.get_namespace(),
+                    channel.name.to_string(),
+                ),
                 "hub",
                 "$",
                 XGroupCreateOptions::default().mk_stream(),
