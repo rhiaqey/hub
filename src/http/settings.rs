@@ -47,14 +47,14 @@ async fn update_settings_for_hub(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
 ) -> Result<MessageValue, RhiaqeyError> {
+    debug!("hub settings payload {:?}", payload);
+
     let valid = validate_settings_for_hub(&payload.settings)?;
     debug!("hub settings valid: {valid}");
 
     if !valid {
         warn!("failed payload schema validation");
-        return Err(RhiaqeyError::from(
-            "Schema validation failed for payload".to_string(),
-        ));
+        return Err(RhiaqeyError::from("Schema validation failed for payload"));
     }
 
     let client = state.redis.lock().await.clone().unwrap();
