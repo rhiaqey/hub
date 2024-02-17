@@ -84,14 +84,15 @@ dev: build
 
 .PHONY: build
 build:
-	cargo build
+	cargo build --features=all
 	ls -lah target/debug/hub
 
 .PHONY: prod
 prod:
-	cargo build --release --bin hub
+	cargo build --release --bin hub --features=cli
 	cargo build --release --bin ops --features=cli
-	ls -lah target/release
+	ls -lah target/release/hub
+	ls -lah target/release/ops
 
 .PHONY: docker-build
 docker-build:

@@ -17,7 +17,8 @@ use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RhiaqeyBufVec};
-use rhiaqey_common::{redis, topics};
+use rhiaqey_common::security::SecurityKey;
+use rhiaqey_common::{redis, security, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
@@ -34,6 +35,7 @@ pub struct Hub {
     pub redis: Arc<Mutex<Option<Client>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    pub security: Arc<Mutex<SecurityKey>>,
 }
 
 impl Hub {
@@ -131,8 +133,13 @@ impl Hub {
             .await?;
         debug!("encrypted settings retrieved");
 
-        let data = self.env.decrypt(result.0)?;
-        debug!("raw data decrypted");
+        let keys = self.security.lock().await;
+
+        let data = security::aes_decrypt(
+            keys.no_once.as_slice(),
+            keys.key.as_slice(),
+            result.0.as_slice(),
+        )?;
 
         let settings = MessageValue::Binary(data).decode::<HubSettings>()?;
         debug!("decrypted data decoded into settings");
@@ -160,6 +167,32 @@ impl Hub {
         trace!("new settings updated");
     }
 
+    async fn load_key(config: &Env, client: &Client) -> Result<SecurityKey, RhiaqeyError> {
+        let namespace = config.namespace.clone();
+        let security_key = topics::security_key(namespace);
+        let security_str: String = client.get(security_key.clone()).await?;
+        let security = match serde_json::from_str::<SecurityKey>(security_str.as_str()) {
+            Ok(mut security) => {
+                debug!("security keys loaded");
+                security.key = config.decrypt(security.key)?;
+                security.no_once = config.decrypt(security.no_once)?;
+                security
+            }
+            Err(_) => {
+                warn!("security keys not found");
+                let mut security = SecurityKey::default();
+                let original = security.clone();
+                security.no_once = config.encrypt(security.no_once)?;
+                security.key = config.encrypt(security.key)?;
+                let key_result = serde_json::to_string(&security)?;
+                client.set(security_key.clone(), key_result).await?;
+                debug!("new keys generated and saved");
+                original
+            }
+        };
+        Ok(security)
+    }
+
     pub async fn setup(config: Env) -> Result<Hub, RhiaqeyError> {
         let client = redis::connect(config.redis.clone()).await?;
 
@@ -172,21 +205,24 @@ impl Hub {
             return Err("ping failed".to_string().into());
         }
 
+        let security = Self::load_key(&config, &client).await?;
+
         Ok(Hub {
             env: Arc::from(config),
             settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(Some(client))),
             clients: Arc::new(Mutex::new(HashMap::new())),
+            security: Arc::new(Mutex::new(security)),
         })
     }
 
     pub async fn start(&mut self) -> hyper::Result<()> {
         info!("starting hub");
 
-        self.set_settings(self.read_settings().await.unwrap_or(HubSettings::default()))
-            .await;
-        debug!("setting set successfully");
+        let settings = self.read_settings().await.unwrap_or(HubSettings::default());
+        self.set_settings(settings).await;
+        debug!("settings loaded");
 
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
@@ -194,6 +230,7 @@ impl Hub {
             streams: self.streams.clone(),
             redis: self.redis.clone(),
             clients: self.clients.clone(),
+            security: self.security.clone(),
         });
 
         let private_port = self.get_private_port();

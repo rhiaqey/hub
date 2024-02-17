@@ -8,7 +8,7 @@ use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
-use rhiaqey_common::topics;
+use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::commands::{PubSubCommands, StringCommands};
 use serde_json::Value;
@@ -59,18 +59,23 @@ async fn update_settings_for_hub(
 
     let client = state.redis.lock().await.clone().unwrap();
 
-    trace!("encrypt settings");
+    trace!("encrypt settings for hub");
 
-    let setting = state
-        .env
-        .encrypt(payload.settings.to_vec().unwrap())
-        .map_err(|x| x.message)?;
+    let keys = state.security.lock().await;
+    let data = payload.settings.to_vec()?;
+    let settings = security::aes_encrypt(
+        keys.no_once.as_slice(),
+        keys.key.as_slice(),
+        data.as_slice(),
+    )
+    .map_err(|x| x.message)?;
+    drop(keys);
 
     trace!("save encrypted in redis");
 
     let hub_settings_key = topics::hub_settings_key(state.get_namespace());
     client
-        .set(hub_settings_key.clone(), setting)
+        .set(hub_settings_key.clone(), settings)
         .await
         .map_err(|x| x.to_string())?;
 
@@ -152,18 +157,23 @@ async fn update_settings_for_publishers(
         ));
     }
 
-    trace!("encrypt settings");
+    trace!("encrypt settings for publishers");
 
-    let setting = state
-        .env
-        .encrypt(payload.settings.to_vec().unwrap())
-        .map_err(|x| x.message)?;
+    let keys = state.security.lock().await;
+    let data = payload.settings.to_vec()?;
+    let settings = security::aes_encrypt(
+        keys.no_once.as_slice(),
+        keys.key.as_slice(),
+        data.as_slice(),
+    )
+    .map_err(|x| x.message)?;
+    drop(keys);
 
     trace!("save encrypted in redis");
 
     let publishers_key = topics::publisher_settings_key(state.get_namespace(), name.clone());
     client
-        .set(publishers_key.clone(), setting)
+        .set(publishers_key.clone(), settings)
         .await
         .map_err(|x| x.to_string())?;
 
