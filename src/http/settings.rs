@@ -50,7 +50,7 @@ async fn update_settings_for_hub(
     debug!("hub settings payload {:?}", payload);
 
     let valid = validate_settings_for_hub(&payload.settings)?;
-    debug!("hub settings valid: {valid}");
+    trace!("hub settings valid: {valid}");
 
     if !valid {
         warn!("failed payload schema validation");
@@ -77,8 +77,7 @@ async fn update_settings_for_hub(
     trace!("notify all other hubs");
 
     let hub_pub_topic = topics::hub_raw_to_hub_clean_pubsub_topic(state.get_namespace());
-
-    info!("publishing to topic {}", hub_pub_topic);
+    debug!("publishing to topic {}", hub_pub_topic);
 
     let rpc_message = serde_json::to_string(&RPCMessage {
         data: RPCMessageData::UpdateSettings(),

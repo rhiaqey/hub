@@ -104,38 +104,21 @@ pub async fn valid_api_key(
         .iter()
         .find(|key| key.api_key == api_key && key.host == api_host);
 
-    if security_api_key.is_none() {
+    let Some(api_key) = security_api_key else {
         warn!("security api key not found");
         return false;
+    };
+
+    debug!("api key found for host");
+
+    let Some(ref ips) = api_key.ips else {
+        debug!("security api key does not contain any ip requirements");
+        return true;
+    };
+
+    match ips {
+        HubSettingsIPs::Blacklisted(blacklisted_ips) => !blacklisted_ips.contains(&ip),
     }
-
-    if let Some(xxx) = security_api_key {
-        let xip = xxx.ips.clone();
-
-        if xip.is_none() {
-            debug!("security api key does not contain any ip requirements");
-            warn!("need to setup at least 1 API key");
-            return false;
-        }
-
-        // TODO: Implement whitelisted and blacklisted IPs
-
-        if let Some(xyz) = xip {
-            return match xyz {
-                HubSettingsIPs::Blacklisted(ips) => {
-                    let result = ips.contains(&ip);
-
-                    if result {
-                        warn!("ip is blacklisted {}", result);
-                    }
-
-                    !result
-                }
-            };
-        }
-    }
-
-    return false;
 }
 
 pub fn get_hostname(hostname: String, headers: &HeaderMap) -> Option<String> {
