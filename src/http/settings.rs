@@ -12,11 +12,22 @@ use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::commands::{PubSubCommands, StringCommands};
 use serde_json::Value;
+use std::collections::HashSet;
+use std::hash::Hash;
 use std::sync::Arc;
+
+fn has_unique_elements<T>(iter: T) -> bool
+where
+    T: IntoIterator,
+    T::Item: Eq + Hash,
+{
+    let mut uniq = HashSet::new();
+    iter.into_iter().all(move |x| uniq.insert(x))
+}
 
 fn validate_settings_for_hub(message: &MessageValue) -> Result<bool, RhiaqeyError> {
     let raw = message.to_vec()?;
-    let settings = serde_json::from_slice(raw.as_slice())?;
+    let settings_value = serde_json::from_slice(raw.as_slice())?;
 
     let schema = HubSettings::schema();
 
@@ -25,7 +36,7 @@ fn validate_settings_for_hub(message: &MessageValue) -> Result<bool, RhiaqeyErro
         .compile(&schema)
         .map_err(|x| x.to_string())?;
 
-    let result = match compiled_schema.validate(&settings) {
+    let result = match compiled_schema.validate(&settings_value) {
         Ok(_) => Ok(true),
         Err(errors) => {
             for error in errors {
@@ -39,6 +50,16 @@ fn validate_settings_for_hub(message: &MessageValue) -> Result<bool, RhiaqeyErro
             Ok(false)
         }
     };
+
+    if result.is_err() {
+        return result;
+    }
+
+    trace!("checking for duplicate api keys");
+    let settings: HubSettings = serde_json::from_value(settings_value)?;
+    if !has_unique_elements(settings.security.api_keys.iter().map(|x| &x.api_key)) {
+        return Err(RhiaqeyError::from("duplicate api keys found"));
+    }
 
     result
 }
@@ -223,7 +244,7 @@ pub async fn update_settings(
             (StatusCode::OK, Json(response)).into_response()
         }
         Err(err) => {
-            warn!("error updating settings {err}");
+            warn!("error updating settings: {err}");
             (
                 StatusCode::BAD_REQUEST,
                 Json(RhiaqeyError::create(400, err.to_string())),
