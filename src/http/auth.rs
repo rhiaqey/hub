@@ -2,7 +2,7 @@ use crate::http::state::SharedState;
 use axum::extract::{Host, Query};
 use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::{InsecureClientIp, SecureClientIp};
 use hyper::http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
@@ -18,8 +18,8 @@ use crate::hub::settings::HubSettingsIPs;
 pub struct AuthenticationQueryParams {
     #[serde(rename = "api_key")]
     pub api_key: Option<String>,
-    #[serde(rename = "host")]
-    pub host: Option<String>,
+    #[serde(rename = "api_host")]
+    pub api_host: Option<String>,
 }
 
 pub fn extract_api_host_from_relative_path(relative_path: &str) -> Option<String> {
@@ -32,9 +32,9 @@ pub fn extract_api_host_from_relative_path(relative_path: &str) -> Option<String
             trace!("we parsed full url {full} into parts");
 
             let queries: HashMap<_, _> = parts.query_pairs().collect();
-            if queries.contains_key("host") {
-                let host = queries.get("host").unwrap().to_string();
-                debug!("host was found");
+            if queries.contains_key("api_host") {
+                let host = queries.get("api_host").unwrap().to_string();
+                debug!("api host was found");
 
                 return Some(host);
             }
@@ -121,24 +121,6 @@ pub async fn valid_api_key(
     }
 }
 
-pub fn get_hostname(hostname: String, headers: &HeaderMap) -> Option<String> {
-    let mut hostname: Option<String> = Some(hostname);
-
-    if headers.contains_key("x-forwarded-host") {
-        debug!("x-forwarded-host header found");
-        hostname = Some(
-            headers
-                .get("x-forwarded-host")
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
-        );
-    }
-
-    hostname
-}
-
 pub fn get_api_key(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) -> Option<String> {
     let mut api_key: Option<String> = None;
 
@@ -178,7 +160,7 @@ pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) 
                 .unwrap()
                 .to_string(),
         );
-    } else if let Some(host) = qs.host.clone() {
+    } else if let Some(host) = qs.api_host.clone() {
         debug!("host qs found");
         api_host = Some(host)
     } else if headers.contains_key("x-forwarded-uri") {
@@ -192,9 +174,9 @@ pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) 
 }
 
 pub async fn get_auth(
-    headers: HeaderMap,            // external and internal headers
-    insecure_ip: InsecureClientIp, // external
-    // secure_ip: SecureClientIp,                               // internal
+    headers: HeaderMap,                    // external and internal headers
+    insecure_ip: InsecureClientIp,         // external
+    secure_ip: SecureClientIp,             // internal
     Host(hostname): Host,                  // external host
     qs: Query<AuthenticationQueryParams>,  // external query string
     State(state): State<Arc<SharedState>>, // global state
@@ -202,6 +184,7 @@ pub async fn get_auth(
     info!("[GET] Handle auth");
 
     trace!("[dump] headers: {:?}", headers);
+    trace!("[dump] secure ip: {:?}", secure_ip);
     trace!("[dump] insecure ip: {:?}", insecure_ip);
     trace!("[dump] host: {:?}", hostname);
     trace!("[dump] qs: {:?}", qs);
@@ -219,21 +202,7 @@ pub async fn get_auth(
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
-    let hostname = get_hostname(hostname, &headers);
-    if hostname.is_none() {
-        warn!("hostname was not found");
-        return (StatusCode::UNAUTHORIZED, "Unauthorized access");
-    }
-
-    let source_host = hostname.unwrap();
-    let target_host = api_host.clone().unwrap();
-    if source_host != target_host {
-        warn!(
-            "api host {} was different from hostname {}",
-            target_host, source_host
-        );
-        return (StatusCode::UNAUTHORIZED, "Unauthorized access");
-    }
+    // TODO: Compare api host with origin
 
     if valid_api_key(
         digest(api_key.clone().unwrap()),
