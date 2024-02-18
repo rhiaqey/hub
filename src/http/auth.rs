@@ -1,8 +1,8 @@
 use crate::http::state::SharedState;
-use axum::extract::{Host, Query};
+use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
-use axum_client_ip::{InsecureClientIp, SecureClientIp};
+use axum_client_ip::InsecureClientIp;
 use hyper::http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
@@ -77,7 +77,7 @@ pub fn extract_api_key_from_relative_path(relative_path: &str) -> Option<String>
 }
 
 #[cfg(debug_assertions)]
-pub async fn valid_api_key(
+pub fn valid_api_key(
     _api_key: String,
     _api_host: String,
     _ip: String,
@@ -88,7 +88,7 @@ pub async fn valid_api_key(
 }
 
 #[cfg(not(debug_assertions))]
-pub async fn valid_api_key(
+pub fn valid_api_key(
     api_key: String,
     api_host: String,
     ip: String,
@@ -173,22 +173,76 @@ pub fn get_api_host(qs: &Query<AuthenticationQueryParams>, headers: &HeaderMap) 
     api_host
 }
 
+pub fn get_origin(headers: &HeaderMap) -> Option<String> {
+    if headers.contains_key("origin") {
+        return Some(headers.get("origin").unwrap().to_str().unwrap().to_string());
+    }
+
+    None
+}
+
+#[cfg(debug_assertions)]
+pub fn valid_api_host(api_host: String, origin: String) -> bool {
+    debug!(
+        "[DEBUG]: check if valid host {} against {}",
+        api_host, origin
+    );
+    true
+}
+
+#[cfg(not(debug_assertions))]
+pub fn valid_api_host(api_host: String, origin: String) -> bool {
+    debug!(
+        "[RELEASE]: check if valid host {} against {}",
+        api_host, origin
+    );
+
+    match Url::parse(origin.as_str()) {
+        Ok(parts) => {
+            trace!("url parsed into parts");
+
+            if let Some(host) = parts.host_str() {
+                let mut host = host.to_string();
+
+                trace!("host extracted: {host}");
+                trace!("port: {:?}", parts.port());
+                trace!("port or default: {:?}", parts.port_or_known_default());
+
+                if let Some(port) = parts.port() {
+                    trace!("port found: {port}");
+                    host = format!("{}:{}", host, port);
+                }
+
+                debug!("comparing {} with {}", api_host, host);
+
+                return api_host.eq(&host);
+            }
+
+            false
+        }
+        Err(err) => {
+            warn!("error parsing url: {}", err);
+            false
+        }
+    }
+}
+
 pub async fn get_auth(
-    headers: HeaderMap,                    // external and internal headers
-    insecure_ip: InsecureClientIp,         // external
-    secure_ip: SecureClientIp,             // internal
-    Host(hostname): Host,                  // external host
-    qs: Query<AuthenticationQueryParams>,  // external query string
+    headers: HeaderMap,        // external and internal headers
+    user_ip: InsecureClientIp, // external
+    // internal: SecureClientIp,           // internal
+    // Host(hostname): Host,               // external host
+    qs: Query<AuthenticationQueryParams>, // external query string
     State(state): State<Arc<SharedState>>, // global state
 ) -> impl IntoResponse {
     info!("[GET] Handle auth");
 
-    trace!("[dump] headers: {:?}", headers);
-    trace!("[dump] secure ip: {:?}", secure_ip);
-    trace!("[dump] insecure ip: {:?}", insecure_ip);
-    trace!("[dump] host: {:?}", hostname);
-    trace!("[dump] qs: {:?}", qs);
-    trace!("[dump] settings: {:?}", state.as_ref().settings);
+    // trace!("[dump] headers: {:?}", headers);
+    // trace!("[dump] secure ip: {:?}", internal);
+    // trace!("[dump] insecure ip: {:?}", user_ip);
+    // trace!("[dump] host: {:?}", hostname);
+    // trace!("[dump] qs: {:?}", qs);
+    // trace!("[dump] settings: {:?}", state.as_ref().settings);
 
     let api_host = get_api_host(&qs, &headers);
     if api_host.is_none() {
@@ -202,17 +256,25 @@ pub async fn get_auth(
         return (StatusCode::UNAUTHORIZED, "Unauthorized access");
     }
 
-    // TODO: Compare api host with origin
+    if let Some(origin) = get_origin(&headers) {
+        debug!("origin found {}", origin);
+        if valid_api_host(api_host.clone().unwrap(), origin) {
+            debug!("api host is valid");
+        } else {
+            warn!("forbidden access");
+            return (StatusCode::UNAUTHORIZED, "Unauthorized access");
+        }
+    } else {
+        warn!("origin could not be found");
+    }
 
     if valid_api_key(
         digest(api_key.clone().unwrap()),
         api_host.clone().unwrap(),
-        insecure_ip.0.to_string(),
+        user_ip.0.to_string(),
         state,
-    )
-    .await
-    {
-        info!("granting access");
+    ) {
+        info!("api key is valid");
         (StatusCode::OK, "Access granted")
     } else {
         warn!("forbidden access");
@@ -221,12 +283,12 @@ pub async fn get_auth(
 }
 
 pub async fn get_status(// headers: HeaderMap,            // external and internal headers
-    // insecure_ip: InsecureClientIp, // external
-    // secure_ip: SecureClientIp,                               // internal
-    // Host(hostname): Host,                  // external host
-    // qs: Query<AuthenticationQueryParams>,  // external query string
-    // State(state): State<Arc<SharedState>>, // global state
-    // jar: CookieJar,                        // global
+                        // insecure_ip: InsecureClientIp, // external
+                        // secure_ip: SecureClientIp,                               // internal
+                        // Host(hostname): Host,                  // external host
+                        // qs: Query<AuthenticationQueryParams>,  // external query string
+                        // State(state): State<Arc<SharedState>>, // global state
+                        // jar: CookieJar,                        // global
 ) -> impl IntoResponse {
     (StatusCode::OK, "Everything looks good")
 }
