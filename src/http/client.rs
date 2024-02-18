@@ -101,7 +101,7 @@ impl Drop for WebSocketClient {
 }
 
 pub async fn get_users() -> impl IntoResponse {
-    info!("[GET] get users");
+    info!("[GET] get total connected users");
     let clients = TOTAL_CLIENTS.get();
 
     (
