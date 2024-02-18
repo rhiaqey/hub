@@ -5,7 +5,7 @@ use axum::response::IntoResponse;
 use axum::Error;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use log::{debug, warn};
+use log::{debug, info, warn};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -101,6 +101,7 @@ impl Drop for WebSocketClient {
 }
 
 pub async fn get_users() -> impl IntoResponse {
+    info!("[GET] get users");
     let clients = TOTAL_CLIENTS.get();
 
     (
