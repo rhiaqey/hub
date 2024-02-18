@@ -3,6 +3,7 @@ use crate::http::channels::{
     assign_channels, create_channels, delete_channels, get_channel_assignments, get_channels,
     get_hub, get_publishers,
 };
+use crate::http::client::get_users;
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
@@ -58,6 +59,7 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/admin", get(get_admin))
         .route("/admin/api/hub", get(get_hub))
         .route("/admin/api/status", get(get_status))
+        .route("/admin/api/users", get(get_users))
         .route("/admin/api/channels", get(get_channels))
         .route("/admin/api/channels", put(create_channels))
         .route("/admin/api/channels", delete(delete_channels))

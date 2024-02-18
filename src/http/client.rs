@@ -1,8 +1,12 @@
+use crate::hub::metrics::TOTAL_CLIENTS;
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use axum::Error;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::{debug, warn};
+use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -94,4 +98,17 @@ impl Drop for WebSocketClient {
             self.join_handler.as_mut().unwrap().abort();
         }
     }
+}
+
+pub async fn get_users() -> impl IntoResponse {
+    let clients = TOTAL_CLIENTS.get();
+
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "application/json")],
+        json!({
+            "Clients": clients
+        })
+        .to_string(),
+    )
 }
