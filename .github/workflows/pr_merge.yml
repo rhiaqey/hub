@@ -28,7 +28,7 @@ jobs:
           git config user.email "$CARGO_TAG_EMAIL"
 
       - name: Cargo Verison
-        uses: dimitrmo/cargo-verison-action@v1.0.8
+        uses: dimitrmo/cargo-verison-action@v1.0.9
 
       - name: Extract git branch
         run: |
