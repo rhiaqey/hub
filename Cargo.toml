@@ -22,12 +22,12 @@ rhiaqey-common = { git = "https://github.com/rhiaqey/common.git" }
 env_logger = "0.11"
 log = "0.4"
 lazy_static = { version = "1.4" }
-serde = { version = "1.0", features = ["derive"]}
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 async-trait = "0.1"
 futures = "0.3"
-prometheus = { version = "0.13", features = [ "process" ] }
-rustis = { version = "0.12", features = [ "redis-json", "tokio-runtime" ] }
+prometheus = { version = "0.13", features = ["process"] }
+rustis = { version = "0.12", features = ["redis-json", "tokio-runtime"] }
 tokio = { version = "1.36", features = ["full"] }
 axum = { version = "0.7", features = ["http2", "json", "macros",
     "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
@@ -35,7 +35,7 @@ hyper = { version = "1.1", features = ["full"] }
 sha256 = "1.5"
 sha2 = "0.10"
 url = "2.5"
-rsa = { version = "0.9", features = [ "pem" ] }
+rsa = { version = "0.9", features = ["pem"] }
 rand = "0.8"
 clap = { version = "4.5", features = ["derive"], optional = true }
 rusty_ulid = "2.0"
@@ -54,4 +54,4 @@ src = "src/bin/hub.rs"
 [[bin]]
 name = "ops"
 src = "src/bin/ops.rs"
-required-features = [ "cli" ]
+required-features = ["cli"]
