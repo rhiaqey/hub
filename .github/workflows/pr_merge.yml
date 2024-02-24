@@ -28,7 +28,13 @@ jobs:
           git config user.email "$CARGO_TAG_EMAIL"
 
       - name: Cargo Verison
-        uses: dimitrmo/cargo-verison-action@v1.0.9
+        id: verison
+        uses: dimitrmo/cargo-verison-action@v1.0.10
+        with:
+          message: "Release %s
+
+          [skip ci]
+          "
 
       - name: Extract git branch
         run: |
@@ -59,7 +65,7 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.IMAGE_NAME }}:${{ env.GIT_TAG }},${{ env.IMAGE_NAME }}:latest
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.verison.outputs.next_version }},${{ env.IMAGE_NAME }}:latest
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BINARY=hub
