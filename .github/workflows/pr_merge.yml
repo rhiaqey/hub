@@ -22,18 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install cargo-tag
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-tag
-
-      - name: Prepare tag
+      - name: Git setup
         run: |
-          cargo tag patch
-          GIT_TAG="$(cargo tag current)"
-          echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
-          echo "Found $GIT_TAG tag"
-          git tag -d $GIT_TAG
+          git config user.name "$CARGO_TAG_NAME"
+          git config user.email "$CARGO_TAG_EMAIL"
+
+      - name: Cargo Verison
+        uses: dimitrmo/cargo-verison-action@1.0.6
 
       - name: Extract git branch
         run: |
@@ -69,22 +64,11 @@ jobs:
           build-args: |
             BINARY=hub
 
-      - name: Commit and push
+      - name: Git push
         run: |
           echo "Current branch $GIT_BRANCH"
-
-          git config user.name "$CARGO_TAG_NAME"
-          git config user.email "$CARGO_TAG_EMAIL"
-          
-          git add .
-          git commit -m "Release $GIT_TAG
-
-          [skip ci]
-          "
-
-          git tag $GIT_TAG
-          git push origin $GIT_TAG
           git push origin $GIT_BRANCH
+          git push origin $GIT_BRANCH --tags
 
 #      - name: Push Charts to GHCR
 #        if: ${{ github.event_name != 'pull_request' }}
