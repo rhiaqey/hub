@@ -31,10 +31,10 @@ jobs:
         id: verison
         uses: dimitrmo/cargo-verison-action@v1.0.17
         with:
-          message: "Release %s
+          message: |
+            Release %s
 
-          [skip ci]
-          "
+            [skip ci]
 
       - name: Extract git branch
         run: |
