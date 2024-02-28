@@ -94,7 +94,7 @@ impl StreamingChannel {
                         ids.push(item.stream_id.clone());
                         if let Some(raw) = item.items.get("raw") {
                             if let Ok(stream_message) = serde_json::from_str::<StreamMessage>(raw) {
-                                message_handler
+                                let _ = message_handler
                                     .lock()
                                     .await
                                     .handle_raw_stream_message_from_publishers(

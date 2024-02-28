@@ -84,13 +84,13 @@ dev: build
 
 .PHONY: build
 build:
-	cargo build --features=all
+	cargo build --all-features
 	ls -lah target/debug/hub
 
 .PHONY: prod
 prod:
-	cargo build --release --bin hub --features=cli
-	cargo build --release --bin ops --features=cli
+	cargo build --release --bin hub --all-features
+	cargo build --release --bin ops --all-features
 	ls -lah target/release/hub
 	ls -lah target/release/ops
 

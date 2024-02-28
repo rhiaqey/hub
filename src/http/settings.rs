@@ -88,8 +88,7 @@ async fn update_settings_for_hub(
         keys.no_once.as_slice(),
         keys.key.as_slice(),
         data.as_slice(),
-    )
-    .map_err(|x| x.message)?;
+    )?;
     drop(keys);
 
     trace!("save encrypted in redis");
@@ -186,8 +185,7 @@ async fn update_settings_for_publishers(
         keys.no_once.as_slice(),
         keys.key.as_slice(),
         data.as_slice(),
-    )
-    .map_err(|x| x.message)?;
+    )?;
     drop(keys);
 
     trace!("save encrypted in redis");
@@ -247,7 +245,7 @@ pub async fn update_settings(
             warn!("error updating settings: {err}");
             (
                 StatusCode::BAD_REQUEST,
-                Json(RhiaqeyError::create(400, err.to_string())),
+                Json(err)
             )
                 .into_response()
         }

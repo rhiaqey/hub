@@ -1,4 +1,5 @@
 use log::{debug, trace, warn};
+use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
@@ -142,7 +143,7 @@ impl MessageHandler {
             return MessageProcessResult::AllowUnprocessed;
         };
 
-        let decoded = StreamMessage::from_string(last_message.as_str());
+        let decoded = StreamMessage::der_from_string(last_message.as_str());
         if let Err(e) = decoded {
             warn!("stored message could not be deserialized {e}");
             // allow it as the stored failed to decode
@@ -183,7 +184,7 @@ impl MessageHandler {
         &mut self,
         stream_message: StreamMessage,
         channel_size: usize,
-    ) {
+    ) -> Result<(), RhiaqeyError> {
         debug!("handle raw stream message");
 
         let channel_size = stream_message.size.unwrap_or(channel_size) as i64;
@@ -206,7 +207,7 @@ impl MessageHandler {
 
         if let MessageProcessResult::Deny(reason) = compare_timestamps {
             warn!("raw message should not be processed further due to: {reason}");
-            return;
+            return Ok(());
         }
 
         if let MessageProcessResult::CheckIfMessageExists = compare_timestamps {
@@ -218,7 +219,7 @@ impl MessageHandler {
 
             if let MessageProcessResult::Deny(reason) = compare_against_all {
                 warn!("raw message should not be processed further due to: {reason}");
-                return;
+                return Ok(());
             }
 
             trace!("message tags are not same 1-to-many");
@@ -231,7 +232,7 @@ impl MessageHandler {
 
             if let MessageProcessResult::Deny(reason) = compare_tags {
                 warn!("raw message should not be processed further due to: {reason}");
-                return;
+                return Ok(());
             }
 
             trace!("message tags are not same");
@@ -241,32 +242,31 @@ impl MessageHandler {
             trace!("allowing message to proceed unprocessed");
         }
 
-        let Ok(raw_message) = stream_message.to_string() else {
+        let Ok(raw_message) = stream_message.ser_to_string() else {
             warn!("failed to message to string");
-            return;
+            return Ok(());
         };
 
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
+        let message = RPCMessage {
+            data: RPCMessageData::NotifyClients(new_message),
+        };
 
         // Prepare to broadcast to all hubs that we have clean message
-        let raw = &RPCMessage {
-            data: RPCMessageData::NotifyClients(new_message),
-        }
-        .to_string()
-        .unwrap();
+        let raw = message.ser_to_string()?;
 
-        self.redis
+        let _ = self.redis
             .lock()
             .await
             .publish(clean_topic.clone(), raw)
-            .await
-            .unwrap();
+            .await?;
 
         trace!("message sent to pubsub {}", clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
-        let xadd_options = XAddOptions::default();
-        let trim_options = XTrimOptions::max_len(XTrimOperator::Equal, channel_size);
+        let xadd_options = XAddOptions::default().trim_options(
+            XTrimOptions::max_len(XTrimOperator::Equal, channel_size)
+        );
 
         let id: String = self
             .redis
@@ -276,11 +276,12 @@ impl MessageHandler {
                 snapshot_topic.clone(),
                 "*",
                 [("raw", raw_message), ("tag", tag)],
-                xadd_options.trim_options(trim_options),
+                xadd_options,
             )
-            .await
-            .unwrap();
+            .await?;
 
         trace!("message sent to clean xstream {}: {id}", clean_topic);
+
+        Ok(())
     }
 }
