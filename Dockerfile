@@ -1,4 +1,4 @@
-FROM rust:1.75-slim-bullseye as builder
+FROM rust:1.76-slim-bullseye as builder
 
 ENV RUST_BACKTRACE=1
 
