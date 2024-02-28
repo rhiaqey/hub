@@ -925,7 +925,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.6",
+ "socket2 0.4.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -1658,7 +1658,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.1"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#abce043afa0ff64ae4a00a8551259931088956fd"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#f7106651ff392365d22e144f5469c560958e92b0"
 dependencies = [
  "async-trait",
  "serde",
