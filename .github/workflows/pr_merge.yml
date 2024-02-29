@@ -32,9 +32,6 @@ jobs:
 
       - name: QEMU setup
         uses: docker/setup-qemu-action@v3
-        with:
-          # platforms: 'amd64'
-          platforms: 'arm64,amd64'
 
       - name: Cargo Verison
         id: verison
