@@ -143,3 +143,8 @@ test:
 
 .PHONY: docker
 docker: docker-build docker-push
+
+.PHONY: docker-multi
+docker-multi:
+	docker buildx build --platform linux/arm64 \
+	.
