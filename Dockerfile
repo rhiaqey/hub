@@ -1,4 +1,6 @@
-FROM rust:1.76-slim-bullseye as builder
+FROM --platform=$BUILDPLATFORM rust:1.76-slim-bullseye as builder
+
+ARG TARGETPLATFORM
 
 ENV RUST_BACKTRACE=1
 
@@ -12,8 +14,20 @@ WORKDIR /usr/src/
 
 COPY . .
 
-RUN cargo install --bin hub --path .
-RUN cargo install --bin ops --features=cli --path .
+RUN case "${TARGETPLATFORM}" in \
+      "linux/amd64") rust_target="x86_64-unknown-linux-gnu" ;; \
+      "linux/arm64") rust_target="aarch64-unknown-linux-gnu" ;; \
+      *) echo "Unsupported platform: ${TARGETPLATFORM}" ; exit 1 ;; \
+    esac \
+    && rustup target add ${rust_target}
+
+RUN case "${TARGETPLATFORM}" in \
+      "linux/amd64") rust_target="x86_64-unknown-linux-gnu" ;; \
+      "linux/arm64") rust_target="aarch64-unknown-linux-gnu" ;; \
+      *) echo "Unsupported platform: ${TARGETPLATFORM}" ; exit 1 ;; \
+    esac \
+    && cargo install --target ${rust_target} --bin hub --path . \
+    && cargo install --target ${rust_target} --bin ops --features=cli --path .
 
 FROM debian:bullseye-slim
 
