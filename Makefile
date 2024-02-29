@@ -89,8 +89,8 @@ build:
 
 .PHONY: prod
 prod:
-	cargo build --release --bin hub --all-features
-	cargo build --release --bin ops --all-features
+	cargo build --release --bin hub
+	cargo build --release --bin ops --features=cli
 	ls -lah target/release/hub
 	ls -lah target/release/ops
 
