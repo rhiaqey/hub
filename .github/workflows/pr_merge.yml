@@ -30,6 +30,11 @@ jobs:
       - name: Docker buildx setup
         uses: docker/setup-buildx-action@v3
 
+      - name: QEMU setup
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: 'arm64,amd64'
+
       - name: Cargo Verison
         id: verison
         uses: dimitrmo/cargo-verison-action@v1.0.17
