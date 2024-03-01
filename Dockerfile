@@ -7,7 +7,6 @@ ENV RUST_BACKTRACE=1
 RUN echo Building $TARGETPLATFORM on $BUILDPLATFORM
 
 RUN    apt-get update \
-    && apt-get upgrade -y \
     && apt-get install -y \
         gcc-aarch64-linux-gnu \
         libc6-dev-arm64-cross \
@@ -52,7 +51,6 @@ ENV USER=$USER
 LABEL org.opencontainers.image.description="Rhiaqey Hub ${BINARY}"
 
 RUN    apt-get update \
-    && apt-get upgrade -y \
     && apt-get install -y \
         ca-certificates \
         net-tools \
