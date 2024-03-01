@@ -1,3 +1,9 @@
+.devcontainer
+.github
+k8s
+target
+Makefile
+cspell.json
+Dockerfile
 .idea
 .vscode
-/target

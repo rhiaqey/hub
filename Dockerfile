@@ -18,7 +18,8 @@ RUN    apt-get update \
         gcc \
         libc-bin \
         libc6-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 # Set the default target to ARM64
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
