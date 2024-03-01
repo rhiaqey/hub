@@ -1,24 +1,25 @@
 {
-    "version": "0.2",
-    "ignorePaths": [],
-    "dictionaryDefinitions": [
-        {
-            "name": "custom-dictionary",
-            "path": "./.cspell/custom-dictionary.txt",
-            "addWords": true
-        }
-    ],
-    "dictionaries": [
-        "custom-dictionary"
-    ],
-    "words": [
-        "rhiaqey",
-        "rustis",
-        "websockets",
-        "xadd",
-        "xrevrange",
-        "xstream"
-    ],
-    "ignoreWords": [],
-    "import": []
+  "version": "0.2",
+  "ignorePaths": [],
+  "dictionaryDefinitions": [
+    {
+      "name": "custom-dictionary",
+      "path": "./.cspell/custom-dictionary.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": [
+    "custom-dictionary"
+  ],
+  "words": [
+    "rhiaqey",
+    "rustis",
+    "websockets",
+    "xadd",
+    "xrevrange",
+    "xstream",
+    "aarch"
+  ],
+  "ignoreWords": [],
+  "import": []
 }

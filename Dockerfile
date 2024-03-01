@@ -57,13 +57,9 @@ RUN    apt-get update \
         net-tools \
         libssl-dev \
         curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
-# Run update-ca-certificates to update the certificate bundle
-RUN apt-get install --reinstall libc-bin && \
-    update-ca-certificates
-
-# RUN update-ca-certificates
 RUN useradd -ms /bin/bash $USER
 
 USER $USER
