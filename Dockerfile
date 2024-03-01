@@ -40,7 +40,8 @@ RUN case "${TARGETPLATFORM}" in \
 FROM debian:bookworm-slim
 
 ARG BINARY
-ARG USER=1001
+ARG USER=1000
+ARG GROUP=1000
 
 ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive
@@ -59,11 +60,11 @@ RUN    apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
 
-RUN useradd -ms /bin/bash $USER
+RUN useradd -ms /bin/bash $USER -G $USER $GROUP
 
 USER $USER
 
-COPY --from=builder --chown=$USER:$USER /usr/local/cargo/bin/hub /usr/local/bin/hub
-COPY --from=builder --chown=$USER:$USER /usr/local/cargo/bin/ops /usr/local/bin/ops
+COPY --from=builder --chown=$USER:$GROUP /usr/local/cargo/bin/hub /usr/local/bin/hub
+COPY --from=builder --chown=$USER:$GROUP /usr/local/cargo/bin/ops /usr/local/bin/ops
 
 CMD [ "sh", "-c", "${BINARY}" ]
