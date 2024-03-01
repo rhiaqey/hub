@@ -146,5 +146,8 @@ docker: docker-build docker-push
 
 .PHONY: docker-multi
 docker-multi:
-	docker buildx build --platform linux/arm64 --platform linux/amd64 \
-	.
+	docker buildx build \
+		--platform linux/arm64 \
+		--platform linux/amd64 \
+		-t rhiaqey/hub:dev \
+		.
