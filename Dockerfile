@@ -48,6 +48,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=trace
 ENV USER=$USER
+ENV GROUP=$GROUP
 
 LABEL org.opencontainers.image.description="Rhiaqey Hub ${BINARY}"
 
