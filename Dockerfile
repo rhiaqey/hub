@@ -60,7 +60,9 @@ RUN    apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
 
-RUN useradd -ms /bin/bash $USER -G $USER $GROUP
+# Create the specified group and user, and add the user to the group
+RUN groupadd -g $GROUP $GROUP \
+    && useradd -u $USER -ms /bin/bash -g $GROUP $USER
 
 USER $USER
 
