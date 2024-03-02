@@ -20,6 +20,7 @@ use std::sync::Arc;
 #[derive(Deserialize)]
 pub struct Params {
     channels: String,
+    snapshot: Option<bool>,
 }
 
 /// The handler for the HTTP request (this gets called when the HTTP GET lands at the start
@@ -47,11 +48,14 @@ pub async fn ws_handler(
     debug!("`{}` at {} connected.", user_agent, ip);
 
     let channels: Vec<String> = params.channels.split(",").map(|x| x.to_string()).collect();
-    debug!("channel from params extracted {:?}", channels);
+    trace!("channel from params extracted {:?}", channels);
+
+    let snapshot_request = params.snapshot.unwrap_or(true);
+    trace!("snapshot request: {}", snapshot_request);
 
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| handle_ws_connection(socket, ip, channels, state))
+    ws.on_upgrade(move |socket| handle_ws_connection(socket, ip, channels, snapshot_request, state))
 }
 
 /// Handle each websocket connection here
@@ -59,11 +63,14 @@ async fn handle_ws_connection(
     socket: WebSocket,
     ip: String,
     channels: Vec<String>,
+    snapshot_request: bool,
     state: Arc<SharedState>,
 ) {
     let client_id = generate_ulid_string();
     info!("connection {ip} established");
-    tokio::task::spawn(async move { handle_client(client_id, socket, channels, state).await });
+    tokio::task::spawn(async move {
+        handle_client(client_id, socket, channels, snapshot_request, state).await
+    });
 }
 
 /// Handle each client here
@@ -71,6 +78,7 @@ async fn handle_client(
     client_id: String,
     socket: WebSocket,
     channels: Vec<String>,
+    snapshot_request: bool,
     state: Arc<SharedState>,
 ) {
     info!("handle client {client_id}");
@@ -84,10 +92,6 @@ async fn handle_client(
         let streaming_channel = streaming_channels.get_mut(channel.as_str());
         if let Some(chx) = streaming_channel {
             chx.add_client(client_id.clone()).await;
-
-            let snapshot = chx.get_snapshot().await;
-            trace!("snapshot ready with {} elements", snapshot.len());
-
             added_channels.push(chx.channel.clone());
             debug!("client joined channel {}", channel.as_str());
         } else {
@@ -135,21 +139,24 @@ async fn handle_client(
             warn!("could not send subscription message");
         }
 
-        let streaming_channel = streaming_channels.get_mut(&*channel_name);
-        if let Some(chx) = streaming_channel {
-            let snapshot = chx.get_snapshot().await;
-            for stream_message in snapshot {
-                let mut client_message = ClientMessage::from(stream_message);
-                if client_message.hub_id.is_none() {
-                    client_message.hub_id = Some(hub_id.clone());
-                }
+        if snapshot_request {
+            debug!("sending snapshot to client");
+            let streaming_channel = streaming_channels.get_mut(&*channel_name);
+            if let Some(chx) = streaming_channel {
+                let snapshot = chx.get_snapshot().await;
+                for stream_message in snapshot {
+                    let mut client_message = ClientMessage::from(stream_message);
+                    if client_message.hub_id.is_none() {
+                        client_message.hub_id = Some(hub_id.clone());
+                    }
 
-                let raw = serde_json::to_vec(&client_message).unwrap();
-                if let Ok(_) = client.send(Message::Binary(raw)).await {
-                    trace!("channel snapshot message sent successfully to {client_id}");
-                } else {
-                    warn!("could not send snapshot message to {client_id}");
-                    break;
+                    let raw = serde_json::to_vec(&client_message).unwrap();
+                    if let Ok(_) = client.send(Message::Binary(raw)).await {
+                        trace!("channel snapshot message sent successfully to {client_id}");
+                    } else {
+                        warn!("could not send snapshot message to {client_id}");
+                        break;
+                    }
                 }
             }
         }
