@@ -271,7 +271,8 @@ impl Hub {
 
                     match data.unwrap().data {
                         RPCMessageData::RegisterPublisher(data) => {
-                            info!("setting publisher schema");
+                            info!("setting publisher schema for [id={}, name={}, namespace={}]",
+                                data.id, data.name, data.namespace);
                             self.set_schema(data).await;
                         }
                         // this comes from other hub to notify all other hubs
