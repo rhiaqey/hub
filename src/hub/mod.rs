@@ -277,7 +277,7 @@ impl Hub {
                         }
                         // this comes from other hub to notify all other hubs
                         RPCMessageData::UpdateSettings() => {
-                            debug!("received update settings rpc");
+                            info!("received update settings rpc");
                             match self.read_settings().await {
                                 Ok(settings) => {
                                     self.set_settings(settings).await;
@@ -292,14 +292,14 @@ impl Hub {
                         // from xstream to pubsub
                         // from load balanced to broadcast
                         RPCMessageData::NotifyClients(stream_message) => {
-                            debug!("received notify clients rpc");
+                            trace!("received notify clients rpc");
                             // get streaming channel by channel name
                             let all_hub_streams = streams.lock().await;
                             let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
-                            if streaming_channel.is_some() {
-                                debug!("streaming channel found");
+                            if let Some(s_channel) = streaming_channel {
+                                trace!("streaming channel found {}", s_channel.channel.name);
 
-                                let lock = streaming_channel.unwrap().clients.lock().await;
+                                let lock = s_channel.clients.lock().await;
                                 let all_stream_channel_clients = lock.to_vec();
                                 drop(lock);
 
@@ -334,7 +334,7 @@ impl Hub {
                                 }
 
                                 if to_delete.is_empty() {
-                                    debug!("message sent to {:?} client(s)", all_stream_channel_clients.len());
+                                    trace!("message sent to {:?} client(s)", all_stream_channel_clients.len());
                                 } else {
                                     warn!("disconnecting {} clients", to_delete.len());
 
@@ -349,7 +349,7 @@ impl Hub {
 
                                     let total_clients = all_hub_clients.len();
                                     TOTAL_CLIENTS.set(total_clients as f64);
-                                    info!("total clients set to {total_clients}");
+                                    trace!("total clients set to {total_clients}");
                                 }
                             }
                         }
