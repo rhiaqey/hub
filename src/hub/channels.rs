@@ -196,7 +196,7 @@ impl StreamingChannel {
         messages
     }
 
-    async fn get_snapshot_keys(&mut self) -> Vec<String> {
+    pub async fn get_snapshot_keys(&mut self) -> Vec<String> {
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),

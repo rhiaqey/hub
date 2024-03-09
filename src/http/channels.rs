@@ -4,7 +4,7 @@ use crate::http::state::{
 use crate::hub::channels::StreamingChannel;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
@@ -157,6 +157,52 @@ pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<Channel
     };
 
     Json(ChannelList::default())
+}
+
+pub async fn purge_channel(
+    State(state): State<Arc<SharedState>>,
+    Path(channel): Path<String>,
+) -> impl IntoResponse {
+    info!("[DELETE] Purging channel {}", channel);
+
+    // let hub_channels_key = topics::hub_channels_key(state.get_namespace());
+    // let publishers_key = topics::publisher_settings_key(state.get_namespace(), channel.clone());
+    // info!("channels key {}", hub_channels_key);
+
+    let mut streams = state.streams.lock().await;
+    let streaming_channel = streams.get_mut(&channel);
+    if streaming_channel.is_none() {
+        warn!(
+            "could not find streaming channel by name {}",
+            channel.clone()
+        );
+        return (
+            StatusCode::NOT_FOUND,
+            [(hyper::header::CONTENT_TYPE, "application/json")],
+            json!({
+                "message": "Streaming channel could not be found"
+            })
+            .to_string(),
+        );
+    }
+
+    // get all keys
+    let keys = streaming_channel.unwrap().get_snapshot_keys().await;
+    debug!("{} keys found", keys.len());
+
+    let redis = state.redis.clone().lock().await.clone().unwrap();
+    let result = redis.del(keys).await.unwrap_or(0);
+
+    debug!("{result} entries purged");
+
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "application/json")],
+        json!({
+            "count": result
+        })
+        .to_string(),
+    )
 }
 
 pub async fn create_channels(

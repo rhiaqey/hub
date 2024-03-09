@@ -602,6 +602,8 @@
                         <a onclick="delete_channel('${channel.Name}')" href="javascript:void(0);">[delete]</a>
                         <span>&nbsp;</span>
                         <a onclick="assign_channel('${channel.Name}')" href="javascript:void(0);">[assign]</a>
+                        <span>&nbsp;</span>
+                        <a onclick="purge_channel('${channel.Name}')" href="javascript:void(0);">[purge]</a>
                     </td>
                 </tr>`;
         })
@@ -611,6 +613,22 @@
         }
 
         document.getElementsByClassName("channel_list").item(0).innerHTML = content;
+    }
+
+    function purge_channel(channel_name) {
+        if (!confirm(`Are you sure you want to purge ${channel_name}'s content?`)) {
+            return;
+        }
+
+        fetch(`${temp_api_prefix}/admin/api/channel/` + channel_name, {
+            method: 'DELETE',
+            headers: {
+                "Content-Type": "application/json",
+                // 'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        }).then(response => response.json()).then(() => {
+            console.log('content purged for', channel_name)
+        });
     }
 
     function assign_channel(channel_name) {
