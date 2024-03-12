@@ -165,10 +165,6 @@ pub async fn purge_channel(
 ) -> impl IntoResponse {
     info!("[DELETE] Purging channel {}", channel);
 
-    // let hub_channels_key = topics::hub_channels_key(state.get_namespace());
-    // let publishers_key = topics::publisher_settings_key(state.get_namespace(), channel.clone());
-    // info!("channels key {}", hub_channels_key);
-
     let mut streams = state.streams.lock().await;
     let streaming_channel = streams.get_mut(&channel);
     if streaming_channel.is_none() {
