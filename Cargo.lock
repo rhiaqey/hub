@@ -1702,7 +1702,7 @@ dependencies = [
 
 [[package]]
 name = "rhiaqey-hub"
-version = "0.1.63"
+version = "0.1.64"
 dependencies = [
  "async-trait",
  "axum",
@@ -1793,9 +1793,9 @@ checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
 
 [[package]]
 name = "rustis"
-version = "0.12.8"
+version = "0.12.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e95b38671f2ad5ee55ed796482448ca9dabf34f207a93158ce55160d9cd1823"
+checksum = "43691c945a6f15cbf078b4aa0536e78c52eac1084376ee39c66eeba7e6884c92"
 dependencies = [
  "atoi",
  "bytes",
