@@ -7,6 +7,7 @@ use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
+use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
@@ -115,9 +116,9 @@ async fn handle_client(
 
     let raw = serde_json::to_vec(&client_message).unwrap();
 
-    let mut client = WebSocketClient::create(client_id.clone(), socket);
+    let (mut sender, receiver) = socket.split();
 
-    if let Err(e) = client.send(Message::Binary(raw)).await {
+    if let Err(e) = sender.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);
     }
 
@@ -133,7 +134,7 @@ async fn handle_client(
         );
 
         let raw = serde_json::to_vec(&data).unwrap();
-        if let Ok(_) = client.send(Message::Binary(raw)).await {
+        if let Ok(_) = sender.send(Message::Binary(raw)).await {
             trace!("channel subscription message sent successfully");
         } else {
             warn!("could not send subscription message");
@@ -151,7 +152,7 @@ async fn handle_client(
                     }
 
                     let raw = serde_json::to_vec(&client_message).unwrap();
-                    if let Ok(_) = client.send(Message::Binary(raw)).await {
+                    if let Ok(_) = sender.send(Message::Binary(raw)).await {
                         trace!("channel snapshot message sent successfully to {client_id}");
                     } else {
                         warn!("could not send snapshot message to {client_id}");
@@ -161,6 +162,8 @@ async fn handle_client(
             }
         }
     }
+
+    let mut client = WebSocketClient::create(client_id.clone(), sender, receiver);
 
     client.listen();
 

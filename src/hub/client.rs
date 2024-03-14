@@ -16,8 +16,11 @@ pub struct WebSocketClient {
 }
 
 impl WebSocketClient {
-    pub fn create(client_id: String, socket: WebSocket) -> WebSocketClient {
-        let (sender, receiver) = socket.split();
+    pub fn create(
+        client_id: String,
+        sender: SplitSink<WebSocket, Message>,
+        receiver: SplitStream<WebSocket>,
+    ) -> WebSocketClient {
         WebSocketClient {
             id: client_id,
             sender: Arc::new(Mutex::new(sender)),
