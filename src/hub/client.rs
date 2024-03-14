@@ -50,7 +50,7 @@ impl WebSocketClient {
                     }
                     _ => {
                         // text. binary, close
-                        // if we receive any data or close frame we close the connection
+                        // if we receive any data or close frame, we close the connection
                         debug!("received data from client");
 
                         if let Err(e) = sx

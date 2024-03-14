@@ -67,25 +67,25 @@ async fn handle_ws_connection(
     snapshot_request: bool,
     state: Arc<SharedState>,
 ) {
-    let client_id = generate_ulid_string();
     info!("connection {ip} established");
-    tokio::task::spawn(async move {
-        handle_client(client_id, socket, channels, snapshot_request, state).await
-    });
+    tokio::task::spawn(
+        async move { handle_client(socket, channels, snapshot_request, state).await },
+    );
 }
 
 /// Handle each client here
 async fn handle_client(
-    client_id: String,
     socket: WebSocket,
     channels: Vec<String>,
     snapshot_request: bool,
     state: Arc<SharedState>,
 ) {
+    let hub_id = state.get_id();
+    let client_id = generate_ulid_string();
+
     info!("handle client {client_id}");
     debug!("channels found {:?}", channels);
 
-    let hub_id = &state.env.id;
     let mut added_channels: Vec<Channel> = vec![];
     let mut streaming_channels = state.streams.lock().await;
 

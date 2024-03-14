@@ -248,7 +248,7 @@ impl Hub {
             start_public_http_server(public_port, public_state.clone()).await;
         });
 
-        let mut pubsub_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
+        let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
 
         let hub_id = self.get_id();
         let streams = self.streams.clone();
@@ -256,7 +256,7 @@ impl Hub {
 
         loop {
             tokio::select! {
-                Some(pubsub_message) = pubsub_stream.next() => {
+                Some(pubsub_message) = clean_message_stream.next() => {
                     trace!("clean message arrived");
 
                     if pubsub_message.is_err() {
@@ -276,7 +276,7 @@ impl Hub {
                                 data.id, data.name, data.namespace);
                             self.set_schema(data).await;
                         }
-                        // this comes from other hub to notify all other hubs
+                        // this comes from another hub to notify all other hubs
                         RPCMessageData::UpdateSettings() => {
                             info!("received update settings rpc");
                             match self.read_settings().await {
@@ -291,10 +291,10 @@ impl Hub {
                         }
                         // hub raw to hub clean
                         // from xstream to pubsub
-                        // from load balanced to broadcast
+                        // from a load balanced to broadcast
                         RPCMessageData::NotifyClients(stream_message) => {
                             trace!("received notify clients rpc");
-                            // get streaming channel by channel name
+                            // get a streaming channel by channel name
                             let all_hub_streams = streams.lock().await;
                             let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
                             if let Some(s_channel) = streaming_channel {
@@ -315,6 +315,7 @@ impl Hub {
 
                                 let mut to_delete = vec!();
 
+                                // TODO: Move broadcast to streaming channel
                                 for client_id in all_stream_channel_clients.iter() {
                                     trace!("must notify client {:?}", client_id);
 
