@@ -1,5 +1,5 @@
-use crate::http::client::WebSocketClient;
 use crate::hub::channels::StreamingChannel;
+use crate::hub::client::WebSocketClient;
 use crate::hub::settings::HubSettings;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::security::SecurityKey;

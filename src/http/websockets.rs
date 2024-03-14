@@ -1,7 +1,7 @@
-use crate::http::client::WebSocketClient;
 use crate::http::state::SharedState;
-
+use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
+
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
