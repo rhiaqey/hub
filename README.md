@@ -2,7 +2,11 @@
 
 ![Hub](https://github.com/rhiaqey/hub/actions/workflows/pr_merge.yml/badge.svg)
 
-Early development stage ( mostly for educational purposes )
+Early development stage
+
+## Redis streams example
+
+[Redis streams](https://github.com/redis-rs/redis-rs/blob/main/redis/examples/streams.rs)
 
 ## Settings
 

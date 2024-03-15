@@ -1754,6 +1754,7 @@ dependencies = [
  "openssl",
  "prometheus",
  "rand",
+ "redis",
  "rhiaqey-common",
  "rhiaqey-sdk-rs",
  "rsa",
