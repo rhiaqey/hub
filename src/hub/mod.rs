@@ -19,7 +19,7 @@ use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping_async, RhiaqeyBufVec};
 use rhiaqey_common::security::SecurityKey;
-use rhiaqey_common::{redis, security, topics};
+use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
@@ -195,7 +195,7 @@ impl Hub {
     }
 
     pub async fn setup(config: Env) -> Result<Hub, RhiaqeyError> {
-        let client = redis::connect_async(config.redis.clone()).await?;
+        let client = connect_and_ping_async(config.redis.clone()).await?;
 
         let result: String = client
             .ping(PingOptions::default().message("hello"))
