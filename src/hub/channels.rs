@@ -20,6 +20,7 @@ pub struct StreamingChannel {
     hub_id: String,
     pub channel: Channel,
     pub namespace: String,
+    pub client: Option<redis::Client>,
     pub redis: Option<Arc<Mutex<Client>>>,
     pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
     join_handler: Option<Arc<JoinHandle<u32>>>,
@@ -32,6 +33,7 @@ impl StreamingChannel {
             hub_id,
             channel,
             namespace,
+            client: None,
             redis: None,
             message_handler: None,
             join_handler: None,
@@ -40,7 +42,10 @@ impl StreamingChannel {
     }
 
     pub async fn setup(&mut self, config: RedisSettings) -> Result<(), RhiaqeyError> {
+        let settings = config.clone();
+        let client = rhiaqey_common::redis_rs::connect_and_ping(&settings)?;
         let connection = connect_and_ping_async(config.clone()).await?;
+        self.client = Some(client);
         self.redis = Some(Arc::new(Mutex::new(connection)));
         self.message_handler = Some(Arc::new(Mutex::new(
             MessageHandler::create(
@@ -54,8 +59,18 @@ impl StreamingChannel {
         Ok(())
     }
 
+    fn _read_group_records(&self) -> Result<(), RhiaqeyError> {
+        let _con = self.client.as_ref().unwrap().get_connection()?;
+
+        let _opts = redis::streams::StreamReadOptions::default()
+            .count(self.channel.size)
+            .group("hub", self.get_hub_id());
+
+        Ok(())
+    }
+
     pub async fn start(&mut self) {
-        let id = self.hub_id.clone();
+        let id = self.get_hub_id();
         let channel = self.channel.clone();
         let namespace = self.namespace.clone();
         let duration = Duration::from_millis(150);
@@ -144,6 +159,10 @@ impl StreamingChannel {
         });
 
         self.join_handler = Some(Arc::new(join_handler));
+    }
+
+    pub fn get_hub_id(&self) -> String {
+        return self.hub_id.to_string();
     }
 
     pub fn get_name(&self) -> String {
