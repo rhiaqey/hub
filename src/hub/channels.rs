@@ -3,9 +3,11 @@ use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
+use redis::streams::{StreamId, StreamKey, StreamReadReply};
+use redis::{Commands, RedisResult};
 use rhiaqey_common::error::RhiaqeyError;
-use rhiaqey_common::redis::connect_and_ping_async;
-use rhiaqey_common::redis::RedisSettings;
+use rhiaqey_common::redis::{connect_and_ping_async, RedisSettings};
+use rhiaqey_common::redis_rs::connect;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
@@ -43,7 +45,7 @@ impl StreamingChannel {
 
     pub async fn setup(&mut self, config: RedisSettings) -> Result<(), RhiaqeyError> {
         let settings = config.clone();
-        let client = rhiaqey_common::redis_rs::connect_and_ping(&settings)?;
+        let client = connect(&settings)?;
         let connection = connect_and_ping_async(config.clone()).await?;
         self.client = Some(client);
         self.redis = Some(Arc::new(Mutex::new(connection)));
@@ -59,12 +61,40 @@ impl StreamingChannel {
         Ok(())
     }
 
-    fn _read_group_records(&self) -> Result<(), RhiaqeyError> {
-        let _con = self.client.as_ref().unwrap().get_connection()?;
+    fn _read_group_records(&self, callback: impl Fn(StreamMessage)) -> Result<(), RhiaqeyError> {
+        let mut connection = self.client.as_ref().unwrap().get_connection()?;
 
-        let _opts = redis::streams::StreamReadOptions::default()
+        let options = redis::streams::StreamReadOptions::default()
             .count(self.channel.size)
             .group("hub", self.get_hub_id());
+
+        let namespace = self.namespace.clone();
+        let channel_name = self.channel.name.to_string();
+
+        let topic = topics::publishers_to_hub_stream_topic(namespace, channel_name);
+
+        let reply: StreamReadReply = connection.xread_options(&[topic], &[">"], &options)?;
+
+        for StreamKey { key, ids } in reply.keys {
+            for StreamId { id: _, map } in &ids {
+                if let Some(raw) = map.get("raw") {
+                    if let redis::Value::Data(ref data) = raw {
+                        if let Ok(entry) = serde_json::from_slice::<StreamMessage>(data) {
+                            trace!(
+                                "found entry key={}, timestamp={:?}",
+                                entry.key,
+                                entry.timestamp
+                            );
+                            callback(entry);
+                        }
+                    }
+                }
+            }
+
+            // acknowledge each stream and message ID once all messages are
+            let keys: Vec<&String> = ids.iter().map(|StreamId { id, map: _ }| id).collect();
+            let _: RedisResult<i32> = connection.xack(key, "hub", &keys);
+        }
 
         Ok(())
     }
@@ -77,6 +107,13 @@ impl StreamingChannel {
 
         let redis = self.redis.as_mut().unwrap().clone();
         let message_handler = self.message_handler.as_mut().unwrap().clone();
+
+        /*
+        self.read_group_records(|entry: StreamMessage| {
+            debug!("ENTRY READ {:?}", entry);
+        })
+        .expect("failed to read group records");
+        */
 
         let join_handler = tokio::task::spawn(async move {
             let id = id.clone();
@@ -112,7 +149,7 @@ impl StreamingChannel {
                                 let _ = message_handler
                                     .lock()
                                     .await
-                                    .handle_raw_stream_message_from_publishers(
+                                    .handle_raw_stream_message_from_publishers_async(
                                         stream_message,
                                         channel.size,
                                     )

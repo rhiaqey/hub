@@ -44,7 +44,7 @@ impl MessageHandler {
         }
     }
 
-    async fn compare_by_tags(
+    fn compare_by_tags(
         &mut self,
         new_msg: &StreamMessage,
         old_msg: &StreamMessage,
@@ -65,7 +65,7 @@ impl MessageHandler {
         MessageProcessResult::AllowUnprocessed
     }
 
-    async fn compare_against_all(
+    async fn compare_against_all_async(
         &mut self,
         new_message: &StreamMessage,
         topic: &String,
@@ -105,7 +105,7 @@ impl MessageHandler {
         MessageProcessResult::AllowUnprocessed
     }
 
-    async fn compare_by_timestamp(
+    async fn compare_by_timestamp_async(
         &mut self,
         new_message: &StreamMessage,
         topic: &String,
@@ -139,7 +139,7 @@ impl MessageHandler {
         let last_entry = results.iter().next().unwrap();
         let Some(last_message) = last_entry.items.get("raw") else {
             warn!("last message in raw not found");
-            // allow it as the stored one did not have correct format
+            // allow it as the stored one did not have a correct format
             return MessageProcessResult::AllowUnprocessed;
         };
 
@@ -155,14 +155,14 @@ impl MessageHandler {
         let stored_message = decoded.unwrap();
         let old_timestamp = stored_message.timestamp.unwrap_or(0);
 
-        // 2. If old timestamp is more recent do not process the new one.
+        // 2. If old timestamp is more recent, do not process the new one.
         if old_timestamp > new_timestamp {
             // do not allow it as it is not fresh data
             return MessageProcessResult::Deny(String::from("old timestamp"));
         }
 
-        // 3. If new timestamp has the same with the stored one, then we need to check if message
-        //    exists in the whole list. Must compare against all stored message and compare tags.
+        // 3. If new timestamp has the same with the stored one, then we need to check if a message
+        //    exists in the whole list. Must compare against all stored messages and compare tags.
         if old_timestamp == new_timestamp {
             // we need to further examine the message
             return MessageProcessResult::CheckIfMessageExists;
@@ -180,7 +180,7 @@ impl MessageHandler {
         MessageProcessResult::Allow(stored_message)
     }
 
-    pub async fn handle_raw_stream_message_from_publishers(
+    pub async fn handle_raw_stream_message_from_publishers_async(
         &mut self,
         stream_message: StreamMessage,
         channel_size: usize,
@@ -202,7 +202,7 @@ impl MessageHandler {
         );
 
         let compare_timestamps = self
-            .compare_by_timestamp(&stream_message, &snapshot_topic)
+            .compare_by_timestamp_async(&stream_message, &snapshot_topic)
             .await;
 
         if let MessageProcessResult::Deny(reason) = compare_timestamps {
@@ -214,7 +214,7 @@ impl MessageHandler {
             trace!("must compare message against all");
 
             let compare_against_all = self
-                .compare_against_all(&new_message, &snapshot_topic)
+                .compare_against_all_async(&new_message, &snapshot_topic)
                 .await;
 
             if let MessageProcessResult::Deny(reason) = compare_against_all {
@@ -228,7 +228,7 @@ impl MessageHandler {
         if let MessageProcessResult::Allow(ref old_message) = compare_timestamps {
             trace!("allowing message to proceed (check by tags)");
 
-            let compare_tags = self.compare_by_tags(&new_message, old_message).await;
+            let compare_tags = self.compare_by_tags(&new_message, old_message);
 
             if let MessageProcessResult::Deny(reason) = compare_tags {
                 warn!("raw message should not be processed further due to: {reason}");
@@ -255,7 +255,8 @@ impl MessageHandler {
         // Prepare to broadcast to all hubs that we have clean message
         let raw = message.ser_to_string()?;
 
-        let _ = self.redis
+        let _ = self
+            .redis
             .lock()
             .await
             .publish(clean_topic.clone(), raw)
@@ -264,9 +265,8 @@ impl MessageHandler {
         trace!("message sent to pubsub {}", clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
-        let xadd_options = XAddOptions::default().trim_options(
-            XTrimOptions::max_len(XTrimOperator::Equal, channel_size)
-        );
+        let xadd_options = XAddOptions::default()
+            .trim_options(XTrimOptions::max_len(XTrimOperator::Equal, channel_size));
 
         let id: String = self
             .redis

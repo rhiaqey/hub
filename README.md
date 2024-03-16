@@ -12,19 +12,19 @@ Early development stage
 
 ```json
 {
-	"Security": {
-     	"ApiKeys": [
-          {
-           	"ApiKey": "some_api_key",
-            "Host": "some_host",
-            "IPs": {
-              "Blacklisted": [
-                "192.168.0.0"
-              ]
-            }
-          }
-        ] 
-    }
+  "Security": {
+    "ApiKeys": [
+      {
+        "ApiKey": "some_api_key",
+        "Host": "some_host",
+        "IPs": {
+          "Blacklisted": [
+            "192.168.0.0"
+          ]
+        }
+      }
+    ]
+  }
 }
 ```
 
