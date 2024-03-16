@@ -144,7 +144,7 @@ async fn handle_client(
             debug!("sending snapshot to client");
             let streaming_channel = streaming_channels.get_mut(&*channel_name);
             if let Some(chx) = streaming_channel {
-                let snapshot = chx.get_snapshot().await;
+                let snapshot = chx.get_snapshot().unwrap_or(vec![]);
                 for stream_message in snapshot {
                     let mut client_message = ClientMessage::from(stream_message);
                     if client_message.hub_id.is_none() {

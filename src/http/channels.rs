@@ -183,7 +183,10 @@ pub async fn purge_channel(
     }
 
     // get all keys
-    let keys = streaming_channel.unwrap().get_snapshot_keys().await;
+    let keys = streaming_channel
+        .unwrap()
+        .get_snapshot_keys()
+        .unwrap_or(vec![]);
     debug!("{} keys found", keys.len());
 
     let redis = state.redis.clone().lock().await.clone().unwrap();

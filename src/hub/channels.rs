@@ -4,14 +4,16 @@ use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
-use redis::streams::{StreamId, StreamKey, StreamMaxlen, StreamRangeReply, StreamReadReply};
+use redis::streams::{
+    StreamId, StreamKey, StreamMaxlen, StreamRangeReply, StreamReadOptions, StreamReadReply,
+};
 use redis::{Commands, RedisResult, Value};
 use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping_async, RedisSettings};
 use rhiaqey_common::redis_rs::connect;
 use rhiaqey_common::stream::StreamMessage;
-use rhiaqey_common::topics;
+use rhiaqey_common::{topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::Channel;
 use rustis::client::Client;
 use rustis::commands::{
@@ -29,13 +31,10 @@ enum MessageProcessResult {
 }
 
 pub struct StreamingChannel {
-    hub_id: String,
+    pub hub_id: String,
     pub channel: Channel,
     pub namespace: String,
     pub client: Option<redis::Client>,
-    pub redis: Option<Arc<Mutex<Client>>>,
-    pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
-    join_handler: Option<Arc<JoinHandle<u32>>>,
     pub clients: Arc<Mutex<Vec<String>>>,
 }
 
@@ -46,32 +45,18 @@ impl StreamingChannel {
             channel,
             namespace,
             client: None,
-            redis: None,
-            message_handler: None,
-            join_handler: None,
             clients: Arc::new(Mutex::new(vec![])),
         }
     }
 
-    pub async fn setup(&mut self, config: RedisSettings) -> Result<(), RhiaqeyError> {
+    pub async fn setup(&mut self, config: RedisSettings) -> RhiaqeyResult<()> {
         let settings = config.clone();
         let client = connect(&settings)?;
-        let connection = connect_and_ping_async(config.clone()).await?;
         self.client = Some(client);
-        self.redis = Some(Arc::new(Mutex::new(connection)));
-        self.message_handler = Some(Arc::new(Mutex::new(
-            MessageHandler::create(
-                self.hub_id.clone(),
-                self.namespace.clone(),
-                self.channel.clone(),
-                config,
-            )
-            .await,
-        )));
         Ok(())
     }
 
-    fn read_group_records(&self) -> Result<Vec<StreamMessage>, RhiaqeyError> {
+    fn read_group_records(&self) -> RhiaqeyResult<Vec<StreamMessage>> {
         let mut connection = self.client.as_ref().unwrap().get_connection()?;
 
         let options = redis::streams::StreamReadOptions::default()
@@ -136,7 +121,7 @@ impl StreamingChannel {
         &self,
         new_message: &StreamMessage,
         topic: &String,
-    ) -> Result<MessageProcessResult, RhiaqeyError> {
+    ) -> RhiaqeyResult<MessageProcessResult> {
         trace!("checking if message should be processed 1-to-many (compare by tags)");
         trace!("checking topic {}", topic);
 
@@ -178,7 +163,7 @@ impl StreamingChannel {
         &mut self,
         topic: &String,
         new_message: &StreamMessage,
-    ) -> Result<MessageProcessResult, RhiaqeyError> {
+    ) -> RhiaqeyResult<MessageProcessResult> {
         trace!("checking if message should be processed (compare by timestamps)");
         trace!("checking topic {}", topic);
 
@@ -249,7 +234,7 @@ impl StreamingChannel {
     fn handle_raw_stream_message_from_publishers(
         &mut self,
         stream_message: StreamMessage,
-    ) -> Result<(), RhiaqeyError> {
+    ) -> RhiaqeyResult<()> {
         debug!("handle raw stream message");
 
         let channel_size = stream_message.size.unwrap_or(self.channel.size) as usize;
@@ -337,14 +322,6 @@ impl StreamingChannel {
     }
 
     pub async fn start(&mut self) {
-        let id = self.get_hub_id();
-        let channel = self.channel.clone();
-        let namespace = self.namespace.clone();
-        let duration = Duration::from_millis(150);
-
-        let redis = self.redis.as_mut().unwrap().clone();
-        let message_handler = self.message_handler.as_mut().unwrap().clone();
-
         for entry in self.read_group_records().unwrap_or(vec![]) {
             match self.handle_raw_stream_message_from_publishers(entry) {
                 Ok(_) => trace!("successfully handled raw message"),
@@ -453,12 +430,12 @@ impl StreamingChannel {
         self.clients.lock().await.push(connection_id);
     }
 
-    pub async fn get_snapshot(&mut self) -> Vec<StreamMessage> {
-        let keys = self.get_snapshot_keys().await;
+    pub fn get_snapshot(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
+        let keys = self.get_snapshot_keys()?;
         debug!("keys are here {:?}", keys);
 
         if keys.len() == 0 {
-            return vec![];
+            return Ok(vec![]);
         }
 
         let mut messages = Vec::new();
@@ -466,25 +443,23 @@ impl StreamingChannel {
         let ids = vec![0; keys.len()];
         debug!("ids are key {:?}", ids);
 
-        let mut options = XReadOptions::default();
-        options = options.count(self.channel.size);
+        let options = StreamReadOptions::default().count(self.channel.size);
 
-        let results: Vec<(String, Vec<StreamEntry<String>>)> = self
-            .redis
-            .as_mut()
-            .unwrap()
-            .lock()
-            .await
-            .xread(options, keys, ids)
-            .await
-            .unwrap();
+        let mut connection = self.client.clone().unwrap().get_connection()?;
+        let results: StreamReadReply = connection.xread_options(&*keys, &*ids, &options)?;
 
-        for (_key, entries) in results {
-            for entry in entries {
-                for (key, value) in entry.items.into_iter() {
-                    if key.eq("raw") {
-                        let raw: StreamMessage = serde_json::from_str(value.as_str()).unwrap();
-                        messages.push(raw);
+        for StreamKey { key: _, ids } in results.keys {
+            for StreamId { id: _, map } in ids {
+                if let Some(raw) = map.get("raw") {
+                    if let redis::Value::Data(ref data) = raw {
+                        if let Ok(entry) = serde_json::from_slice::<StreamMessage>(data) {
+                            trace!(
+                                "found entry key={}, timestamp={:?}",
+                                entry.key,
+                                entry.timestamp
+                            );
+                            messages.push(entry);
+                        }
                     }
                 }
             }
@@ -492,10 +467,10 @@ impl StreamingChannel {
 
         debug!("message count {:?}", messages.len());
 
-        messages
+        Ok(messages)
     }
 
-    pub async fn get_snapshot_keys(&mut self) -> Vec<String> {
+    pub fn get_snapshot_keys(&mut self) -> RhiaqeyResult<Vec<String>> {
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),
@@ -503,44 +478,10 @@ impl StreamingChannel {
             String::from("*"),
         );
 
-        let mut count = 0u64;
-        let mut keys: Vec<String> = vec![];
-
-        loop {
-            let mut options = ScanOptions::default();
-            options = options.match_pattern(snapshot_topic.clone());
-            let result = self
-                .redis
-                .as_mut()
-                .unwrap()
-                .lock()
-                .await
-                .scan(count, options)
-                .await;
-
-            if result.is_ok() {
-                let mut entries: (u64, Vec<String>) = result.unwrap();
-                count = entries.0;
-                keys.append(&mut entries.1);
-
-                if count == 0 {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
+        let mut connection = self.client.clone().unwrap().get_connection()?;
+        let keys: Vec<String> = connection.scan_match(&snapshot_topic)?.collect();
         debug!("found {} keys", keys.len());
 
-        keys
-    }
-}
-
-impl Drop for StreamingChannel {
-    fn drop(&mut self) {
-        if self.join_handler.is_some() {
-            self.join_handler.as_mut().unwrap().abort();
-        }
+        Ok(keys)
     }
 }
