@@ -1,7 +1,7 @@
 use log::{debug, trace, warn};
 use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
-use rhiaqey_common::redis::{connect_and_ping, RedisSettings};
+use rhiaqey_common::redis::{connect_and_ping_async, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
@@ -35,7 +35,7 @@ impl MessageHandler {
         channel: Channel,
         config: RedisSettings,
     ) -> MessageHandler {
-        let connection = connect_and_ping(config).await.unwrap();
+        let connection = connect_and_ping_async(config).await.unwrap();
         MessageHandler {
             hub_id,
             namespace,
