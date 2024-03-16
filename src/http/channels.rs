@@ -9,6 +9,7 @@ use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::topics::{self};
+use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
 use rustis::commands::{
@@ -252,13 +253,18 @@ pub async fn create_channels(
             continue;
         }
 
-        let mut streaming_channel =
-            StreamingChannel::create(hub_id.clone(), namespace.clone(), channel.clone()).await;
-
-        if let Err(err) = streaming_channel.setup(state.env.redis.clone()).await {
-            warn!("error stream setup for channel {} - {}", channel_name, err);
-            continue;
-        }
+        let mut streaming_channel = match StreamingChannel::create(
+            hub_id.clone(),
+            namespace.clone(),
+            channel.clone(),
+            &state.env.redis,
+        ) {
+            Ok(ch) => ch,
+            Err(err) => {
+                warn!("failed to create streaming channel: {}", err);
+                continue;
+            }
+        };
 
         info!(
             "starting up streaming channel {}",

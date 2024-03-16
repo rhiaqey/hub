@@ -19,7 +19,7 @@ use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping_async, RhiaqeyBufVec};
 use rhiaqey_common::security::SecurityKey;
-use rhiaqey_common::{security, topics};
+use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
@@ -363,7 +363,7 @@ impl Hub {
     }
 }
 
-pub async fn run() {
+pub async fn run() -> RhiaqeyResult<()> {
     env_logger::init();
     let env = parse_env();
     let namespace = env.namespace.clone();
@@ -392,14 +392,14 @@ pub async fn run() {
             continue;
         }
 
-        let mut streaming_channel =
-            StreamingChannel::create(hub.get_id(), namespace.clone(), channel.clone()).await;
+        let mut streaming_channel = StreamingChannel::create(
+            hub.get_id(),
+            namespace.clone(),
+            channel.clone(),
+            &hub.env.redis,
+        )?;
 
         let streaming_channel_name = streaming_channel.get_name();
-        if let Err(err) = streaming_channel.setup(hub.env.redis.clone()).await {
-            warn!("error stream setup for channel {} - {}", channel_name, err);
-            continue;
-        }
 
         info!(
             "starting up streaming channel {}",
@@ -407,7 +407,7 @@ pub async fn run() {
         );
 
         streaming_channel.start().await;
-        streams.insert(streaming_channel_name.into(), streaming_channel);
+        streams.insert(streaming_channel_name, streaming_channel);
         total_channels += 1;
     }
 
@@ -420,4 +420,6 @@ pub async fn run() {
     if let Err(err) = hub.start().await {
         panic!("error starting hub: {}", err);
     }
+
+    Ok(())
 }

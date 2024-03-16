@@ -2,5 +2,5 @@ use rhiaqey_hub::hub;
 
 #[tokio::main]
 async fn main() {
-    hub::run().await
+    hub::run().await.expect("failed to start hub");
 }

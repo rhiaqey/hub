@@ -34,31 +34,29 @@ pub struct StreamingChannel {
     pub hub_id: String,
     pub channel: Channel,
     pub namespace: String,
-    pub client: Option<redis::Client>,
-    pub clients: Arc<Mutex<Vec<String>>>,
+    pub client: redis::Connection,
+    pub clients: Mutex<Vec<String>>,
 }
 
 impl StreamingChannel {
-    pub async fn create(hub_id: String, namespace: String, channel: Channel) -> StreamingChannel {
-        StreamingChannel {
+    pub fn create(
+        hub_id: String,
+        namespace: String,
+        channel: Channel,
+        settings: &RedisSettings,
+    ) -> RhiaqeyResult<StreamingChannel> {
+        let client = connect(settings)?;
+        let mut connection = client.get_connection()?;
+        Ok(StreamingChannel {
             hub_id,
             channel,
             namespace,
-            client: None,
-            clients: Arc::new(Mutex::new(vec![])),
-        }
+            client: connection,
+            clients: Mutex::new(vec![]),
+        })
     }
 
-    pub async fn setup(&mut self, config: RedisSettings) -> RhiaqeyResult<()> {
-        let settings = config.clone();
-        let client = connect(&settings)?;
-        self.client = Some(client);
-        Ok(())
-    }
-
-    fn read_group_records(&self) -> RhiaqeyResult<Vec<StreamMessage>> {
-        let mut connection = self.client.as_ref().unwrap().get_connection()?;
-
+    fn read_group_records(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
         let options = redis::streams::StreamReadOptions::default()
             .count(self.channel.size)
             .group("hub", self.get_hub_id());
@@ -68,7 +66,7 @@ impl StreamingChannel {
 
         let topic = topics::publishers_to_hub_stream_topic(namespace, channel_name);
 
-        let reply: StreamReadReply = connection.xread_options(&[topic], &[">"], &options)?;
+        let reply: StreamReadReply = self.client.xread_options(&[topic], &[">"], &options)?;
 
         let mut entries: Vec<StreamMessage> = vec![];
 
@@ -90,7 +88,7 @@ impl StreamingChannel {
 
             // acknowledge each stream and message ID once all messages are
             let keys: Vec<&String> = ids.iter().map(|StreamId { id, map: _ }| id).collect();
-            let _: RedisResult<i32> = connection.xack(key, "hub", &keys);
+            let _: RedisResult<i32> = self.client.xack(key, "hub", &keys);
         }
 
         Ok(entries)
@@ -118,7 +116,7 @@ impl StreamingChannel {
     }
 
     fn compare_against_all(
-        &self,
+        &mut self,
         new_message: &StreamMessage,
         topic: &String,
     ) -> RhiaqeyResult<MessageProcessResult> {
@@ -128,10 +126,9 @@ impl StreamingChannel {
         let new_message = new_message.clone();
         let new_tag = new_message.tag.unwrap_or("".to_string());
 
-        let mut connection = self.client.clone().unwrap().get_connection()?;
-
         let results: StreamRangeReply =
-            connection.xrevrange_count(topic, "+", "-", self.channel.size)?;
+            self.client
+                .xrevrange_count(topic, "+", "-", self.channel.size)?;
 
         if results.ids.len() == 0 {
             // allow it since we have not stored data to compare against
@@ -176,8 +173,7 @@ impl StreamingChannel {
             return Ok(MessageProcessResult::AllowUnprocessed);
         }
 
-        let mut connection = self.client.clone().unwrap().get_connection()?;
-        let results: StreamRangeReply = connection.xrevrange_count(topic, "+", "-", 1)?;
+        let results: StreamRangeReply = self.client.xrevrange_count(topic, "+", "-", 1)?;
 
         if results.ids.len() == 0 {
             // allow it since we have not stored data to compare against
@@ -301,8 +297,7 @@ impl StreamingChannel {
         // Prepare to broadcast to all hubs that we have clean message
         let raw = message.ser_to_string()?;
 
-        let mut connection = self.client.clone().unwrap().get_connection()?;
-        connection.publish(&clean_topic, raw)?;
+        self.client.publish(&clean_topic, raw)?;
         trace!("message sent to pubsub {}", &clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
@@ -310,7 +305,7 @@ impl StreamingChannel {
         items.insert("raw", raw_message);
         items.insert("tag", tag);
 
-        let id = connection.xadd_maxlen_map(
+        let id = self.client.xadd_maxlen_map(
             snapshot_topic.clone(),
             StreamMaxlen::Equals(channel_size),
             "*",
@@ -445,8 +440,7 @@ impl StreamingChannel {
 
         let options = StreamReadOptions::default().count(self.channel.size);
 
-        let mut connection = self.client.clone().unwrap().get_connection()?;
-        let results: StreamReadReply = connection.xread_options(&*keys, &*ids, &options)?;
+        let results: StreamReadReply = self.client.xread_options(&*keys, &*ids, &options)?;
 
         for StreamKey { key: _, ids } in results.keys {
             for StreamId { id: _, map } in ids {
@@ -478,8 +472,7 @@ impl StreamingChannel {
             String::from("*"),
         );
 
-        let mut connection = self.client.clone().unwrap().get_connection()?;
-        let keys: Vec<String> = connection.scan_match(&snapshot_topic)?.collect();
+        let keys: Vec<String> = self.client.scan_match(&snapshot_topic)?.collect();
         debug!("found {} keys", keys.len());
 
         Ok(keys)
