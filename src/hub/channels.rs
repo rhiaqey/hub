@@ -1,26 +1,19 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::time::Duration;
 
-use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
 use redis::streams::{
     StreamId, StreamKey, StreamMaxlen, StreamRangeReply, StreamReadOptions, StreamReadReply,
 };
 use redis::{Commands, RedisResult, Value};
-use rhiaqey_common::error::RhiaqeyError;
+
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
-use rhiaqey_common::redis::{connect_and_ping_async, RedisSettings};
+use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::redis_rs::connect;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::{topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::Channel;
-use rustis::client::Client;
-use rustis::commands::{
-    GenericCommands, ScanOptions, StreamCommands, StreamEntry, XReadGroupOptions, XReadOptions,
-};
+
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
 
 #[derive(PartialEq)]
 enum MessageProcessResult {
@@ -46,7 +39,7 @@ impl StreamingChannel {
         settings: &RedisSettings,
     ) -> RhiaqeyResult<StreamingChannel> {
         let client = connect(settings)?;
-        let mut connection = client.get_connection()?;
+        let connection = client.get_connection()?;
         Ok(StreamingChannel {
             hub_id,
             channel,

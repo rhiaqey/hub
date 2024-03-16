@@ -1,6 +1,5 @@
 pub(crate) mod channels;
 pub(crate) mod client;
-pub(crate) mod messages;
 pub(crate) mod metrics;
 pub(crate) mod settings;
 
