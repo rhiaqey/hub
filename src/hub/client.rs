@@ -17,14 +17,14 @@ pub struct WebSocketClient {
 
 impl WebSocketClient {
     pub fn create(
-        client_id: String,
-        sender: SplitSink<WebSocket, Message>,
-        receiver: SplitStream<WebSocket>,
+        id: String,
+        sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+        receiver: Arc<Mutex<SplitStream<WebSocket>>>,
     ) -> WebSocketClient {
         WebSocketClient {
-            id: client_id,
-            sender: Arc::new(Mutex::new(sender)),
-            receiver: Arc::new(Mutex::new(receiver)),
+            id,
+            sender,
+            receiver,
             join_handler: None,
         }
     }

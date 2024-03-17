@@ -1,12 +1,15 @@
 use crate::http::state::SharedState;
 use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
+use std::collections::HashMap;
 
+use crate::hub::channels::StreamingChannel;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
+use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::{
@@ -17,6 +20,7 @@ use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -116,9 +120,12 @@ async fn handle_client(
 
     let raw = serde_json::to_vec(&client_message).unwrap();
 
-    let (mut sender, receiver) = socket.split();
+    let (sender, receiver) = socket.split();
 
-    if let Err(e) = sender.send(Message::Binary(raw)).await {
+    let sx = Arc::new(Mutex::new(sender));
+    let rx = Arc::new(Mutex::new(receiver));
+
+    if let Err(e) = sx.lock().await.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);
     }
 
@@ -134,7 +141,7 @@ async fn handle_client(
         );
 
         if let Ok(raw) = serde_json::to_vec(&data) {
-            if let Ok(_) = sender.send(Message::Binary(raw)).await {
+            if let Ok(_) = sx.lock().await.send(Message::Binary(raw)).await {
                 trace!("channel subscription message sent successfully");
             } else {
                 warn!("could not send subscription message");
@@ -142,36 +149,17 @@ async fn handle_client(
         }
 
         if snapshot_request {
-            debug!("sending snapshot to client");
-
-            if let Some(chx) = streaming_channels.get_mut(&*channel_name) {
-                let messages: Vec<Vec<u8>> = chx
-                    .get_snapshot()
-                    .unwrap_or(vec![])
-                    .iter()
-                    .map(|x| ClientMessage::from(x))
-                    .map(|mut x| {
-                        if x.hub_id.is_none() {
-                            x.hub_id = Some(hub_id.clone());
-                        }
-
-                        return x;
-                    })
-                    .flat_map(|x| serde_json::to_vec(&x).ok())
-                    .collect();
-
-                for raw in messages {
-                    if let Ok(_) = sender.send(Message::Binary(raw)).await {
-                        trace!("channel snapshot message sent successfully to {client_id}");
-                    } else {
-                        warn!("could not send snapshot message to {client_id}");
-                    }
-                }
-            }
+            tokio::spawn(handle_snapshot(
+                channel_name.to_string(),
+                hub_id.clone(),
+                client_id.clone(),
+                sx.clone(),
+                state.streams.clone(),
+            ));
         }
     }
 
-    let mut client = WebSocketClient::create(client_id.clone(), sender, receiver);
+    let mut client = WebSocketClient::create(client_id.to_string(), sx, rx);
 
     client.listen();
 
@@ -179,4 +167,48 @@ async fn handle_client(
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client {client_id} was connected")
+}
+
+async fn handle_snapshot(
+    channel: String,
+    hub_id: String,
+    client_id: String,
+    sx: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+) {
+    let mut streams_lock = streams.lock().await;
+    let chx = streams_lock.get_mut(&channel).unwrap();
+
+    let messages: Vec<Vec<u8>> = chx
+        .get_snapshot()
+        .unwrap_or(vec![])
+        .iter()
+        .map(|x| ClientMessage::from(x))
+        .map(|mut x| {
+            if x.hub_id.is_none() {
+                x.hub_id = Some(hub_id.clone());
+            }
+
+            return x;
+        })
+        .flat_map(|x| serde_json::to_vec(&x).ok())
+        .collect();
+
+    trace!(
+        "sending {} channel[name={}] snapshot messages",
+        messages.len(),
+        chx.get_name()
+    );
+
+    for raw in messages {
+        if let Ok(_) = sx.lock().await.send(Message::Binary(raw)).await {
+            trace!(
+                "channel[name={}] snapshot message sent successfully to {}",
+                chx.get_name(),
+                client_id
+            );
+        } else {
+            warn!("could not send snapshot message to {client_id}");
+        }
+    }
 }
