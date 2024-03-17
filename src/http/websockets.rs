@@ -133,30 +133,38 @@ async fn handle_client(
             ClientMessageValueClientChannelSubscription { channel },
         );
 
-        let raw = serde_json::to_vec(&data).unwrap();
-        if let Ok(_) = sender.send(Message::Binary(raw)).await {
-            trace!("channel subscription message sent successfully");
-        } else {
-            warn!("could not send subscription message");
+        if let Ok(raw) = serde_json::to_vec(&data) {
+            if let Ok(_) = sender.send(Message::Binary(raw)).await {
+                trace!("channel subscription message sent successfully");
+            } else {
+                warn!("could not send subscription message");
+            }
         }
 
         if snapshot_request {
             debug!("sending snapshot to client");
-            let streaming_channel = streaming_channels.get_mut(&*channel_name);
-            if let Some(chx) = streaming_channel {
-                let snapshot = chx.get_snapshot().unwrap_or(vec![]);
-                for stream_message in snapshot {
-                    let mut client_message = ClientMessage::from(stream_message);
-                    if client_message.hub_id.is_none() {
-                        client_message.hub_id = Some(hub_id.clone());
-                    }
 
-                    let raw = serde_json::to_vec(&client_message).unwrap();
+            if let Some(chx) = streaming_channels.get_mut(&*channel_name) {
+                let messages: Vec<Vec<u8>> = chx
+                    .get_snapshot()
+                    .unwrap_or(vec![])
+                    .iter()
+                    .map(|x| ClientMessage::from(x))
+                    .map(|mut x| {
+                        if x.hub_id.is_none() {
+                            x.hub_id = Some(hub_id.clone());
+                        }
+
+                        return x;
+                    })
+                    .flat_map(|x| serde_json::to_vec(&x).ok())
+                    .collect();
+
+                for raw in messages {
                     if let Ok(_) = sender.send(Message::Binary(raw)).await {
                         trace!("channel snapshot message sent successfully to {client_id}");
                     } else {
                         warn!("could not send snapshot message to {client_id}");
-                        break;
                     }
                 }
             }
