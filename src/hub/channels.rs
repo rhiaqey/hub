@@ -426,7 +426,7 @@ impl StreamingChannel {
             return Ok(vec![]);
         }
 
-        let mut messages = Vec::new();
+        // let mut messages = Vec::new();
 
         let ids = vec![0; keys.len()];
         debug!("ids are key {:?}", ids);
@@ -435,7 +435,28 @@ impl StreamingChannel {
 
         let results: StreamReadReply = self.client.xread_options(&*keys, &*ids, &options)?;
 
-        for StreamKey { key: _, ids } in results.keys {
+        let messages: Vec<StreamMessage> = results
+            .keys
+            .iter()
+            .map(|key| {
+                key.ids
+                    .iter()
+                    .map(|id| id.map.get("raw"))
+                    .filter(|x| x.is_some())
+                    .map(|x| x.unwrap())
+                    .filter_map(|x| {
+                        return if let redis::Value::Data(ref data) = x {
+                            Some(data)
+                        } else {
+                            None
+                        };
+                    })
+                    .filter_map(|x| serde_json::from_slice::<StreamMessage>(x).ok())
+            })
+            .flatten()
+            .collect();
+
+        /*for StreamKey { key: _, ids } in results.keys {
             for StreamId { id: _, map } in ids {
                 if let Some(raw) = map.get("raw") {
                     if let redis::Value::Data(ref data) = raw {
@@ -450,7 +471,7 @@ impl StreamingChannel {
                     }
                 }
             }
-        }
+        }*/
 
         debug!("message count {:?}", messages.len());
 
