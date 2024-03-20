@@ -1,4 +1,13 @@
-use std::collections::BTreeMap;
+use axum::extract::ws::{Message, WebSocket};
+use futures::stream::SplitSink;
+use futures::{SinkExt, Stream};
+use std::collections::{BTreeMap, HashMap};
+use std::hash::Hash;
+use std::pin::Pin;
+use std::sync::{Arc, RwLock};
+use std::task::{Context, Poll};
+use std::thread;
+use std::time::Duration;
 
 use log::{debug, trace, warn};
 use redis::streams::{
@@ -6,13 +15,13 @@ use redis::streams::{
 };
 use redis::{Commands, RedisResult, Value};
 
+use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::redis_rs::connect;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::{topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::Channel;
-
 use tokio::sync::Mutex;
 
 #[derive(PartialEq)]
@@ -28,7 +37,7 @@ pub struct StreamingChannel {
     pub channel: Channel,
     pub namespace: String,
     pub client: redis::Connection,
-    pub clients: Mutex<Vec<String>>,
+    pub clients: RwLock<HashMap<String, Arc<Mutex<SplitSink<WebSocket, Message>>>>>,
 }
 
 impl StreamingChannel {
@@ -45,7 +54,7 @@ impl StreamingChannel {
             channel,
             namespace,
             client: connection,
-            clients: Mutex::new(vec![]),
+            clients: RwLock::new(HashMap::new()),
         })
     }
 
@@ -309,20 +318,40 @@ impl StreamingChannel {
         Ok(())
     }
 
-    pub async fn start(&mut self) {
+    pub fn start(&mut self) {
+        /*
+        loop {
+            for entry in self.read_group_records().unwrap_or(vec![]) {
+                match self.handle_raw_stream_message_from_publishers(entry) {
+                    Ok(_) => trace!("successfully handled raw message"),
+                    Err(err) => warn!("error handling raw stream message: {}", err),
+                }
+                thread::sleep(Duration::from_millis(100));
+            }
+        }*/
+        /*
         for entry in self.read_group_records().unwrap_or(vec![]) {
             match self.handle_raw_stream_message_from_publishers(entry) {
                 Ok(_) => trace!("successfully handled raw message"),
                 Err(err) => warn!("error handling raw stream message: {}", err),
             }
-        }
+        }*/
 
         /*
         match self.handle_raw_stream_message_from_publishers(entry) {
             Ok(_) => trace!("successfully handled raw message"),
             Err(err) => warn!("error handling raw stream message: {}", err),
         }*/
+
         /*
+        let id = self.get_hub_id();
+        let channel = self.channel.clone();
+        let namespace = self.namespace.clone();
+        let duration = Duration::from_millis(150);
+
+        let redis = self.redis.as_mut().unwrap().clone();
+        let message_handler = self.message_handler.as_mut().unwrap().clone();
+
         let join_handler = tokio::task::spawn(async move {
             let id = id.clone();
             let topic = topics::publishers_to_hub_stream_topic(namespace, channel.name.to_string());
@@ -357,7 +386,7 @@ impl StreamingChannel {
                                 let _ = message_handler
                                     .lock()
                                     .await
-                                    .handle_raw_stream_message_from_publishers_async(
+                                    .handle_raw_stream_message_from_publishers(
                                         stream_message,
                                         channel.size,
                                     )
@@ -414,8 +443,15 @@ impl StreamingChannel {
         return self.channel.name.to_string();
     }
 
-    pub async fn add_client(&mut self, connection_id: String) {
-        self.clients.lock().await.push(connection_id);
+    pub fn add_client(
+        &mut self,
+        connection_id: String,
+        connection: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    ) {
+        self.clients
+            .write()
+            .unwrap()
+            .insert(connection_id, connection);
     }
 
     pub fn get_snapshot(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
@@ -490,5 +526,35 @@ impl StreamingChannel {
         debug!("found {} keys", keys.len());
 
         Ok(keys)
+    }
+
+    pub fn notify_one(&self, client_id: String, client_message: Vec<u8>) {
+        let lock = self.clients.read().unwrap().clone();
+        tokio::spawn(async move {
+            let client = lock.get(&client_id);
+            if let Some(cx) = client {
+                client
+                    .unwrap()
+                    .lock()
+                    .await
+                    .send(Message::Binary(client_message))
+                    .await
+                    .unwrap();
+            }
+        });
+    }
+
+    pub fn notify_all(&self, client_message: Vec<u8>) {
+        //
+    }
+}
+
+impl Stream for StreamingChannel {
+    type Item = Vec<StreamMessage>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let records = self.read_group_records().unwrap_or(vec![]);
+        thread::sleep(Duration::from_millis(1));
+        return Poll::Ready(Some(records));
     }
 }

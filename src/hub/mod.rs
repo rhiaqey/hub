@@ -10,6 +10,7 @@ use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
 use crate::hub::settings::HubSettings;
 use axum::extract::ws::Message;
+use futures::stream::SelectAll;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::ClientMessage;
@@ -33,7 +34,7 @@ pub struct Hub {
     pub env: Arc<Env>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub redis: Arc<Mutex<Option<Client>>>,
-    pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    pub streams: Arc<RwLock<SelectAll<StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub security: Arc<Mutex<SecurityKey>>,
 }
@@ -210,7 +211,7 @@ impl Hub {
         Ok(Hub {
             env: Arc::from(config),
             settings: Arc::from(RwLock::new(HubSettings::default())),
-            streams: Arc::new(Mutex::new(HashMap::new())),
+            streams: Arc::new(RwLock::new(SelectAll::new())),
             redis: Arc::new(Mutex::new(Some(client))),
             clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(Mutex::new(security)),
@@ -255,6 +256,9 @@ impl Hub {
 
         loop {
             tokio::select! {
+                Some(v) = lock.next() => {
+                    //
+                },
                 Some(pubsub_message) = clean_message_stream.next() => {
                     trace!("clean message arrived");
 
@@ -294,14 +298,27 @@ impl Hub {
                         RPCMessageData::NotifyClients(stream_message) => {
                             trace!("received notify clients rpc");
                             // get a streaming channel by channel name
-                            let all_hub_streams = streams.lock().await;
+                            let all_hub_streams = streams.read().unwrap();
+
+                            let mut client_message = ClientMessage::from(stream_message);
+                            if client_message.hub_id.is_none() {
+                                client_message.hub_id = Some(hub_id.clone());
+                            }
+
+                            if let Ok(raw) = serde_json::to_vec(&client_message) {
+                                trace!("client message ready to broadcast");
+                                all_hub_streams.iter().for_each(|chx| {
+                                    chx.notify_all(raw.clone());
+                                });
+                            }
+
+                            /*
                             let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
                             if let Some(s_channel) = streaming_channel {
                                 trace!("streaming channel found {}", s_channel.channel.name);
 
                                 let lock = s_channel.clients.lock().await;
                                 let all_stream_channel_clients = lock.to_vec();
-                                drop(lock);
 
                                 let mut all_hub_clients = clients.lock().await;
 
@@ -352,7 +369,7 @@ impl Hub {
                                     TOTAL_CLIENTS.set(total_clients as f64);
                                     trace!("total clients set to {total_clients}");
                                 }
-                            }
+                            }*/
                         }
                         _ => {}
                     }
@@ -382,31 +399,28 @@ pub async fn run() -> RhiaqeyResult<()> {
 
     let mut total_channels = 0;
     let channels = hub.get_channels().await;
-    let mut streams = hub.streams.lock().await;
+    let mut streams = hub.streams.write().unwrap();
 
     for channel in channels {
         let channel_name = channel.name.to_string();
-        if streams.contains_key(&channel_name) {
+
+        if streams
+            .iter()
+            .find(|x| x.get_name().eq(&channel_name))
+            .is_some()
+        {
             warn!("channel {} already exists", channel_name);
             continue;
         }
 
-        let mut streaming_channel = StreamingChannel::create(
+        let streaming_channel = StreamingChannel::create(
             hub.get_id(),
             namespace.clone(),
             channel.clone(),
             &hub.env.redis,
         )?;
 
-        let streaming_channel_name = streaming_channel.get_name();
-
-        info!(
-            "starting up streaming channel {}",
-            streaming_channel.channel.name
-        );
-
-        streaming_channel.start().await;
-        streams.insert(streaming_channel_name, streaming_channel);
+        streams.push(streaming_channel);
         total_channels += 1;
     }
 

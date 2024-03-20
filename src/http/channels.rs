@@ -26,54 +26,56 @@ pub async fn delete_channels(
 ) -> impl IntoResponse {
     info!("[Delete] Delete channels");
 
-    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
-    let result: String = state
-        .redis
-        .lock()
-        .await
-        .as_mut()
-        .unwrap()
-        .get(hub_channels_key.clone())
-        .await
-        .unwrap();
-
-    let mut channel_list: ChannelList =
-        serde_json::from_str(result.as_str()).unwrap_or(ChannelList::default());
-
-    debug!("turning off streams for channels {:?}", payload.channels);
-
-    for streaming_channel_name in &payload.channels {
-        state
-            .streams
+    /*
+        let hub_channels_key = topics::hub_channels_key(state.get_namespace());
+        let result: String = state
+            .redis
             .lock()
             .await
-            .remove(streaming_channel_name.as_str());
-    }
+            .as_mut()
+            .unwrap()
+            .get(hub_channels_key.clone())
+            .await
+            .unwrap();
 
-    debug!("current channel list {:?}", channel_list);
+        let mut channel_list: ChannelList =
+            serde_json::from_str(result.as_str()).unwrap_or(ChannelList::default());
 
-    channel_list.channels.retain_mut(|list_channel| {
-        let index = payload
-            .channels
-            .iter()
-            .position(|r| *r == list_channel.name);
+        debug!("turning off streams for channels {:?}", payload.channels);
 
-        index.is_none()
-    });
+        for streaming_channel_name in &payload.channels {
+            state
+                .streams
+                .lock()
+                .await
+                .remove(streaming_channel_name.as_str());
+        }
 
-    debug!("updated channel list {:?}", channel_list);
+        debug!("current channel list {:?}", channel_list);
 
-    let content = serde_json::to_string(&channel_list).unwrap();
+        channel_list.channels.retain_mut(|list_channel| {
+            let index = payload
+                .channels
+                .iter()
+                .position(|r| *r == list_channel.name);
 
-    state
-        .redis
-        .lock()
-        .await
-        .as_mut()
-        .unwrap()
-        .set(hub_channels_key.clone(), content)
-        .await
-        .unwrap();
+            index.is_none()
+        });
+
+        debug!("updated channel list {:?}", channel_list);
+
+        let content = serde_json::to_string(&channel_list).unwrap();
+
+        state
+            .redis
+            .lock()
+            .await
+            .as_mut()
+            .unwrap()
+            .set(hub_channels_key.clone(), content)
+            .await
+            .unwrap();
+    */
 
     StatusCode::NO_CONTENT
 }
@@ -166,34 +168,39 @@ pub async fn purge_channel(
 ) -> impl IntoResponse {
     info!("[DELETE] Purging channel {}", channel);
 
-    let mut streams = state.streams.lock().await;
-    let streaming_channel = streams.get_mut(&channel);
-    if streaming_channel.is_none() {
-        warn!(
-            "could not find streaming channel by name {}",
-            channel.clone()
-        );
-        return (
-            StatusCode::NOT_FOUND,
-            [(hyper::header::CONTENT_TYPE, "application/json")],
-            json!({
-                "message": "Streaming channel could not be found"
-            })
-            .to_string(),
-        );
-    }
+    let mut streams = state.streams.write().unwrap();
 
-    // get all keys
-    let keys = streaming_channel
-        .unwrap()
-        .get_snapshot_keys()
-        .unwrap_or(vec![]);
-    debug!("{} keys found", keys.len());
+    /*
+        let streaming_channel = streams.get_mut(&channel);
+        if streaming_channel.is_none() {
+            warn!(
+                "could not find streaming channel by name {}",
+                channel.clone()
+            );
+            return (
+                StatusCode::NOT_FOUND,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                json!({
+                    "message": "Streaming channel could not be found"
+                })
+                .to_string(),
+            );
+        }
 
-    let redis = state.redis.clone().lock().await.clone().unwrap();
-    let result = redis.del(keys).await.unwrap_or(0);
+        // get all keys
+        let keys = streaming_channel
+            .unwrap()
+            .get_snapshot_keys()
+            .unwrap_or(vec![]);
+        debug!("{} keys found", keys.len());
 
-    debug!("{result} entries purged");
+        let redis = state.redis.clone().lock().await.clone().unwrap();
+        let result = redis.del(keys).await.unwrap_or(0);
+
+        debug!("{result} entries purged");
+    */
+
+    let result = -1;
 
     (
         StatusCode::OK,
@@ -244,16 +251,17 @@ pub async fn create_channels(
     let mut total_channels = 0;
     let hub_id = state.env.id.clone();
     let namespace = state.env.namespace.clone();
-    let mut streams = state.streams.lock().await;
+    let mut streams = state.streams.read().unwrap();
 
     for channel in &payload.channels.channels {
+        /*
         let channel_name = channel.name.to_string();
         if streams.contains_key(&channel_name) {
             warn!("channel {} already exists", channel_name);
             continue;
         }
 
-        let mut streaming_channel = match StreamingChannel::create(
+        let streaming_channel = match StreamingChannel::create(
             hub_id.clone(),
             namespace.clone(),
             channel.clone(),
@@ -266,14 +274,8 @@ pub async fn create_channels(
             }
         };
 
-        info!(
-            "starting up streaming channel {}",
-            streaming_channel.channel.name
-        );
-
-        streaming_channel.start().await;
-        streams.insert(streaming_channel.get_name(), streaming_channel);
-        total_channels += 1;
+        streams.push(streaming_channel);
+        total_channels += 1;*/
     }
 
     info!("added {} streams", total_channels);
