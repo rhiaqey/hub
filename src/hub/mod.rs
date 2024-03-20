@@ -392,13 +392,14 @@ pub async fn run() {
         }
 
         let mut streaming_channel =
-            StreamingChannel::create(hub.get_id(), namespace.clone(), channel.clone()).await;
+            StreamingChannel::create(
+                hub.get_id(),
+                namespace.clone(),
+                channel.clone(),
+                hub.env.redis.clone()
+            ).await.unwrap();
 
         let streaming_channel_name = streaming_channel.get_name();
-        if let Err(err) = streaming_channel.setup(hub.env.redis.clone()).await {
-            warn!("error stream setup for channel {} - {}", channel_name, err);
-            continue;
-        }
 
         info!(
             "starting up streaming channel {}",

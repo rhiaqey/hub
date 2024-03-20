@@ -1,13 +1,22 @@
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::Context;
+use std::task::Poll;
 use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
-use rhiaqey_common::error::RhiaqeyError;
+use redis::streams::StreamId;
+use redis::streams::StreamKey;
+use redis::streams::StreamReadReply;
+use redis::Commands;
+use redis::RedisResult;
 use rhiaqey_common::redis::connect_and_ping_async;
 use rhiaqey_common::redis::RedisSettings;
+use rhiaqey_common::redis_rs::connect;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
+use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::Channel;
 use rustis::client::Client;
 use rustis::commands::{
@@ -17,56 +26,82 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 pub struct StreamingChannel {
-    hub_id: String,
+    pub hub_id: String,
     pub channel: Channel,
     pub namespace: String,
-    pub client: Option<redis::Client>,
+    pub client: redis::Connection,
     pub redis: Option<Arc<Mutex<Client>>>,
     pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
-    join_handler: Option<Arc<JoinHandle<u32>>>,
+    pub join_handler: Option<Arc<JoinHandle<u32>>>,
     pub clients: Arc<Mutex<Vec<String>>>,
 }
 
 impl StreamingChannel {
-    pub async fn create(hub_id: String, namespace: String, channel: Channel) -> StreamingChannel {
-        StreamingChannel {
-            hub_id,
-            channel,
-            namespace,
-            client: None,
-            redis: None,
-            message_handler: None,
-            join_handler: None,
+    pub async fn create(
+        hub_id: String,
+        namespace: String,
+        channel: Channel,
+        config: RedisSettings,
+    ) -> RhiaqeyResult<StreamingChannel> {
+        let redis_rs_client = connect(&config)?;
+        let redis_rs_connection = redis_rs_client.get_connection()?;
+        let redis_connection = connect_and_ping_async(config.clone()).await?;
+        Ok(StreamingChannel {
+            hub_id: hub_id.clone(),
+            channel: channel.clone(),
+            namespace: namespace.clone(),
+            client: redis_rs_connection,
             clients: Arc::new(Mutex::new(vec![])),
-        }
+            join_handler: None,
+            redis: Some(Arc::new(Mutex::new(redis_connection))),
+            message_handler: Some(Arc::new(Mutex::new(
+                MessageHandler::create(
+                    hub_id,
+                    namespace,
+                    channel,
+                    config
+                )
+                .await,
+            )))
+        })
     }
 
-    pub async fn setup(&mut self, config: RedisSettings) -> Result<(), RhiaqeyError> {
-        let settings = config.clone();
-        let client = rhiaqey_common::redis_rs::connect_and_ping(&settings)?;
-        let connection = connect_and_ping_async(config.clone()).await?;
-        self.client = Some(client);
-        self.redis = Some(Arc::new(Mutex::new(connection)));
-        self.message_handler = Some(Arc::new(Mutex::new(
-            MessageHandler::create(
-                self.hub_id.clone(),
-                self.namespace.clone(),
-                self.channel.clone(),
-                config,
-            )
-            .await,
-        )));
-        Ok(())
-    }
-
-    fn _read_group_records(&self) -> Result<(), RhiaqeyError> {
-        let _con = self.client.as_ref().unwrap().get_connection()?;
-
-        let _opts = redis::streams::StreamReadOptions::default()
+    fn read_group_records(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
+        let options = redis::streams::StreamReadOptions::default()
             .count(self.channel.size)
             .group("hub", self.get_hub_id());
 
-        Ok(())
+        let namespace = self.namespace.clone();
+        let channel_name = self.channel.name.to_string();
+
+        let topic = topics::publishers_to_hub_stream_topic(namespace, channel_name);
+
+        let reply: StreamReadReply = self.client.xread_options(&[topic], &[">"], &options)?;
+
+        let mut entries: Vec<StreamMessage> = vec![];
+
+        for StreamKey { key, ids } in reply.keys {
+            for StreamId { id: _, map } in &ids {
+                if let Some(raw) = map.get("raw") {
+                    if let redis::Value::Data(ref data) = raw {
+                        if let Ok(entry) = serde_json::from_slice::<StreamMessage>(data) {
+                            trace!(
+                                "found entry key={}, timestamp={:?}",
+                                entry.key,
+                                entry.timestamp
+                            );
+                            entries.push(entry);
+                        }
+                    }
+                }
+            }
+
+            // acknowledge each stream and message ID once all messages are
+            let keys: Vec<&String> = ids.iter().map(|StreamId { id, map: _ }| id).collect();
+            let _: RedisResult<i32> = self.client.xack(key, "hub", &keys);
+        }
+
+        Ok(entries)
     }
 
     pub async fn start(&mut self) {
@@ -262,5 +297,15 @@ impl Drop for StreamingChannel {
         if self.join_handler.is_some() {
             self.join_handler.as_mut().unwrap().abort();
         }
+    }
+}
+
+impl futures::stream::Stream for StreamingChannel {
+    type Item = Vec<StreamMessage>;
+
+    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let items = self.read_group_records().unwrap_or(vec![]);
+        std::thread::sleep(Duration::from_millis(100));
+        return Poll::Ready(Some(items));
     }
 }
