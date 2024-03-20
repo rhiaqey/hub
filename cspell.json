@@ -21,7 +21,15 @@
     "xstream",
     "xread",
     "xreadgroup",
-    "aarch"
+    "aarch",
+    "xdel",
+    "devcontainers",
+    "devcontainer",
+    "rustc",
+    "protoc",
+    "azuretools",
+    "azurecr",
+    "jsonschema"
   ],
   "ignoreWords": [],
   "import": []
