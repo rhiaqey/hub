@@ -6,9 +6,9 @@ use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
-use redis::streams::StreamId;
 use redis::streams::StreamKey;
 use redis::streams::StreamReadReply;
+use redis::streams::{StreamId, StreamReadOptions};
 use redis::Commands;
 use redis::RedisResult;
 use rhiaqey_common::redis::connect_and_ping_async;
@@ -19,9 +19,7 @@ use rhiaqey_common::topics;
 use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::Channel;
 use rustis::client::Client;
-use rustis::commands::{
-    GenericCommands, ScanOptions, StreamCommands, StreamEntry, XReadGroupOptions, XReadOptions,
-};
+use rustis::commands::{StreamCommands, StreamEntry, XReadGroupOptions};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -73,7 +71,7 @@ impl StreamingChannel {
     ) -> RhiaqeyResult<Vec<StreamMessage>> {
         let mut connection = redis_rs_connection.try_lock().unwrap();
 
-        let options = redis::streams::StreamReadOptions::default()
+        let options = StreamReadOptions::default()
             .count(channel.size)
             .group("hub", hub_id);
 
@@ -112,8 +110,6 @@ impl StreamingChannel {
         let channel = self.channel.clone();
         let namespace = self.namespace.clone();
         let duration = Duration::from_millis(150);
-
-        debug!("arxizei to match");
 
         let redis = self.redis.as_mut().unwrap().clone();
         let message_handler = self.message_handler.clone();
@@ -209,49 +205,50 @@ impl StreamingChannel {
         self.clients.lock().await.push(connection_id);
     }
 
-    pub async fn get_snapshot(&mut self) -> Vec<StreamMessage> {
-        let keys = self.get_snapshot_keys().await;
+    pub fn get_snapshot(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
+        let keys = self.get_snapshot_keys()?;
         debug!("keys are here {:?}", keys);
 
         if keys.len() == 0 {
-            return vec![];
+            return Ok(vec![]);
         }
-
-        let mut messages = Vec::new();
 
         let ids = vec![0; keys.len()];
         debug!("ids are key {:?}", ids);
 
-        let mut options = XReadOptions::default();
-        options = options.count(self.channel.size);
+        let options = StreamReadOptions::default().count(self.channel.size);
 
-        let results: Vec<(String, Vec<StreamEntry<String>>)> = self
-            .redis
-            .as_mut()
-            .unwrap()
-            .lock()
-            .await
-            .xread(options, keys, ids)
-            .await
-            .unwrap();
+        let lock = self.redis_rs_connection.clone();
+        let mut client = lock.lock().unwrap();
+        let results: StreamReadReply = client.xread_options(&*keys, &*ids, &options)?;
 
-        for (_key, entries) in results {
-            for entry in entries {
-                for (key, value) in entry.items.into_iter() {
-                    if key.eq("raw") {
-                        let raw: StreamMessage = serde_json::from_str(value.as_str()).unwrap();
-                        messages.push(raw);
-                    }
-                }
-            }
-        }
+        let messages: Vec<StreamMessage> = results
+            .keys
+            .iter()
+            .map(|key| {
+                key.ids
+                    .iter()
+                    .map(|id| id.map.get("raw"))
+                    .filter(|x| x.is_some())
+                    .map(|x| x.unwrap())
+                    .filter_map(|x| {
+                        return if let redis::Value::Data(ref data) = x {
+                            Some(data)
+                        } else {
+                            None
+                        };
+                    })
+                    .filter_map(|x| serde_json::from_slice::<StreamMessage>(x).ok())
+            })
+            .flatten()
+            .collect();
 
         debug!("message count {:?}", messages.len());
 
-        messages
+        Ok(messages)
     }
 
-    pub async fn get_snapshot_keys(&mut self) -> Vec<String> {
+    pub fn get_snapshot_keys(&mut self) -> RhiaqeyResult<Vec<String>> {
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),
@@ -259,37 +256,12 @@ impl StreamingChannel {
             String::from("*"),
         );
 
-        let mut count = 0u64;
-        let mut keys: Vec<String> = vec![];
-
-        loop {
-            let mut options = ScanOptions::default();
-            options = options.match_pattern(snapshot_topic.clone());
-            let result = self
-                .redis
-                .as_mut()
-                .unwrap()
-                .lock()
-                .await
-                .scan(count, options)
-                .await;
-
-            if result.is_ok() {
-                let mut entries: (u64, Vec<String>) = result.unwrap();
-                count = entries.0;
-                keys.append(&mut entries.1);
-
-                if count == 0 {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
+        let lock = self.redis_rs_connection.clone();
+        let mut client = lock.lock().unwrap();
+        let keys: Vec<String> = client.scan_match(&snapshot_topic)?.collect();
         debug!("found {} keys", keys.len());
 
-        keys
+        Ok(keys)
     }
 }
 
