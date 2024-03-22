@@ -79,6 +79,11 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         listener.local_addr().unwrap()
     );
 
+    info!(
+        "admin panel available @ http://{}/admin",
+        listener.local_addr().unwrap()
+    );
+
     axum::serve(
         listener,
         // app.into_make_service()
