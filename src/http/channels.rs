@@ -1,7 +1,7 @@
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
-use crate::hub::channels::StreamingChannel;
+use crate::hub::channel::StreamingChannel;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use axum::extract::{Path, State};

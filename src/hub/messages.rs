@@ -44,7 +44,7 @@ impl MessageHandler {
         }
     }
 
-    async fn compare_by_tags(
+    fn compare_by_tags(
         &mut self,
         new_msg: &StreamMessage,
         old_msg: &StreamMessage,
@@ -229,7 +229,7 @@ impl MessageHandler {
         if let MessageProcessResult::Allow(ref old_message) = compare_timestamps {
             trace!("allowing message to proceed (check by tags)");
 
-            let compare_tags = self.compare_by_tags(&new_message, old_message).await;
+            let compare_tags = self.compare_by_tags(&new_message, old_message);
 
             if let MessageProcessResult::Deny(reason) = compare_tags {
                 warn!("raw message should not be processed further due to: {reason}");

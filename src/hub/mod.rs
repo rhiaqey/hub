@@ -1,4 +1,4 @@
-pub(crate) mod channels;
+pub(crate) mod channel;
 pub(crate) mod client;
 pub(crate) mod messages;
 pub(crate) mod metrics;
@@ -6,7 +6,7 @@ pub(crate) mod settings;
 
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
-use crate::hub::channels::StreamingChannel;
+use crate::hub::channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
 use crate::hub::settings::HubSettings;
