@@ -131,6 +131,7 @@ impl StreamingChannel {
                         Err(err) => warn!("error handling raw stream message: {}", err),
                     }
                 }
+                tokio::time::sleep(Duration::from_millis(100)).await;
             }
         });
 
