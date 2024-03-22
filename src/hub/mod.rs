@@ -390,13 +390,15 @@ pub async fn run() {
             continue;
         }
 
-        let mut streaming_channel = StreamingChannel::create(
+        let Ok(mut streaming_channel) = StreamingChannel::create(
             hub.get_id(),
             namespace.clone(),
             channel.clone(),
             hub.env.redis.clone(),
-        )
-        .unwrap();
+        ) else {
+            warn!("failed to create streaming channel {}", channel.name);
+            continue;
+        };
 
         let streaming_channel_name = streaming_channel.get_name();
 
