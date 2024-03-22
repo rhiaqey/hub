@@ -1724,7 +1724,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.0"
-source = "git+https://github.com/rhiaqey/common.git#cde4241319b19bad56b931008fe22f7c10fdcd2c"
+source = "git+https://github.com/rhiaqey/common.git#255a8486df0dc2973f58ef46a75e064114dbdb8d"
 dependencies = [
  "aes-gcm-siv",
  "env_logger",
