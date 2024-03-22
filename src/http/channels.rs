@@ -35,8 +35,7 @@ pub async fn delete_channels(
         .await
         .unwrap();
 
-    let mut channel_list: ChannelList =
-        serde_json::from_str(result.as_str()).unwrap_or(ChannelList::default());
+    let mut channel_list: ChannelList = serde_json::from_str(result.as_str()).unwrap_or_default();
 
     debug!("turning off streams for channels {:?}", payload.channels);
 
@@ -134,7 +133,7 @@ pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse
     )
 }
 
-pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<ChannelList> {
+pub async fn get_channels(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get channels");
     let channels_key = topics::hub_channels_key(state.get_namespace());
     let mut lock = state.redis_rs.lock().unwrap();
@@ -327,8 +326,7 @@ pub async fn assign_channels(
     let result: String = client.get(channels_key.clone()).await.unwrap();
     trace!("got channels {}", result);
 
-    let all_channels: ChannelList =
-        serde_json::from_str(result.as_str()).unwrap_or(ChannelList::default());
+    let all_channels: ChannelList = serde_json::from_str(result.as_str()).unwrap_or_default();
 
     // find only valid channels
     let valid_channels = all_channels
