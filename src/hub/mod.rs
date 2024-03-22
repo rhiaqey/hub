@@ -19,7 +19,7 @@ use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping_async, RhiaqeyBufVec};
 use rhiaqey_common::security::SecurityKey;
-use rhiaqey_common::{security, topics};
+use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
@@ -60,7 +60,7 @@ impl Hub {
         self.env.namespace.clone()
     }
 
-    pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> Result<PubSubStream, RhiaqeyError> {
+    pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> RhiaqeyResult<PubSubStream> {
         let client = connect_and_ping_async(self.env.redis.clone()).await?;
         let key = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
         let stream = client.subscribe(key.clone()).await?;
@@ -121,7 +121,7 @@ impl Hub {
         }
     }
 
-    pub async fn read_settings(&self) -> Result<HubSettings, RhiaqeyError> {
+    pub async fn read_settings(&self) -> RhiaqeyResult<HubSettings> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
 
         let result: RhiaqeyBufVec = self
@@ -168,7 +168,7 @@ impl Hub {
         trace!("new settings updated");
     }
 
-    async fn load_key(config: &Env, client: &Client) -> Result<SecurityKey, RhiaqeyError> {
+    async fn load_key(config: &Env, client: &Client) -> RhiaqeyResult<SecurityKey> {
         let namespace = config.namespace.clone();
         let security_key = topics::security_key(namespace);
         let security_str: String = client.get(security_key.clone()).await?;
@@ -194,7 +194,7 @@ impl Hub {
         Ok(security)
     }
 
-    pub async fn setup(config: Env) -> Result<Hub, RhiaqeyError> {
+    pub async fn setup(config: Env) -> RhiaqeyResult<Hub> {
         let client = connect_and_ping_async(config.redis.clone()).await?;
 
         let result: String = client
