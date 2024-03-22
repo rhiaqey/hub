@@ -55,14 +55,8 @@ impl StreamingChannel {
             join_handler: None,
             redis: Some(Arc::new(Mutex::new(redis_connection))),
             message_handler: Some(Arc::new(Mutex::new(
-                MessageHandler::create(
-                    hub_id,
-                    namespace,
-                    channel,
-                    config
-                )
-                .await,
-            )))
+                MessageHandler::create_async(hub_id, namespace, channel, config).await,
+            ))),
         })
     }
 
@@ -147,7 +141,7 @@ impl StreamingChannel {
                                 let _ = message_handler
                                     .lock()
                                     .await
-                                    .handle_raw_stream_message_from_publishers(
+                                    .handle_raw_stream_message_from_publishers_async(
                                         stream_message,
                                         channel.size,
                                     )

@@ -29,7 +29,7 @@ enum MessageProcessResult {
 
 /// Message handler per channel
 impl MessageHandler {
-    pub async fn create(
+    pub async fn create_async(
         hub_id: String,
         namespace: String,
         channel: Channel,
@@ -180,7 +180,7 @@ impl MessageHandler {
         MessageProcessResult::Allow(stored_message)
     }
 
-    pub async fn handle_raw_stream_message_from_publishers(
+    pub async fn handle_raw_stream_message_from_publishers_async(
         &mut self,
         stream_message: StreamMessage,
         channel_size: usize,
@@ -255,7 +255,8 @@ impl MessageHandler {
         // Prepare to broadcast to all hubs that we have clean message
         let raw = message.ser_to_string()?;
 
-        let _ = self.redis
+        let _ = self
+            .redis
             .lock()
             .await
             .publish(clean_topic.clone(), raw)
@@ -264,9 +265,8 @@ impl MessageHandler {
         trace!("message sent to pubsub {}", clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
-        let xadd_options = XAddOptions::default().trim_options(
-            XTrimOptions::max_len(XTrimOperator::Equal, channel_size)
-        );
+        let xadd_options = XAddOptions::default()
+            .trim_options(XTrimOptions::max_len(XTrimOperator::Equal, channel_size));
 
         let id: String = self
             .redis
