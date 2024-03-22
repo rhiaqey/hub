@@ -68,7 +68,7 @@ impl Hub {
         Ok(stream)
     }
 
-    pub async fn get_channels(&self) -> Vec<Channel> {
+    pub async fn get_channels_async(&self) -> Vec<Channel> {
         let channels_key = topics::hub_channels_key(self.get_namespace());
 
         let result: String = self
@@ -90,7 +90,7 @@ impl Hub {
         channel_list.channels
     }
 
-    pub async fn set_schema(&self, data: PublisherRegistrationMessage) {
+    pub async fn set_schema_async(&self, data: PublisherRegistrationMessage) {
         let msg = data.clone();
 
         let name = data.name;
@@ -118,7 +118,7 @@ impl Hub {
         }
     }
 
-    pub async fn read_settings(&self) -> RhiaqeyResult<HubSettings> {
+    pub async fn read_settings_async(&self) -> RhiaqeyResult<HubSettings> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
 
         let result: RhiaqeyBufVec = self.redis.lock().await.get(settings_key).await?;
@@ -138,7 +138,7 @@ impl Hub {
         Ok(settings)
     }
 
-    pub async fn set_settings(&mut self, settings: HubSettings) {
+    pub async fn set_settings_async(&mut self, settings: HubSettings) {
         let mut locked_settings = self.settings.write().unwrap();
 
         let mut new_settings = settings.clone();
@@ -158,7 +158,7 @@ impl Hub {
         trace!("new settings updated");
     }
 
-    async fn load_key(config: &Env, client: &Client) -> RhiaqeyResult<SecurityKey> {
+    async fn load_key_async(config: &Env, client: &Client) -> RhiaqeyResult<SecurityKey> {
         let namespace = config.namespace.clone();
         let security_key = topics::security_key(namespace);
         let security_str: String = client.get(security_key.clone()).await?;
@@ -188,7 +188,7 @@ impl Hub {
         let redis_rs_client = connect_and_ping(&config.redis)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let client = connect_and_ping_async(config.redis.clone()).await?;
-        let security = Self::load_key(&config, &client).await?;
+        let security = Self::load_key_async(&config, &client).await?;
 
         Ok(Hub {
             env: Arc::from(config),
@@ -204,8 +204,8 @@ impl Hub {
     pub async fn start(&mut self) -> hyper::Result<()> {
         info!("starting hub");
 
-        let settings = self.read_settings().await.unwrap_or(HubSettings::default());
-        self.set_settings(settings).await;
+        let settings = self.read_settings_async().await.unwrap_or(HubSettings::default());
+        self.set_settings_async(settings).await;
         debug!("settings loaded");
 
         let shared_state = Arc::new(SharedState {
@@ -258,14 +258,14 @@ impl Hub {
                         RPCMessageData::RegisterPublisher(data) => {
                             info!("setting publisher schema for [id={}, name={}, namespace={}]",
                                 data.id, data.name, data.namespace);
-                            self.set_schema(data).await;
+                            self.set_schema_async(data).await;
                         }
                         // this comes from another hub to notify all other hubs
                         RPCMessageData::UpdateSettings() => {
                             info!("received update settings rpc");
-                            match self.read_settings().await {
+                            match self.read_settings_async().await {
                                 Ok(settings) => {
-                                    self.set_settings(settings).await;
+                                    self.set_settings_async(settings).await;
                                     info!("settings updated successfully");
                                 },
                                 Err(err) => {
@@ -364,7 +364,7 @@ pub async fn run() {
     );
 
     let mut total_channels = 0;
-    let channels = hub.get_channels().await;
+    let channels = hub.get_channels_async().await;
     let mut streams = hub.streams.lock().await;
 
     for channel in channels {
