@@ -92,7 +92,7 @@ async fn handle_client(
     for channel in channels {
         let streaming_channel = streaming_channels.get_mut(channel.as_str());
         if let Some(chx) = streaming_channel {
-            chx.add_client(client_id.clone()).await;
+            chx.add_client(client_id.clone());
             added_channels.push(chx.channel.clone());
             debug!("client joined channel {}", channel.as_str());
         } else {

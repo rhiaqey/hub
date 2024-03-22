@@ -300,9 +300,7 @@ impl Hub {
                             if let Some(s_channel) = streaming_channel {
                                 trace!("streaming channel found {}", s_channel.channel.name);
 
-                                let lock = s_channel.clients.lock().await;
-                                let all_stream_channel_clients = lock.to_vec();
-                                drop(lock);
+                                let all_stream_channel_clients = s_channel.clients.read().unwrap();
 
                                 let mut all_hub_clients = clients.lock().await;
 
@@ -342,7 +340,7 @@ impl Hub {
 
                                     for client_id in all_stream_channel_clients.iter() {
                                         all_hub_clients.remove(client_id);
-                                        let mut lock = streaming_channel.unwrap().clients.lock().await;
+                                        let mut lock = streaming_channel.unwrap().clients.write().unwrap();
                                         if let Some(i) = lock.iter().position(|x| x == client_id) {
                                             warn!("removing client from channel by index {i}");
                                             lock.remove(i);

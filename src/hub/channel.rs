@@ -18,7 +18,6 @@ use rhiaqey_common::topics;
 use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::Channel;
 
-use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 pub struct StreamingChannel {
@@ -28,7 +27,7 @@ pub struct StreamingChannel {
     pub redis_rs_connection: Arc<std::sync::Mutex<redis::Connection>>,
     pub message_handler: Arc<std::sync::Mutex<MessageHandler>>,
     pub join_handler: Option<Arc<JoinHandle<u32>>>,
-    pub clients: Arc<Mutex<Vec<String>>>,
+    pub clients: Arc<std::sync::RwLock<Vec<String>>>,
 }
 
 impl StreamingChannel {
@@ -48,7 +47,7 @@ impl StreamingChannel {
             channel: channel.clone(),
             namespace: namespace.clone(),
             redis_rs_connection: rx.clone(),
-            clients: Arc::new(Mutex::new(vec![])),
+            clients: Arc::new(std::sync::RwLock::new(vec![])),
             join_handler: None,
             message_handler: Arc::new(std::sync::Mutex::new(MessageHandler::create(
                 hub_id.clone(),
@@ -142,8 +141,8 @@ impl StreamingChannel {
         return self.channel.name.to_string();
     }
 
-    pub async fn add_client(&mut self, connection_id: String) {
-        self.clients.lock().await.push(connection_id);
+    pub fn add_client(&mut self, connection_id: String) {
+        self.clients.write().unwrap().push(connection_id);
     }
 
     pub fn get_snapshot(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
