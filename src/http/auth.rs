@@ -230,7 +230,7 @@ pub fn valid_api_host(api_host: String, origin: String) -> bool {
 pub async fn get_auth(
     headers: HeaderMap,        // external and internal headers
     user_ip: InsecureClientIp, // external
-    // internal: SecureClientIp,           // internal
+    // internal: SecureClientIp, // internal
     // Host(hostname): Host,               // external host
     qs: Query<AuthenticationQueryParams>, // external query string
     State(state): State<Arc<SharedState>>, // global state

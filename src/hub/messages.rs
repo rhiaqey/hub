@@ -114,7 +114,7 @@ impl MessageHandler {
         trace!("checking topic {}", topic);
 
         // 1. if the new message has timestamp=0 means do not check at all.
-        //    Just let it pass through.
+        //    Let it pass through.
         let new_timestamp = new_message.timestamp.unwrap_or(0);
         if new_timestamp == 0 {
             debug!("new message has timestamp = 0");
@@ -139,7 +139,7 @@ impl MessageHandler {
         let last_entry = results.iter().next().unwrap();
         let Some(last_message) = last_entry.items.get("raw") else {
             warn!("last message in raw not found");
-            // allow it as the stored one did not have correct format
+            // allow it as the stored one did not have a correct format
             return MessageProcessResult::AllowUnprocessed;
         };
 
@@ -155,14 +155,15 @@ impl MessageHandler {
         let stored_message = decoded.unwrap();
         let old_timestamp = stored_message.timestamp.unwrap_or(0);
 
-        // 2. If old timestamp is more recent do not process the new one.
+        // 2. If old timestamp is more recent, do not process the new one.
         if old_timestamp > new_timestamp {
             // do not allow it as it is not fresh data
             return MessageProcessResult::Deny(String::from("old timestamp"));
         }
 
-        // 3. If new timestamp has the same with the stored one, then we need to check if message
-        //    exists in the whole list. Must compare against all stored message and compare tags.
+        // 3. If new timestamp has the same with the stored one, then we need to check if a message
+        //    exists in the whole list.
+        //    Must compare against all stored messages and compare tags.
         if old_timestamp == new_timestamp {
             // we need to further examine the message
             return MessageProcessResult::CheckIfMessageExists;
