@@ -6,9 +6,8 @@ use axum::Json;
 use hyper::StatusCode;
 use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
-use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
-use rhiaqey_common::{security, topics};
+use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::commands::{PubSubCommands, StringCommands};
 use serde_json::Value;
@@ -25,7 +24,7 @@ where
     iter.into_iter().all(move |x| uniq.insert(x))
 }
 
-fn validate_settings_for_hub(message: &MessageValue) -> Result<bool, RhiaqeyError> {
+fn validate_settings_for_hub(message: &MessageValue) -> RhiaqeyResult<bool> {
     let raw = message.to_vec()?;
     let settings_value = serde_json::from_slice(raw.as_slice())?;
 
@@ -58,7 +57,7 @@ fn validate_settings_for_hub(message: &MessageValue) -> Result<bool, RhiaqeyErro
     trace!("checking for duplicate api keys");
     let settings: HubSettings = serde_json::from_value(settings_value)?;
     if !has_unique_elements(settings.security.api_keys.iter().map(|x| &x.api_key)) {
-        return Err(RhiaqeyError::from("duplicate api keys found"));
+        return Err("duplicate api keys found".into());
     }
 
     result
@@ -67,7 +66,7 @@ fn validate_settings_for_hub(message: &MessageValue) -> Result<bool, RhiaqeyErro
 async fn update_settings_for_hub(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
-) -> Result<MessageValue, RhiaqeyError> {
+) -> RhiaqeyResult<MessageValue> {
     debug!("hub settings payload {:?}", payload);
 
     let valid = validate_settings_for_hub(&payload.settings)?;
@@ -75,7 +74,7 @@ async fn update_settings_for_hub(
 
     if !valid {
         warn!("failed payload schema validation");
-        return Err(RhiaqeyError::from("Schema validation failed for payload"));
+        return Err("Schema validation failed for payload".into());
     }
 
     let client = state.redis.lock().await.clone();
@@ -119,10 +118,7 @@ async fn update_settings_for_hub(
     Ok(payload.settings)
 }
 
-fn validate_settings_for_publishers(
-    message: &MessageValue,
-    schema: Value,
-) -> Result<bool, RhiaqeyError> {
+fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> RhiaqeyResult<bool> {
     let raw = message.to_vec()?;
     let settings = serde_json::from_slice(raw.as_slice())?;
 
@@ -152,7 +148,7 @@ fn validate_settings_for_publishers(
 async fn update_settings_for_publishers(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
-) -> Result<MessageValue, RhiaqeyError> {
+) -> RhiaqeyResult<MessageValue> {
     let client = state.redis.lock().await.clone();
 
     trace!("find first schema for publisher");
@@ -163,7 +159,7 @@ async fn update_settings_for_publishers(
 
     let schema_response: String = client.get(schema_key).await?;
     if schema_response == "" {
-        return Err(RhiaqeyError::from(format!("No schema found for {name}")));
+        return Err(format!("No schema found for {name}").into());
     }
 
     let schema: PublisherRegistrationMessage = serde_json::from_str(schema_response.as_str())?;
@@ -172,9 +168,7 @@ async fn update_settings_for_publishers(
 
     if !valid {
         warn!("failed payload schema validation");
-        return Err(RhiaqeyError::from(
-            "Schema validation failed for payload".to_string(),
-        ));
+        return Err("Schema validation failed for payload".into());
     }
 
     trace!("encrypt settings for publishers");
@@ -225,7 +219,7 @@ pub async fn update_settings(
 ) -> impl IntoResponse {
     info!("[POST] Update settings");
 
-    let update_fn: Result<MessageValue, RhiaqeyError>;
+    let update_fn: RhiaqeyResult<MessageValue>;
 
     if state.env.name == payload.name {
         trace!("update hub settings");

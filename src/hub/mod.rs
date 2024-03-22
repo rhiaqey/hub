@@ -77,34 +77,6 @@ impl Hub {
         Ok(channel_list.channels)
     }
 
-    pub async fn set_schema_async(&self, data: PublisherRegistrationMessage) {
-        let msg = data.clone();
-
-        let name = data.name;
-        let namespace = data.namespace;
-        let schema_key = topics::publisher_schema_key(namespace, name.clone());
-        debug!("schema key {schema_key}");
-
-        match serde_json::to_string(&msg) {
-            Ok(schema) => {
-                let id = data.id;
-                debug!("schema arrived for {}:{}", id, name);
-
-                self.redis
-                    .lock()
-                    .await
-                    .set(schema_key, schema)
-                    .await
-                    .expect("failed to store schema in redis");
-
-                trace!("schema saved");
-            }
-            Err(err) => {
-                warn!("serde json error {err}");
-            }
-        }
-    }
-
     pub async fn read_settings_async(&self) -> RhiaqeyResult<HubSettings> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
 
@@ -143,6 +115,34 @@ impl Hub {
         *locked_settings = new_settings;
 
         trace!("new settings updated");
+    }
+
+    pub async fn set_schema_async(&self, data: PublisherRegistrationMessage) {
+        let msg = data.clone();
+
+        let name = data.name;
+        let namespace = data.namespace;
+        let schema_key = topics::publisher_schema_key(namespace, name.clone());
+        debug!("schema key {schema_key}");
+
+        match serde_json::to_string(&msg) {
+            Ok(schema) => {
+                let id = data.id;
+                debug!("schema arrived for {}:{}", id, name);
+
+                self.redis
+                    .lock()
+                    .await
+                    .set(schema_key, schema)
+                    .await
+                    .expect("failed to store schema in redis");
+
+                trace!("schema saved");
+            }
+            Err(err) => {
+                warn!("serde json error {err}");
+            }
+        }
     }
 
     async fn load_key_async(config: &Env, client: &Client) -> RhiaqeyResult<SecurityKey> {
