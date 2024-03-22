@@ -13,6 +13,7 @@ use crate::hub::settings::HubSettings;
 use axum::extract::ws::Message;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
+use redis::Commands;
 use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
@@ -68,26 +69,12 @@ impl Hub {
         Ok(stream)
     }
 
-    pub async fn get_channels_async(&self) -> Vec<Channel> {
+    pub fn get_channels(&self) -> RhiaqeyResult<Vec<Channel>> {
         let channels_key = topics::hub_channels_key(self.get_namespace());
-
-        let result: String = self
-            .redis
-            .lock()
-            .await
-            .get(channels_key.clone())
-            .await
-            .unwrap();
-
-        let channel_list: ChannelList =
-            serde_json::from_str(result.as_str()).unwrap_or(ChannelList::default());
-
-        debug!(
-            "channels from {} retrieved {:?}",
-            channels_key, channel_list
-        );
-
-        channel_list.channels
+        let mut lock = self.redis_rs.lock().unwrap();
+        let result: String = lock.get(channels_key)?;
+        let channel_list: ChannelList = serde_json::from_str(result.as_str())?;
+        Ok(channel_list.channels)
     }
 
     pub async fn set_schema_async(&self, data: PublisherRegistrationMessage) {
@@ -204,7 +191,10 @@ impl Hub {
     pub async fn start(&mut self) -> hyper::Result<()> {
         info!("starting hub");
 
-        let settings = self.read_settings_async().await.unwrap_or(HubSettings::default());
+        let settings = self
+            .read_settings_async()
+            .await
+            .unwrap_or(HubSettings::default());
         self.set_settings_async(settings).await;
         debug!("settings loaded");
 
@@ -364,7 +354,7 @@ pub async fn run() {
     );
 
     let mut total_channels = 0;
-    let channels = hub.get_channels_async().await;
+    let channels = hub.get_channels().unwrap_or(vec![]);
     let mut streams = hub.streams.lock().await;
 
     for channel in channels {
