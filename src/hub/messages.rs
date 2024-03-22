@@ -6,7 +6,6 @@ use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::{topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::Channel;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 #[derive(PartialEq)]
 enum MessageProcessResult {
@@ -20,7 +19,7 @@ pub struct MessageHandler {
     pub hub_id: String,
     pub namespace: String,
     pub channel: Channel,
-    pub redis: Arc<std::sync::Mutex<redis::Connection>>,
+    pub redis: redis::Connection,
 }
 
 /// Message handler per channel
@@ -29,7 +28,7 @@ impl MessageHandler {
         hub_id: String,
         channel: Channel,
         namespace: String,
-        redis_rs_connection: Arc<std::sync::Mutex<redis::Connection>>,
+        redis_rs_connection: redis::Connection,
     ) -> Self {
         MessageHandler {
             hub_id,
@@ -57,21 +56,19 @@ impl MessageHandler {
     }
 
     fn compare_against_all(
-        &self,
+        &mut self,
         new_message: &StreamMessage,
         topic: &String,
     ) -> RhiaqeyResult<MessageProcessResult> {
         trace!("checking if message should be processed 1-to-many (compare by tags)");
         trace!("checking topic {}", topic);
 
-        let lock = self.redis.clone();
-        let mut client = lock.try_lock().unwrap();
-
         let new_message = new_message.clone();
         let new_tag = new_message.tag.unwrap_or("".to_string());
 
         let results: StreamRangeReply =
-            client.xrevrange_count(topic, "+", "-", self.channel.size)?;
+            self.redis
+                .xrevrange_count(topic, "+", "-", self.channel.size)?;
 
         if results.ids.len() == 0 {
             // allow it since we have not stored data to compare against
@@ -100,15 +97,12 @@ impl MessageHandler {
     }
 
     fn compare_by_timestamp(
-        &self,
+        &mut self,
         new_message: &StreamMessage,
         topic: &String,
     ) -> RhiaqeyResult<MessageProcessResult> {
         trace!("checking if message should be processed (compare by timestamps)");
         trace!("checking topic {}", topic);
-
-        let lock = self.redis.clone();
-        let mut client = lock.try_lock().unwrap();
 
         // 1. if the new message has timestamp=0 means do not check at all.
         //    Let it pass through.
@@ -119,7 +113,7 @@ impl MessageHandler {
             return Ok(MessageProcessResult::AllowUnprocessed);
         }
 
-        let results: StreamRangeReply = client.xrevrange_count(topic, "+", "-", 1)?;
+        let results: StreamRangeReply = self.redis.xrevrange_count(topic, "+", "-", 1)?;
 
         if results.ids.len() == 0 {
             // allow it since we have not stored data to compare against
@@ -245,8 +239,7 @@ impl MessageHandler {
         // Prepare to broadcast to all hubs that we have clean message
         let raw = message.ser_to_string()?;
 
-        let mut client = self.redis.lock().unwrap();
-        client.publish(&clean_topic, raw)?;
+        self.redis.publish(&clean_topic, raw)?;
         trace!("message sent to pubsub {}", &clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
@@ -254,7 +247,7 @@ impl MessageHandler {
         items.insert("raw", raw_message);
         items.insert("tag", tag);
 
-        let id = client.xadd_maxlen_map(
+        let id = self.redis.xadd_maxlen_map(
             snapshot_topic.clone(),
             StreamMaxlen::Equals(channel_size),
             "*",

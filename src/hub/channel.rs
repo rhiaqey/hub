@@ -19,7 +19,6 @@ use rhiaqey_common::topics;
 use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::Channel;
 use rustis::client::Client;
-use rustis::commands::{StreamCommands, StreamEntry, XReadGroupOptions};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -43,6 +42,7 @@ impl StreamingChannel {
     ) -> RhiaqeyResult<StreamingChannel> {
         let redis_rs_client = connect(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
+        let redis_ms_connection = redis_rs_client.get_connection()?;
         let redis_connection = connect_and_ping_async(config.clone()).await?;
         let rx = Arc::new(std::sync::Mutex::new(redis_rs_connection));
 
@@ -58,7 +58,7 @@ impl StreamingChannel {
                 hub_id.clone(),
                 channel.clone(),
                 namespace.clone(),
-                rx.clone(),
+                redis_ms_connection,
             ))),
         })
     }
@@ -69,7 +69,7 @@ impl StreamingChannel {
         channel: &Channel,
         namespace: &String,
     ) -> RhiaqeyResult<Vec<StreamMessage>> {
-        let mut connection = redis_rs_connection.try_lock().unwrap();
+        let mut connection = redis_rs_connection.lock().unwrap();
 
         let options = StreamReadOptions::default()
             .count(channel.size)
@@ -105,88 +105,32 @@ impl StreamingChannel {
         Ok(entries)
     }
 
-    pub async fn start(&mut self) {
-        let id = self.get_hub_id();
+    pub fn start(&mut self) {
+        let hub_id = self.get_hub_id();
         let channel = self.channel.clone();
         let namespace = self.namespace.clone();
-        let duration = Duration::from_millis(150);
-
-        let redis = self.redis.as_mut().unwrap().clone();
+        let lock = self.redis_rs_connection.clone();
         let message_handler = self.message_handler.clone();
 
         let join_handler = tokio::task::spawn(async move {
-            let id = id.clone();
-            let topic = topics::publishers_to_hub_stream_topic(namespace, channel.name.to_string());
+            let hub_id = hub_id.clone();
+            let channel = channel.clone();
+            let namespace = namespace.clone();
+            let message_handler = message_handler.clone();
 
             loop {
-                let lxd = redis.lock().await;
-
-                let results: rustis::Result<Vec<(String, Vec<StreamEntry<String>>)>> = lxd
-                    .xreadgroup(
-                        "hub",
-                        id.clone(),
-                        XReadGroupOptions::default().count(channel.size),
-                        topic.clone(),
-                        ">",
-                    )
-                    .await;
-
-                if let Err(e) = results {
-                    warn!("error with retrieving results: {}", e);
-                    drop(lxd);
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    continue;
-                }
-
-                let mut ids: Vec<String> = vec![];
-
-                for (_ /* topic */, items) in results.unwrap().iter() {
-                    for item in items.iter() {
-                        ids.push(item.stream_id.clone());
-                        if let Some(raw) = item.items.get("raw") {
-                            if let Ok(stream_message) = serde_json::from_str::<StreamMessage>(raw) {
-                                let _ = message_handler
-                                    .lock()
-                                    .unwrap()
-                                    .handle_stream_message_from_publishers(stream_message);
-                            }
-                        }
+                for entry in Self::read_group_records(lock.clone(), &hub_id, &channel, &namespace)
+                    .unwrap_or(vec![])
+                {
+                    match message_handler
+                        .lock()
+                        .unwrap()
+                        .handle_stream_message_from_publishers(entry)
+                    {
+                        Ok(_) => trace!("successfully handled raw message"),
+                        Err(err) => warn!("error handling raw stream message: {}", err),
                     }
                 }
-
-                if ids.len() == 0 {
-                    drop(lxd);
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    continue;
-                }
-
-                trace!("must ack {} stream ids", ids.len());
-
-                let result = match lxd.xack(topic.clone(), "hub", ids.clone()).await {
-                    Ok(res) => {
-                        trace!("ack {res} stream ids");
-                        true
-                    }
-                    Err(e) => {
-                        warn!("failed to ack stream ids {e}");
-                        false
-                    }
-                };
-
-                if result {
-                    trace!("must delete {} stream ids", ids.len());
-                    match lxd.xdel(topic.clone(), ids).await {
-                        Ok(res) => {
-                            debug!("received {res} stream messages");
-                        }
-                        Err(e) => {
-                            warn!("failed to del stream ids {e}");
-                        }
-                    };
-                }
-
-                drop(lxd);
-                tokio::time::sleep(duration).await;
             }
         });
 

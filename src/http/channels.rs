@@ -266,7 +266,7 @@ pub async fn create_channels(
             streaming_channel.channel.name
         );
 
-        streaming_channel.start().await;
+        streaming_channel.start();
         streams.insert(streaming_channel.get_name(), streaming_channel);
         total_channels += 1;
     }
