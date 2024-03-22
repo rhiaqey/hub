@@ -558,11 +558,10 @@
     }
 
     function render_publisher_list() {
-        let content = "<table><tr><th>Id</th><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
+        let content = "<table><tr><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
         publisher_list.forEach(pub => {
             content += `<tr>
-                    <td class="pub_name">${pub.Id}</td>
-                    <td class="pub_size">${pub.Name}</td>
+                    <td class="pub_name">${pub.Name}</td>
                     <td class="pub_namespace">${pub.Namespace}</td>`;
 
             let name = pub.Name;
