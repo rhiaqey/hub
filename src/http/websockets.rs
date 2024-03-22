@@ -28,7 +28,7 @@ pub struct Params {
 /// of websocket negotiation). After this completes, the actual switching from HTTP to
 /// websocket protocol will occur.
 /// This is the last point where we can extract TCP/IP metadata such as IP address of the client
-/// as well as things from HTTP headers such as user-agent of the browser etc.
+/// as well as things from HTTP headers such as user-agent of the browser, etc.
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     // headers: HeaderMap,
