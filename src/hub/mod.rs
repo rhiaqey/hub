@@ -398,7 +398,6 @@ pub async fn run() {
             channel.clone(),
             hub.env.redis.clone(),
         )
-        .await
         .unwrap();
 
         let streaming_channel_name = streaming_channel.get_name();

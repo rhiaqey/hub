@@ -258,7 +258,6 @@ pub async fn create_channels(
             channel.clone(),
             state.env.redis.clone(),
         )
-        .await
         .unwrap();
 
         info!(

@@ -11,14 +11,13 @@ use redis::streams::StreamReadReply;
 use redis::streams::{StreamId, StreamReadOptions};
 use redis::Commands;
 use redis::RedisResult;
-use rhiaqey_common::redis::connect_and_ping_async;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::redis_rs::connect;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::Channel;
-use rustis::client::Client;
+
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -27,14 +26,13 @@ pub struct StreamingChannel {
     pub channel: Channel,
     pub namespace: String,
     pub redis_rs_connection: Arc<std::sync::Mutex<redis::Connection>>,
-    pub redis: Option<Arc<Mutex<Client>>>,
     pub message_handler: Arc<std::sync::Mutex<MessageHandler>>,
     pub join_handler: Option<Arc<JoinHandle<u32>>>,
     pub clients: Arc<Mutex<Vec<String>>>,
 }
 
 impl StreamingChannel {
-    pub async fn create(
+    pub fn create(
         hub_id: String,
         namespace: String,
         channel: Channel,
@@ -43,7 +41,6 @@ impl StreamingChannel {
         let redis_rs_client = connect(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let redis_ms_connection = redis_rs_client.get_connection()?;
-        let redis_connection = connect_and_ping_async(config.clone()).await?;
         let rx = Arc::new(std::sync::Mutex::new(redis_rs_connection));
 
         Ok(StreamingChannel {
@@ -53,7 +50,6 @@ impl StreamingChannel {
             redis_rs_connection: rx.clone(),
             clients: Arc::new(Mutex::new(vec![])),
             join_handler: None,
-            redis: Some(Arc::new(Mutex::new(redis_connection))),
             message_handler: Arc::new(std::sync::Mutex::new(MessageHandler::create(
                 hub_id.clone(),
                 channel.clone(),
