@@ -24,7 +24,7 @@ pub struct StreamingChannel {
     pub hub_id: String,
     pub channel: Channel,
     pub namespace: String,
-    pub redis_rs_connection: Arc<Mutex<redis::Connection>>,
+    pub redis: Arc<Mutex<redis::Connection>>,
     pub message_handler: Arc<Mutex<MessageHandler>>,
     pub join_handler: Option<Arc<JoinHandle<u32>>>,
     pub clients: Arc<RwLock<Vec<String>>>,
@@ -46,7 +46,7 @@ impl StreamingChannel {
             hub_id: hub_id.clone(),
             channel: channel.clone(),
             namespace: namespace.clone(),
-            redis_rs_connection: rx.clone(),
+            redis: rx.clone(),
             clients: Arc::new(RwLock::new(vec![])),
             join_handler: None,
             message_handler: Arc::new(Mutex::new(MessageHandler::create(
@@ -104,7 +104,7 @@ impl StreamingChannel {
         let hub_id = self.get_hub_id();
         let channel = self.channel.clone();
         let namespace = self.namespace.clone();
-        let lock = self.redis_rs_connection.clone();
+        let lock = self.redis.clone();
         let message_handler = self.message_handler.clone();
 
         let join_handler = tokio::task::spawn(async move {
@@ -153,7 +153,7 @@ impl StreamingChannel {
 
         let options = StreamReadOptions::default().count(self.channel.size);
 
-        let lock = self.redis_rs_connection.clone();
+        let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();
         let results: StreamReadReply = client.xread_options(&*keys, &*ids, &options)?;
 
@@ -191,7 +191,7 @@ impl StreamingChannel {
             String::from("*"),
         );
 
-        let lock = self.redis_rs_connection.clone();
+        let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();
         let keys: Vec<String> = client.scan_match(&snapshot_topic)?.collect();
         debug!("found {} keys", keys.len());
@@ -213,7 +213,7 @@ impl futures::stream::Stream for StreamingChannel {
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let items = Self::read_group_records(
-            self.redis_rs_connection.clone(),
+            self.redis.clone(),
             &self.hub_id,
             &self.channel,
             &self.namespace,
