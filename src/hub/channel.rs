@@ -108,11 +108,6 @@ impl StreamingChannel {
         let message_handler = self.message_handler.clone();
 
         let join_handler = tokio::task::spawn(async move {
-            let hub_id = hub_id.clone();
-            let channel = channel.clone();
-            let namespace = namespace.clone();
-            let message_handler = message_handler.clone();
-
             loop {
                 for entry in Self::read_group_records(lock.clone(), &hub_id, &channel, &namespace)
                     .unwrap_or(vec![])
