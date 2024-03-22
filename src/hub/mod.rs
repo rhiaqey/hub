@@ -32,7 +32,7 @@ use tokio::sync::Mutex;
 pub struct Hub {
     pub env: Arc<Env>,
     pub settings: Arc<RwLock<HubSettings>>,
-    pub redis: Arc<Mutex<Option<Client>>>,
+    pub redis: Arc<Mutex<Client>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
     pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub security: Arc<Mutex<SecurityKey>>,
@@ -73,8 +73,6 @@ impl Hub {
             .redis
             .lock()
             .await
-            .as_mut()
-            .unwrap()
             .get(channels_key.clone())
             .await
             .unwrap();
@@ -106,8 +104,6 @@ impl Hub {
                 self.redis
                     .lock()
                     .await
-                    .as_mut()
-                    .expect("failed to acquire redis lock for schema")
                     .set(schema_key, schema)
                     .await
                     .expect("failed to store schema in redis");
@@ -123,14 +119,7 @@ impl Hub {
     pub async fn read_settings(&self) -> RhiaqeyResult<HubSettings> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
 
-        let result: RhiaqeyBufVec = self
-            .redis
-            .lock()
-            .await
-            .as_mut()
-            .unwrap()
-            .get(settings_key)
-            .await?;
+        let result: RhiaqeyBufVec = self.redis.lock().await.get(settings_key).await?;
         debug!("encrypted settings retrieved");
 
         let keys = self.security.lock().await;
@@ -193,7 +182,7 @@ impl Hub {
         Ok(security)
     }
 
-    pub async fn setup(config: Env) -> RhiaqeyResult<Hub> {
+    pub async fn create(config: Env) -> RhiaqeyResult<Hub> {
         let client = connect_and_ping_async(config.redis.clone()).await?;
 
         let result: String = client
@@ -211,7 +200,7 @@ impl Hub {
             env: Arc::from(config),
             settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
-            redis: Arc::new(Mutex::new(Some(client))),
+            redis: Arc::new(Mutex::new(client)),
             clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(Mutex::new(security)),
         })
@@ -365,7 +354,7 @@ pub async fn run() {
     let env = parse_env();
     let namespace = env.namespace.clone();
 
-    let mut hub = match Hub::setup(env).await {
+    let mut hub = match Hub::create(env).await {
         Ok(exec) => exec,
         Err(err) => {
             panic!("failed to setup hub: {}", err);

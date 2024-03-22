@@ -78,7 +78,7 @@ async fn update_settings_for_hub(
         return Err(RhiaqeyError::from("Schema validation failed for payload"));
     }
 
-    let client = state.redis.lock().await.clone().unwrap();
+    let client = state.redis.lock().await.clone();
 
     trace!("encrypt settings for hub");
 
@@ -153,7 +153,7 @@ async fn update_settings_for_publishers(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
 ) -> Result<MessageValue, RhiaqeyError> {
-    let client = state.redis.lock().await.clone().unwrap();
+    let client = state.redis.lock().await.clone();
 
     trace!("find first schema for publisher");
     let name = payload.name;
@@ -243,11 +243,7 @@ pub async fn update_settings(
         }
         Err(err) => {
             warn!("error updating settings: {err}");
-            (
-                StatusCode::BAD_REQUEST,
-                Json(err)
-            )
-                .into_response()
+            (StatusCode::BAD_REQUEST, Json(err)).into_response()
         }
     }
 }

@@ -30,8 +30,6 @@ pub async fn delete_channels(
         .redis
         .lock()
         .await
-        .as_mut()
-        .unwrap()
         .get(hub_channels_key.clone())
         .await
         .unwrap();
@@ -68,8 +66,6 @@ pub async fn delete_channels(
         .redis
         .lock()
         .await
-        .as_mut()
-        .unwrap()
         .set(hub_channels_key.clone(), content)
         .await
         .unwrap();
@@ -80,7 +76,8 @@ pub async fn delete_channels(
 pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get publishers");
 
-    let client = state.redis.clone().lock().await.clone().unwrap();
+    let lock = state.redis.clone();
+    let client = lock.lock().await;
 
     // find assigned publisher keys
 
@@ -142,7 +139,7 @@ pub async fn get_channels(State(state): State<Arc<SharedState>>) -> Json<Channel
     let hub_channels_key = topics::hub_channels_key(state.get_namespace());
     info!("channels key {}", hub_channels_key);
 
-    let client = state.redis.clone().lock().await.clone().unwrap();
+    let client = state.redis.clone().lock().await.clone();
 
     match client.get::<_, String>(hub_channels_key).await {
         Ok(channels) => {
@@ -189,7 +186,7 @@ pub async fn purge_channel(
         .unwrap_or(vec![]);
     debug!("{} keys found", keys.len());
 
-    let redis = state.redis.clone().lock().await.clone().unwrap();
+    let redis = state.redis.clone().lock().await.clone();
     let result = redis.del(keys).await.unwrap_or(0);
 
     debug!("{result} entries purged");
@@ -213,7 +210,7 @@ pub async fn create_channels(
     let hub_channels_key = topics::hub_channels_key(state.get_namespace());
     let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
 
-    let redis = state.redis.clone().lock().await.clone().unwrap();
+    let redis = state.redis.clone().lock().await.clone();
     let mut pipeline = redis.create_pipeline();
     pipeline.set(hub_channels_key.clone(), content).forget();
 
@@ -286,7 +283,7 @@ pub async fn create_channels(
 pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get channel assignments");
 
-    let client = state.redis.clone().lock().await.clone().unwrap();
+    let client = state.redis.clone().lock().await.clone();
 
     // find assigned channel keys
 
@@ -332,7 +329,7 @@ pub async fn assign_channels(
 
     let channel_name = payload.name;
 
-    let client = state.redis.lock().await.clone().unwrap();
+    let client = state.redis.lock().await.clone();
     trace!("client lock acquired");
 
     // calculate channels key
