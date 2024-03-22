@@ -15,7 +15,6 @@ use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::{parse_env, Env};
-use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping_async, RhiaqeyBufVec};
 use rhiaqey_common::security::SecurityKey;
@@ -60,7 +59,7 @@ impl Hub {
         self.env.namespace.clone()
     }
 
-    pub async fn create_raw_to_hub_clean_pubsub(&mut self) -> RhiaqeyResult<PubSubStream> {
+    pub async fn create_raw_to_hub_clean_pubsub_async(&mut self) -> RhiaqeyResult<PubSubStream> {
         let client = connect_and_ping_async(self.env.redis.clone()).await?;
         let key = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
         let stream = client.subscribe(key.clone()).await?;
@@ -248,7 +247,7 @@ impl Hub {
             start_public_http_server(public_port, public_state.clone()).await;
         });
 
-        let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub().await.unwrap();
+        let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub_async().await.unwrap();
 
         let hub_id = self.get_id();
         let streams = self.streams.clone();
