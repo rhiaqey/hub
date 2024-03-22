@@ -31,7 +31,7 @@ pub struct StreamingChannel {
     pub namespace: String,
     pub redis_rs_connection: Arc<std::sync::Mutex<redis::Connection>>,
     pub redis: Option<Arc<Mutex<Client>>>,
-    pub message_handler: Option<Arc<Mutex<MessageHandler>>>,
+    pub message_handler: Arc<std::sync::Mutex<MessageHandler>>,
     pub join_handler: Option<Arc<JoinHandle<u32>>>,
     pub clients: Arc<Mutex<Vec<String>>>,
 }
@@ -46,17 +46,21 @@ impl StreamingChannel {
         let redis_rs_client = connect(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let redis_connection = connect_and_ping_async(config.clone()).await?;
+        let rx = Arc::new(std::sync::Mutex::new(redis_rs_connection));
 
         Ok(StreamingChannel {
             hub_id: hub_id.clone(),
             channel: channel.clone(),
             namespace: namespace.clone(),
-            redis_rs_connection: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
+            redis_rs_connection: rx.clone(),
             clients: Arc::new(Mutex::new(vec![])),
             join_handler: None,
             redis: Some(Arc::new(Mutex::new(redis_connection))),
-            message_handler: Some(Arc::new(Mutex::new(
-                MessageHandler::create_async(hub_id, namespace, channel, config).await,
+            message_handler: Arc::new(std::sync::Mutex::new(MessageHandler::create(
+                hub_id.clone(),
+                channel.clone(),
+                namespace.clone(),
+                rx.clone(),
             ))),
         })
     }
@@ -109,8 +113,10 @@ impl StreamingChannel {
         let namespace = self.namespace.clone();
         let duration = Duration::from_millis(150);
 
+        debug!("arxizei to match");
+
         let redis = self.redis.as_mut().unwrap().clone();
-        let message_handler = self.message_handler.as_mut().unwrap().clone();
+        let message_handler = self.message_handler.clone();
 
         let join_handler = tokio::task::spawn(async move {
             let id = id.clone();
@@ -145,12 +151,8 @@ impl StreamingChannel {
                             if let Ok(stream_message) = serde_json::from_str::<StreamMessage>(raw) {
                                 let _ = message_handler
                                     .lock()
-                                    .await
-                                    .handle_raw_stream_message_from_publishers_async(
-                                        stream_message,
-                                        channel.size,
-                                    )
-                                    .await;
+                                    .unwrap()
+                                    .handle_stream_message_from_publishers(stream_message);
                             }
                         }
                     }

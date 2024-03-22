@@ -1,23 +1,12 @@
 use log::{debug, trace, warn};
-use rhiaqey_common::error::RhiaqeyError;
+use redis::streams::{StreamMaxlen, StreamRangeReply};
+use redis::Commands;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
-use rhiaqey_common::redis::{connect_and_ping_async, RedisSettings};
 use rhiaqey_common::stream::StreamMessage;
-use rhiaqey_common::topics;
+use rhiaqey_common::{topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::Channel;
-use rustis::client::Client;
-use rustis::commands::{
-    PubSubCommands, StreamCommands, StreamEntry, XAddOptions, XTrimOperator, XTrimOptions,
-};
+use std::collections::BTreeMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-
-pub struct MessageHandler {
-    hub_id: String,
-    pub namespace: String,
-    pub channel: Channel,
-    pub redis: Arc<Mutex<Client>>,
-}
 
 #[derive(PartialEq)]
 enum MessageProcessResult {
@@ -27,28 +16,30 @@ enum MessageProcessResult {
     CheckIfMessageExists,
 }
 
+pub struct MessageHandler {
+    pub hub_id: String,
+    pub namespace: String,
+    pub channel: Channel,
+    pub redis: Arc<std::sync::Mutex<redis::Connection>>,
+}
+
 /// Message handler per channel
 impl MessageHandler {
-    pub async fn create_async(
+    pub fn create(
         hub_id: String,
-        namespace: String,
         channel: Channel,
-        config: RedisSettings,
-    ) -> MessageHandler {
-        let connection = connect_and_ping_async(config).await.unwrap();
+        namespace: String,
+        redis_rs_connection: Arc<std::sync::Mutex<redis::Connection>>,
+    ) -> Self {
         MessageHandler {
             hub_id,
-            namespace,
             channel,
-            redis: Arc::new(Mutex::new(connection)),
+            namespace,
+            redis: redis_rs_connection,
         }
     }
 
-    fn compare_by_tags(
-        &mut self,
-        new_msg: &StreamMessage,
-        old_msg: &StreamMessage,
-    ) -> MessageProcessResult {
+    fn compare_by_tags(new_msg: &StreamMessage, old_msg: &StreamMessage) -> MessageProcessResult {
         trace!("checking if message should be processed (compare by tags)");
 
         let new_tag = new_msg.tag.clone().unwrap_or(String::from(""));
@@ -65,53 +56,59 @@ impl MessageHandler {
         MessageProcessResult::AllowUnprocessed
     }
 
-    async fn compare_against_all(
-        &mut self,
+    fn compare_against_all(
+        &self,
         new_message: &StreamMessage,
         topic: &String,
-    ) -> MessageProcessResult {
+    ) -> RhiaqeyResult<MessageProcessResult> {
         trace!("checking if message should be processed 1-to-many (compare by tags)");
         trace!("checking topic {}", topic);
+
+        let lock = self.redis.clone();
+        let mut client = lock.try_lock().unwrap();
 
         let new_message = new_message.clone();
         let new_tag = new_message.tag.unwrap_or("".to_string());
 
-        let results: Vec<StreamEntry<String>> = self
-            .redis
-            .lock()
-            .await
-            .xrevrange(topic, "+", "-", Some(self.channel.size))
-            .await
-            .unwrap_or(vec![]);
+        let results: StreamRangeReply =
+            client.xrevrange_count(topic, "+", "-", self.channel.size)?;
 
-        if results.len() == 0 {
+        if results.ids.len() == 0 {
             // allow it since we have not stored data to compare against
-            return MessageProcessResult::AllowUnprocessed;
+            return Ok(MessageProcessResult::AllowUnprocessed);
         }
 
-        trace!("found {}", results.len());
+        trace!("found {}", results.ids.len());
 
         // Checking all results
-        for last_entry in results.iter() {
-            let old_tag = last_entry.items.get("tag");
-            if let Some(last_tag) = old_tag {
-                if new_tag == last_tag.to_string() {
-                    warn!("tag \"{new_tag}\" already found stored");
-                    return MessageProcessResult::Deny(String::from("tag already found"));
+        for entry in results.ids.iter() {
+            if let Some(stored_tag) = entry.map.get("tag") {
+                if let redis::Value::Data(bytes) = stored_tag {
+                    if let Ok(old_tag) = String::from_utf8(bytes.clone()) {
+                        if new_tag == old_tag {
+                            warn!("tag \"{new_tag}\" already found stored");
+                            return Ok(MessageProcessResult::Deny(String::from(
+                                "tag already found",
+                            )));
+                        }
+                    }
                 }
             }
         }
 
-        MessageProcessResult::AllowUnprocessed
+        Ok(MessageProcessResult::AllowUnprocessed)
     }
 
-    async fn compare_by_timestamp(
-        &mut self,
+    fn compare_by_timestamp(
+        &self,
         new_message: &StreamMessage,
         topic: &String,
-    ) -> MessageProcessResult {
+    ) -> RhiaqeyResult<MessageProcessResult> {
         trace!("checking if message should be processed (compare by timestamps)");
         trace!("checking topic {}", topic);
+
+        let lock = self.redis.clone();
+        let mut client = lock.try_lock().unwrap();
 
         // 1. if the new message has timestamp=0 means do not check at all.
         //    Let it pass through.
@@ -119,46 +116,42 @@ impl MessageHandler {
         if new_timestamp == 0 {
             debug!("new message has timestamp = 0");
             // allow it without checking
-            return MessageProcessResult::AllowUnprocessed;
+            return Ok(MessageProcessResult::AllowUnprocessed);
         }
 
-        let results: Vec<StreamEntry<String>> = self
-            .redis
-            .lock()
-            .await
-            .xrevrange(topic, "+", "-", Some(1))
-            .await
-            .unwrap_or(vec![]);
+        let results: StreamRangeReply = client.xrevrange_count(topic, "+", "-", 1)?;
 
-        if results.len() == 0 {
+        if results.ids.len() == 0 {
             // allow it since we have not stored data to compare against
-            return MessageProcessResult::AllowUnprocessed;
+            return Ok(MessageProcessResult::AllowUnprocessed);
         }
+
+        trace!("found {}", results.ids.len());
 
         // Checking only the first result
-        let last_entry = results.iter().next().unwrap();
-        let Some(last_message) = last_entry.items.get("raw") else {
+        let last_entry = results.ids.iter().next().unwrap();
+
+        let Some(last_message) = last_entry.map.get("raw") else {
             warn!("last message in raw not found");
             // allow it as the stored one did not have a correct format
-            return MessageProcessResult::AllowUnprocessed;
+            return Ok(MessageProcessResult::AllowUnprocessed);
         };
 
-        let decoded = StreamMessage::der_from_string(last_message.as_str());
-        if let Err(e) = decoded {
-            warn!("stored message could not be deserialized {e}");
-            // allow it as the stored failed to decode
-            return MessageProcessResult::AllowUnprocessed;
-        }
+        let redis::Value::Data(bytes) = last_message else {
+            return Err("could not extract bytes from last message".into());
+        };
+
+        let msg = String::from_utf8(bytes.clone())?;
+        let decoded = StreamMessage::der_from_string(msg.as_str())?;
 
         // =========================================================================================
 
-        let stored_message = decoded.unwrap();
-        let old_timestamp = stored_message.timestamp.unwrap_or(0);
+        let old_timestamp = decoded.timestamp.unwrap_or(0);
 
         // 2. If old timestamp is more recent, do not process the new one.
         if old_timestamp > new_timestamp {
             // do not allow it as it is not fresh data
-            return MessageProcessResult::Deny(String::from("old timestamp"));
+            return Ok(MessageProcessResult::Deny(String::from("old timestamp")));
         }
 
         // 3. If new timestamp has the same with the stored one, then we need to check if a message
@@ -166,7 +159,7 @@ impl MessageHandler {
         //    Must compare against all stored messages and compare tags.
         if old_timestamp == new_timestamp {
             // we need to further examine the message
-            return MessageProcessResult::CheckIfMessageExists;
+            return Ok(MessageProcessResult::CheckIfMessageExists);
         }
 
         trace!(
@@ -178,17 +171,17 @@ impl MessageHandler {
 
         // We are allowing anything else that does not meet out criteria to
         // deny processing the message.
-        MessageProcessResult::Allow(stored_message)
+        Ok(MessageProcessResult::Allow(decoded))
     }
 
-    pub async fn handle_raw_stream_message_from_publishers_async(
+    // Handle all raw messages coming unfiltered from all publishers
+    pub fn handle_stream_message_from_publishers(
         &mut self,
         stream_message: StreamMessage,
-        channel_size: usize,
-    ) -> Result<(), RhiaqeyError> {
+    ) -> RhiaqeyResult<()> {
         debug!("handle raw stream message");
 
-        let channel_size = stream_message.size.unwrap_or(channel_size) as i64;
+        let channel_size = stream_message.size.unwrap_or(self.channel.size);
         let mut new_message = stream_message.clone();
         new_message.hub_id = Some(self.hub_id.clone());
 
@@ -202,9 +195,7 @@ impl MessageHandler {
                 .unwrap_or(String::from("default")),
         );
 
-        let compare_timestamps = self
-            .compare_by_timestamp(&stream_message, &snapshot_topic)
-            .await;
+        let compare_timestamps = self.compare_by_timestamp(&stream_message, &snapshot_topic)?;
 
         if let MessageProcessResult::Deny(reason) = compare_timestamps {
             warn!("raw message should not be processed further due to: {reason}");
@@ -214,9 +205,7 @@ impl MessageHandler {
         if let MessageProcessResult::CheckIfMessageExists = compare_timestamps {
             trace!("must compare message against all");
 
-            let compare_against_all = self
-                .compare_against_all(&new_message, &snapshot_topic)
-                .await;
+            let compare_against_all = self.compare_against_all(&new_message, &snapshot_topic)?;
 
             if let MessageProcessResult::Deny(reason) = compare_against_all {
                 warn!("raw message should not be processed further due to: {reason}");
@@ -229,7 +218,7 @@ impl MessageHandler {
         if let MessageProcessResult::Allow(ref old_message) = compare_timestamps {
             trace!("allowing message to proceed (check by tags)");
 
-            let compare_tags = self.compare_by_tags(&new_message, old_message);
+            let compare_tags = Self::compare_by_tags(&new_message, old_message);
 
             if let MessageProcessResult::Deny(reason) = compare_tags {
                 warn!("raw message should not be processed further due to: {reason}");
@@ -256,32 +245,22 @@ impl MessageHandler {
         // Prepare to broadcast to all hubs that we have clean message
         let raw = message.ser_to_string()?;
 
-        let _ = self
-            .redis
-            .lock()
-            .await
-            .publish(clean_topic.clone(), raw)
-            .await?;
-
-        trace!("message sent to pubsub {}", clean_topic);
+        let mut client = self.redis.lock().unwrap();
+        client.publish(&clean_topic, raw)?;
+        trace!("message sent to pubsub {}", &clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
-        let xadd_options = XAddOptions::default()
-            .trim_options(XTrimOptions::max_len(XTrimOperator::Equal, channel_size));
+        let mut items = BTreeMap::new();
+        items.insert("raw", raw_message);
+        items.insert("tag", tag);
 
-        let id: String = self
-            .redis
-            .lock()
-            .await
-            .xadd(
-                snapshot_topic.clone(),
-                "*",
-                [("raw", raw_message), ("tag", tag)],
-                xadd_options,
-            )
-            .await?;
-
-        trace!("message sent to clean xstream {}: {id}", clean_topic);
+        let id = client.xadd_maxlen_map(
+            snapshot_topic.clone(),
+            StreamMaxlen::Equals(channel_size),
+            "*",
+            items,
+        )?;
+        trace!("message sent to clean xstream {}: {:?}", &clean_topic, id);
 
         Ok(())
     }
