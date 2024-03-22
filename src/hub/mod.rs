@@ -289,12 +289,10 @@ impl Hub {
 
                                 // TODO: Move broadcast to streaming channel
                                 for client_id in all_stream_channel_clients.iter() {
-                                    trace!("must notify client {:?}", client_id);
-
                                     match all_hub_clients.get_mut(client_id) {
                                         Some(socket) => {
                                             match socket.send(Message::Binary(raw.clone())).await {
-                                                Ok(_) => trace!("message sent to {client_id}"),
+                                                Ok(_) => {},
                                                 Err(e) => {
                                                     warn!("failed to sent message: {e}");
                                                     to_delete.push(client_id);

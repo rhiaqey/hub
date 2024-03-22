@@ -140,6 +140,13 @@ impl StreamingChannel {
         self.clients.write().unwrap().push(connection_id);
     }
 
+    pub fn remove_client(&mut self, connection_id: String) {
+        self.clients
+            .write()
+            .unwrap()
+            .retain(|x| x != &connection_id);
+    }
+
     pub fn get_snapshot(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
         let keys = self.get_snapshot_keys()?;
         debug!("keys are here {:?}", keys);

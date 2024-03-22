@@ -89,14 +89,14 @@ async fn handle_client(
     let mut added_channels: Vec<Channel> = vec![];
     let mut streaming_channels = state.streams.lock().await;
 
-    for channel in channels {
-        let streaming_channel = streaming_channels.get_mut(channel.as_str());
+    for channel in channels.iter() {
+        let streaming_channel = streaming_channels.get_mut(channel);
         if let Some(chx) = streaming_channel {
             chx.add_client(client_id.clone());
             added_channels.push(chx.channel.clone());
-            debug!("client joined channel {}", channel.as_str());
+            debug!("client joined channel {}", channel);
         } else {
-            warn!("could not find channel {}", channel.as_str());
+            warn!("could not find channel {}", channel);
         }
     }
 
@@ -122,7 +122,7 @@ async fn handle_client(
         warn!("Could not send binary data due to {}", e);
     }
 
-    for channel in added_channels {
+    for channel in added_channels.iter() {
         let channel_name = channel.name.clone();
         let mut data = client_message.clone();
 
@@ -130,10 +130,19 @@ async fn handle_client(
         data.channel = channel.name.clone().into();
         data.key = channel.name.clone().into();
         data.value = ClientMessageValue::ClientChannelSubscription(
-            ClientMessageValueClientChannelSubscription { channel },
+            ClientMessageValueClientChannelSubscription {
+                channel: Channel {
+                    name: channel.name.clone(),
+                    size: channel.size,
+                },
+            },
         );
 
-        let raw = serde_json::to_vec(&data).unwrap();
+        let Ok(raw) = serde_json::to_vec(&data) else {
+            warn!("failed to serialize to vec");
+            continue;
+        };
+
         if let Ok(_) = sender.send(Message::Binary(raw)).await {
             trace!("channel subscription message sent successfully");
         } else {
@@ -145,7 +154,7 @@ async fn handle_client(
             let streaming_channel = streaming_channels.get_mut(&*channel_name);
             if let Some(chx) = streaming_channel {
                 let snapshot = chx.get_snapshot().unwrap_or(vec![]);
-                for stream_message in snapshot {
+                for stream_message in snapshot.iter() {
                     let mut client_message = ClientMessage::from(stream_message);
                     if client_message.hub_id.is_none() {
                         client_message.hub_id = Some(hub_id.clone());
@@ -163,12 +172,56 @@ async fn handle_client(
         }
     }
 
-    let mut client = WebSocketClient::create(client_id.clone(), sender, receiver);
+    let cid = client_id.clone();
+    let sx = Arc::new(tokio::sync::Mutex::new(sender));
+    let rx = Arc::new(tokio::sync::Mutex::new(receiver));
+    let client = WebSocketClient::create(client_id.clone(), sx.clone(), added_channels.clone());
 
-    client.listen();
-
-    state.clients.lock().await.insert(client.get_id(), client);
+    state.clients.lock().await.insert(client_id.clone(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
-    debug!("client {client_id} was connected")
+    debug!("client {client_id} was connected");
+    // NOTE: Required. Do not remove
+    drop(streaming_channels);
+
+    let handler = tokio::spawn(async move {
+        let client_id = client_id.clone();
+        while let Some(Ok(msg)) = rx.lock().await.next().await {
+            match msg {
+                Message::Ping(_) => {}
+                Message::Pong(_) => {}
+                Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
+                    warn!("must close connection for client {}", client_id.clone());
+                    sx.lock()
+                        .await
+                        .close()
+                        .await
+                        .expect("failed to disconnect client");
+                    break;
+                }
+            }
+        }
+    });
+
+    handler.await.expect("failed to listen client");
+
+    let removed_client = state.clients.lock().await.remove(&cid);
+    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
+
+    if let Some(client) = removed_client {
+        trace!("client was removed from all clients");
+        for channel in client.channels.iter() {
+            trace!("removing client from {} channel as well", channel.name);
+            if let Some(sc) = state
+                .streams
+                .lock()
+                .await
+                .get_mut(&channel.name.to_string())
+            {
+                sc.remove_client(cid.clone());
+            }
+        }
+    }
+
+    debug!("client {cid} was disconnected");
 }
