@@ -12,7 +12,7 @@ use redis::streams::{StreamId, StreamReadOptions};
 use redis::Commands;
 use redis::RedisResult;
 use rhiaqey_common::redis::RedisSettings;
-use rhiaqey_common::redis_rs::connect;
+use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_common::RhiaqeyResult;
@@ -37,7 +37,7 @@ impl StreamingChannel {
         channel: Channel,
         config: RedisSettings,
     ) -> RhiaqeyResult<StreamingChannel> {
-        let redis_rs_client = connect(&config)?;
+        let redis_rs_client = connect_and_ping(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let redis_ms_connection = redis_rs_client.get_connection()?;
         let rx = Arc::new(Mutex::new(redis_rs_connection));

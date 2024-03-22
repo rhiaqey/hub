@@ -17,12 +17,13 @@ use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::{parse_env, Env};
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping_async, RhiaqeyBufVec};
+use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::security::SecurityKey;
 use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
-use rustis::commands::{ConnectionCommands, PingOptions, PubSubCommands, StringCommands};
+use rustis::commands::{PubSubCommands, StringCommands};
 use sha256::digest;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -32,6 +33,7 @@ use tokio::sync::Mutex;
 pub struct Hub {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Client>>,
+    pub redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
     pub security: Arc<Mutex<SecurityKey>>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
@@ -183,17 +185,9 @@ impl Hub {
     }
 
     pub async fn create(config: Env) -> RhiaqeyResult<Hub> {
+        let redis_rs_client = connect_and_ping(&config.redis)?;
+        let redis_rs_connection = redis_rs_client.get_connection()?;
         let client = connect_and_ping_async(config.redis.clone()).await?;
-
-        let result: String = client
-            .ping(PingOptions::default().message("hello"))
-            .await
-            .map_err(|x| x.to_string())?;
-
-        if result != "hello" {
-            return Err("ping failed".to_string().into());
-        }
-
         let security = Self::load_key(&config, &client).await?;
 
         Ok(Hub {
@@ -201,6 +195,7 @@ impl Hub {
             settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis: Arc::new(Mutex::new(client)),
+            redis_rs: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
             clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(Mutex::new(security)),
         })
@@ -218,6 +213,7 @@ impl Hub {
             settings: self.settings.clone(),
             streams: self.streams.clone(),
             redis: self.redis.clone(),
+            redis_rs: self.redis_rs.clone(),
             clients: self.clients.clone(),
             security: self.security.clone(),
         });

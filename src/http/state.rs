@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 pub struct SharedState {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Client>>,
+    pub redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
     pub security: Arc<Mutex<SecurityKey>>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
