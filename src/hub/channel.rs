@@ -1,5 +1,5 @@
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
@@ -24,10 +24,10 @@ pub struct StreamingChannel {
     pub hub_id: String,
     pub channel: Channel,
     pub namespace: String,
-    pub redis_rs_connection: Arc<std::sync::Mutex<redis::Connection>>,
-    pub message_handler: Arc<std::sync::Mutex<MessageHandler>>,
+    pub redis_rs_connection: Arc<Mutex<redis::Connection>>,
+    pub message_handler: Arc<Mutex<MessageHandler>>,
     pub join_handler: Option<Arc<JoinHandle<u32>>>,
-    pub clients: Arc<std::sync::RwLock<Vec<String>>>,
+    pub clients: Arc<RwLock<Vec<String>>>,
 }
 
 impl StreamingChannel {
@@ -40,16 +40,16 @@ impl StreamingChannel {
         let redis_rs_client = connect(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let redis_ms_connection = redis_rs_client.get_connection()?;
-        let rx = Arc::new(std::sync::Mutex::new(redis_rs_connection));
+        let rx = Arc::new(Mutex::new(redis_rs_connection));
 
         Ok(StreamingChannel {
             hub_id: hub_id.clone(),
             channel: channel.clone(),
             namespace: namespace.clone(),
             redis_rs_connection: rx.clone(),
-            clients: Arc::new(std::sync::RwLock::new(vec![])),
+            clients: Arc::new(RwLock::new(vec![])),
             join_handler: None,
-            message_handler: Arc::new(std::sync::Mutex::new(MessageHandler::create(
+            message_handler: Arc::new(Mutex::new(MessageHandler::create(
                 hub_id.clone(),
                 channel.clone(),
                 namespace.clone(),
@@ -59,7 +59,7 @@ impl StreamingChannel {
     }
 
     fn read_group_records(
-        redis_rs_connection: Arc<std::sync::Mutex<redis::Connection>>,
+        redis_rs_connection: Arc<Mutex<redis::Connection>>,
         hub_id: &String,
         channel: &Channel,
         namespace: &String,
