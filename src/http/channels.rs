@@ -78,7 +78,9 @@ pub async fn delete_channels(
 pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get publishers");
 
-    let mut conn = state.redis_rs.lock().unwrap();
+    let Ok(mut conn) = state.redis_rs.lock() else {
+        return Json::<Vec<PublisherRegistrationMessage>>(vec![]).into_response();
+    };
 
     // find assigned publisher keys
 
@@ -131,10 +133,14 @@ pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse
 
 pub async fn get_channels(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get channels");
+
+    let lock = state.redis_rs.clone();
+    let mut conn = lock.lock().unwrap();
+
     let channels_key = topics::hub_channels_key(state.get_namespace());
-    let mut lock = state.redis_rs.lock().unwrap();
-    let result: String = lock.get(channels_key).unwrap();
+    let result: String = conn.get(channels_key).unwrap_or(String::from(""));
     let channel_list: ChannelList = serde_json::from_str(result.as_str()).unwrap_or_default();
+
     Json(channel_list)
 }
 
@@ -265,7 +271,8 @@ pub async fn create_channels(
 pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get channel assignments");
 
-    let mut conn = state.redis_rs.lock().unwrap();
+    let lock = state.redis_rs.clone();
+    let mut conn = lock.lock().unwrap();
 
     // find assigned channel keys
 
