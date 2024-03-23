@@ -117,32 +117,12 @@ impl Hub {
         trace!("new settings updated");
     }
 
-    pub async fn set_schema_async(&self, data: PublisherRegistrationMessage) {
-        let msg = data.clone();
-
-        let name = data.name;
-        let namespace = data.namespace;
-        let schema_key = topics::publisher_schema_key(namespace, name.clone());
-        debug!("schema key {schema_key}");
-
-        match serde_json::to_string(&msg) {
-            Ok(schema) => {
-                let id = data.id;
-                debug!("schema arrived for {}:{}", id, name);
-
-                self.redis
-                    .lock()
-                    .await
-                    .set(schema_key, schema)
-                    .await
-                    .expect("failed to store schema in redis");
-
-                trace!("schema saved");
-            }
-            Err(err) => {
-                warn!("serde json error {err}");
-            }
-        }
+    pub fn set_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
+        let schema_key = topics::publisher_schema_key(data.namespace.clone(), data.name.clone());
+        let encoded = serde_json::to_string(&data)?;
+        let lock = self.redis_rs.clone();
+        lock.lock().unwrap().set(schema_key, encoded)?;
+        Ok(())
     }
 
     async fn load_key_async(config: &Env, client: &Client) -> RhiaqeyResult<SecurityKey> {
@@ -248,7 +228,8 @@ impl Hub {
                         RPCMessageData::RegisterPublisher(data) => {
                             info!("setting publisher schema for [id={}, name={}, namespace={}]",
                                 data.id, data.name, data.namespace);
-                            self.set_schema_async(data).await;
+                            self.set_schema(data).expect("failed to set schema for publisher");
+                            debug!("schema updated");
                         }
                         // this comes from another hub to notify all other hubs
                         RPCMessageData::UpdateSettings() => {
