@@ -12,7 +12,7 @@ pub async fn get_users() -> impl IntoResponse {
         StatusCode::OK,
         [(hyper::header::CONTENT_TYPE, "application/json")],
         json!({
-            "Clients": clients
+            "Clients": clients as i64
         })
         .to_string(),
     )
