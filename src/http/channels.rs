@@ -80,42 +80,36 @@ pub async fn delete_channels(
 pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get publishers");
 
-    let lock = state.redis.clone();
-    let client = lock.lock().await;
+    let mut conn = state.redis_rs.lock().unwrap();
 
     // find assigned publisher keys
 
     let schema_key = topics::publisher_schema_key(state.get_namespace(), "*".to_string());
     info!("schema key {}", schema_key);
 
-    let keys: Vec<String> = client.keys(schema_key).await.unwrap_or(vec![]);
+    let keys: Vec<String> = conn.keys(schema_key).unwrap_or(vec![]);
     debug!("found {} keys", keys.len());
 
     if keys.len() == 0 {
         return Json::<Vec<PublisherRegistrationMessage>>(vec![]).into_response();
     }
 
-    let mut pipeline = client.create_pipeline();
-    keys.iter().for_each(|x| {
-        pipeline.get::<_, ()>(x).queue(); // get channels back
-    });
-
-    match pipeline.execute::<Value>().await {
-        Ok(result) => {
-            debug!("retrieved results");
-
-            (
-                StatusCode::OK,
-                [(hyper::header::CONTENT_TYPE, "application/json")],
-                result.to_string(),
-            )
-                .into_response()
-        }
-        Err(err) => {
-            warn!("there is an error with pipeline execute {err}");
-            Json::<Vec<PublisherRegistrationMessage>>(vec![]).into_response()
-        }
+    let mut pipeline = redis::pipe();
+    // Dynamically add commands to the pipeline
+    for key in keys.iter() {
+        pipeline.add_command(redis::cmd("GET").arg(key).clone());
     }
+
+    let result: Vec<String> = pipeline.query(&mut conn).unwrap_or(vec![]);
+
+    let publishers: Vec<PublisherRegistrationMessage> = result
+        .iter()
+        .map(|x| serde_json::from_str(x))
+        .filter(|z| z.is_ok())
+        .map(|z| z.unwrap())
+        .collect();
+
+    Json::<Vec<PublisherRegistrationMessage>>(publishers).into_response()
 }
 
 pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
