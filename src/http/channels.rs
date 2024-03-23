@@ -14,9 +14,7 @@ use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
-use rustis::commands::{
-    GenericCommands, PubSubCommands, StreamCommands, StringCommands, XGroupCreateOptions,
-};
+use rustis::commands::{StreamCommands, StringCommands, XGroupCreateOptions};
 use rustis::resp::Value;
 use rustis::Result as RedisResult;
 use serde::Deserialize;
@@ -109,7 +107,7 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
         .map(|z| z.unwrap())
         .collect();
 
-    Json::<Vec<PublisherRegistrationMessage>>(publishers).into_response()
+    Json(publishers).into_response()
 }
 
 pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
@@ -170,8 +168,8 @@ pub async fn purge_channel(
         .unwrap_or(vec![]);
     debug!("{} keys found", keys.len());
 
-    let redis = state.redis.clone().lock().await.clone();
-    let result = redis.del(keys).await.unwrap_or(0);
+    let mut conn = state.redis_rs.lock().unwrap();
+    let result = conn.del(keys).unwrap_or(0);
 
     debug!("{result} entries purged");
 
@@ -267,41 +265,36 @@ pub async fn create_channels(
 pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get channel assignments");
 
-    let client = state.redis.clone().lock().await.clone();
+    let mut conn = state.redis_rs.lock().unwrap();
 
     // find assigned channel keys
 
     let publishers_key = topics::publisher_channels_key(state.get_namespace(), "*".to_string());
     debug!("publishers key {publishers_key}");
 
-    let keys: Vec<String> = client.keys(publishers_key).await.unwrap_or(vec![]);
+    let keys: Vec<String> = conn.keys(publishers_key).unwrap_or(vec![]);
     debug!("found {} keys", keys.len());
 
     if keys.len() == 0 {
         return Json::<Vec<AssignChannelsRequest>>(vec![]).into_response();
     }
 
-    let mut pipeline = client.create_pipeline();
-    keys.iter().for_each(|x| {
-        pipeline.get::<_, ()>(x).queue(); // get channels back
-    });
-
-    match pipeline.execute::<Value>().await {
-        Ok(result) => {
-            debug!("retrieved results");
-
-            (
-                StatusCode::OK,
-                [(hyper::header::CONTENT_TYPE, "application/json")],
-                result.to_string(),
-            )
-                .into_response()
-        }
-        Err(err) => {
-            warn!("there is an error with pipeline execute {err}");
-            Json::<Vec<AssignChannelsRequest>>(vec![]).into_response()
-        }
+    let mut pipeline = redis::pipe();
+    // Dynamically add commands to the pipeline
+    for key in keys.iter() {
+        pipeline.add_command(redis::cmd("GET").arg(key).clone());
     }
+
+    let result: Vec<String> = pipeline.query(&mut conn).unwrap_or(vec![]);
+
+    let assignments: Vec<AssignChannelsRequest> = result
+        .iter()
+        .map(|x| serde_json::from_str(x))
+        .filter(|z| z.is_ok())
+        .map(|z| z.unwrap())
+        .collect();
+
+    Json(assignments).into_response()
 }
 
 pub async fn assign_channels(
@@ -313,7 +306,7 @@ pub async fn assign_channels(
 
     let channel_name = payload.name;
 
-    let client = state.redis.lock().await.clone();
+    let mut conn = state.redis_rs.lock().unwrap();
     trace!("client lock acquired");
 
     // calculate channels key
@@ -321,7 +314,7 @@ pub async fn assign_channels(
     trace!("channels key {}", channels_key);
 
     // get all channels in the system
-    let result: String = client.get(channels_key.clone()).await.unwrap();
+    let result: String = conn.get(channels_key.clone()).unwrap();
     trace!("got channels {}", result);
 
     let all_channels: ChannelList = serde_json::from_str(result.as_str()).unwrap_or_default();
@@ -357,7 +350,7 @@ pub async fn assign_channels(
     })
     .unwrap();
 
-    client.set(publishers_key, content).await.unwrap();
+    let _: () = conn.set(publishers_key, content).unwrap();
 
     // stream to publisher
 
@@ -372,7 +365,7 @@ pub async fn assign_channels(
         }),
     })
     .unwrap();
-    client.publish(stream_topic, content).await.unwrap();
+    let _: () = conn.publish(stream_topic, content).unwrap();
 
     // return response
 
