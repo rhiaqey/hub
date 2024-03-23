@@ -125,15 +125,19 @@ docker-run:
 redis:
 	docker run -it --rm --name redis -p 6379:6379 \
 		-e ALLOW_EMPTY_PASSWORD=no \
+		-e REDIS_MASTER_HOST=localhost \
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_MASTER_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_SENTINEL_PASSWORD=${REDIS_PASSWORD} \
 		rhiaqey/redis:latest
 
 .PHONY: sentinel
 sentinel:
 	docker run -it --rm --name redis-sentinel -p 26379:26379 \
-		-e ALLOW_EMPTY_PASSWORD=no \
 		-e REDIS_MASTER_HOST=localhost \
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_MASTER_PASSWORD=${REDIS_PASSWORD} \
+		-e REDIS_SENTINEL_PASSWORD=${REDIS_PASSWORD} \
 		rhiaqey/redis-sentinel:latest
 
 .PHONY: sentinel2
