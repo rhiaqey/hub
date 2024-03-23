@@ -57,6 +57,7 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/version", get(get_version))
         .route("/auth", get(get_auth))
         .route("/admin", get(get_admin))
+        .route("/admin/", get(get_admin))
         .route("/admin/api/hub", get(get_hub))
         .route("/admin/api/status", get(get_status))
         .route("/admin/api/users", get(get_users))

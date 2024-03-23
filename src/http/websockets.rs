@@ -191,12 +191,12 @@ async fn handle_client(
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
                 Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
-                    warn!("must close connection for client {}", client_id.clone());
-                    sx.lock()
-                        .await
-                        .close()
-                        .await
-                        .expect("failed to disconnect client");
+                    let id = client_id.clone();
+                    warn!("must close connection for client {id}");
+                    if let Err(err) = sx.lock().await.close().await {
+                        warn!("error closing connection for {id}: {err}");
+                    }
+
                     break;
                 }
             }

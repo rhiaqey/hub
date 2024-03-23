@@ -62,6 +62,10 @@ hub: run
 run:
 	cargo run --bin hub
 
+.PHONY: run-release
+run-release:
+	RUST_LOG=rhiaqey_hub=info cargo run --bin hub --release
+
 .PHONY: ops
 ops:
 	cargo run \

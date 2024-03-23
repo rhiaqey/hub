@@ -1,21 +1,21 @@
-pub(crate) mod channel;
+pub mod channel;
 pub(crate) mod client;
 pub(crate) mod messages;
-pub(crate) mod metrics;
+pub mod metrics;
 pub(crate) mod settings;
 
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
-use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
+use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::settings::HubSettings;
 use axum::extract::ws::Message;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::client::ClientMessage;
-use rhiaqey_common::env::{parse_env, Env};
+use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis::{connect_and_ping_async, RhiaqeyBufVec};
 use rhiaqey_common::redis_rs::connect_and_ping;
@@ -287,7 +287,7 @@ impl Hub {
                                 }
 
                                 if to_delete.is_empty() {
-                                    trace!("message sent to {:?} client(s)", all_stream_channel_clients.len());
+                                    info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
                                 } else {
                                     warn!("disconnecting {} clients", to_delete.len());
 
@@ -311,67 +311,5 @@ impl Hub {
                 }
             }
         }
-    }
-}
-
-pub async fn run() {
-    env_logger::init();
-    let env = parse_env();
-    let namespace = env.namespace.clone();
-
-    let mut hub = match Hub::create(env).await {
-        Ok(exec) => exec,
-        Err(err) => {
-            panic!("failed to setup hub: {}", err);
-        }
-    };
-
-    info!(
-        "hub [id={}, name={}] is ready",
-        hub.get_id(),
-        hub.get_name()
-    );
-
-    let mut total_channels = 0;
-    let channels = hub.get_channels().unwrap_or(vec![]);
-    let mut streams = hub.streams.lock().await;
-
-    for channel in channels {
-        let channel_name = channel.name.to_string();
-        if streams.contains_key(&channel_name) {
-            warn!("channel {} already exists", channel_name);
-            continue;
-        }
-
-        let Ok(mut streaming_channel) = StreamingChannel::create(
-            hub.get_id(),
-            namespace.clone(),
-            channel.clone(),
-            hub.env.redis.clone(),
-        ) else {
-            warn!("failed to create streaming channel {}", channel.name);
-            continue;
-        };
-
-        let streaming_channel_name = streaming_channel.get_name();
-
-        info!(
-            "starting up streaming channel {}",
-            streaming_channel.channel.name
-        );
-
-        streaming_channel.start();
-        streams.insert(streaming_channel_name.into(), streaming_channel);
-        total_channels += 1;
-    }
-
-    info!("added {} streams", total_channels);
-
-    drop(streams);
-    TOTAL_CHANNELS.set(total_channels as f64);
-    TOTAL_CLIENTS.set(0f64);
-
-    if let Err(err) = hub.start().await {
-        panic!("error starting hub: {}", err);
     }
 }
