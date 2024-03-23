@@ -168,7 +168,7 @@ impl Hub {
         })
     }
 
-    pub async fn start(&mut self) -> hyper::Result<()> {
+    pub async fn start(&mut self) -> RhiaqeyResult<()> {
         info!("starting hub");
 
         let settings = self
