@@ -235,9 +235,6 @@ pub async fn update_settings(
             info!("settings updated successfully");
             (StatusCode::OK, Json(response)).into_response()
         }
-        Err(err) => {
-            warn!("error updating settings: {err}");
-            (StatusCode::BAD_REQUEST, Json(err)).into_response()
-        }
+        Err(err) => err.into_response(),
     }
 }
