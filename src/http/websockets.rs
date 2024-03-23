@@ -205,10 +205,7 @@ async fn handle_client(
 
     handler.await.expect("failed to listen client");
 
-    let removed_client = state.clients.lock().await.remove(&cid);
-    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
-
-    if let Some(client) = removed_client {
+    if let Some(client) = state.clients.lock().await.remove(&cid) {
         trace!("client was removed from all clients");
         for channel in client.channels.iter() {
             trace!("removing client from {} channel as well", channel.name);
@@ -222,6 +219,7 @@ async fn handle_client(
             }
         }
     }
+    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client {cid} was disconnected");
 }
