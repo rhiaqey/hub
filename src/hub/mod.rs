@@ -2,6 +2,7 @@ pub mod channel;
 pub(crate) mod client;
 pub(crate) mod messages;
 pub mod metrics;
+pub mod run;
 pub(crate) mod settings;
 
 use crate::http::server::{start_private_http_server, start_public_http_server};
