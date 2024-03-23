@@ -4,11 +4,13 @@ use crate::http::state::{
 use crate::hub::channel::StreamingChannel;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use redis::Commands;
+use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
+use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rustis::client::BatchPreparedCommand;
@@ -17,7 +19,9 @@ use rustis::commands::{
 };
 use rustis::resp::Value;
 use rustis::Result as RedisResult;
+use serde::Deserialize;
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub async fn delete_channels(
@@ -379,4 +383,41 @@ pub async fn assign_channels(
     // return response
 
     (StatusCode::OK, Json(valid_channels))
+}
+
+#[derive(Deserialize)]
+pub struct SnapshotParams {
+    channels: String,
+}
+
+pub async fn get_snapshot(
+    State(state): State<Arc<SharedState>>,
+    Query(params): Query<SnapshotParams>,
+) -> impl IntoResponse {
+    info!("[GET] Get snapshot");
+
+    let channels: Vec<String> = params.channels.split(",").map(|x| x.to_string()).collect();
+    trace!("channel from params extracted {:?}", channels);
+
+    if channels.is_empty() {
+        return RhiaqeyError::from("channels are missing").into_response();
+    }
+
+    let mut streaming_channels = state.streams.lock().await;
+
+    let mut result: HashMap<String, Vec<StreamMessage>> = HashMap::new();
+
+    for channel in channels.iter() {
+        let streaming_channel = streaming_channels.get_mut(channel);
+        if let Some(chx) = streaming_channel {
+            result.insert(channel.clone(), chx.get_snapshot().unwrap_or(vec![]));
+        }
+    }
+
+    (
+        StatusCode::OK,
+        [(hyper::header::CONTENT_TYPE, "application/json")],
+        json!(result).to_string(),
+    )
+        .into_response()
 }

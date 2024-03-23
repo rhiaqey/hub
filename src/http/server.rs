@@ -1,7 +1,7 @@
 use crate::http::auth::{get_auth, get_status};
 use crate::http::channels::{
     assign_channels, create_channels, delete_channels, get_channel_assignments, get_channels,
-    get_hub, get_publishers, purge_channel,
+    get_hub, get_publishers, get_snapshot, purge_channel,
 };
 use crate::http::client::get_users;
 use crate::http::settings::update_settings;
@@ -98,6 +98,7 @@ pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>)
     let app = Router::new()
         .route("/", get(get_home))
         .route("/ws", get(ws_handler))
+        .route("/snapshot", get(get_snapshot))
         .with_state(shared_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
