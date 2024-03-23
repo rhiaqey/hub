@@ -35,7 +35,7 @@ pub struct Hub {
     pub env: Arc<Env>,
     pub redis: Arc<Mutex<Client>>,
     pub redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
-    pub security: Arc<Mutex<SecurityKey>>,
+    pub security: Arc<RwLock<SecurityKey>>,
     pub settings: Arc<RwLock<HubSettings>>,
     pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
@@ -83,7 +83,7 @@ impl Hub {
         let result: RhiaqeyBufVec = self.redis.lock().await.get(settings_key).await?;
         debug!("encrypted settings retrieved");
 
-        let keys = self.security.lock().await;
+        let keys = self.security.read().unwrap();
 
         let data = security::aes_decrypt(
             keys.no_once.as_slice(),
@@ -164,7 +164,7 @@ impl Hub {
             redis: Arc::new(Mutex::new(client)),
             redis_rs: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
             clients: Arc::new(Mutex::new(HashMap::new())),
-            security: Arc::new(Mutex::new(security)),
+            security: Arc::new(RwLock::new(security)),
         })
     }
 

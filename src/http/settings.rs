@@ -6,10 +6,10 @@ use axum::Json;
 use hyper::StatusCode;
 use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
+use redis::Commands;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::message::MessageValue;
-use rustis::commands::{PubSubCommands, StringCommands};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -63,7 +63,7 @@ fn validate_settings_for_hub(message: &MessageValue) -> RhiaqeyResult<bool> {
     result
 }
 
-async fn update_settings_for_hub(
+fn update_settings_for_hub(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
 ) -> RhiaqeyResult<MessageValue> {
@@ -77,11 +77,12 @@ async fn update_settings_for_hub(
         return Err("Schema validation failed for payload".into());
     }
 
-    let client = state.redis.lock().await.clone();
+    let lock = state.redis_rs.clone();
+    let mut conn = lock.lock().unwrap();
 
     trace!("encrypt settings for hub");
 
-    let keys = state.security.lock().await;
+    let keys = state.security.read().unwrap();
     let data = payload.settings.to_vec()?;
     let settings = security::aes_encrypt(
         keys.no_once.as_slice(),
@@ -93,9 +94,9 @@ async fn update_settings_for_hub(
     trace!("save encrypted in redis");
 
     let hub_settings_key = topics::hub_settings_key(state.get_namespace());
-    client
+
+    let _ = conn
         .set(hub_settings_key.clone(), settings)
-        .await
         .map_err(|x| x.to_string())?;
 
     trace!("notify all other hubs");
@@ -108,9 +109,8 @@ async fn update_settings_for_hub(
     })
     .map_err(|x| x.to_string())?;
 
-    client
+    let _ = conn
         .publish(hub_pub_topic, rpc_message)
-        .await
         .map_err(|x| x.to_string())?;
 
     info!("pubsub update settings message sent");
@@ -145,19 +145,20 @@ fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> Rh
     result
 }
 
-async fn update_settings_for_publishers(
+fn update_settings_for_publishers(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
 ) -> RhiaqeyResult<MessageValue> {
-    let client = state.redis.lock().await.clone();
-
     trace!("find first schema for publisher");
     let name = payload.name;
     let namespace = state.get_namespace();
     let schema_key = topics::publisher_schema_key(namespace, name.clone());
     debug!("schema key {schema_key}");
 
-    let schema_response: String = client.get(schema_key).await?;
+    let lock = state.redis_rs.clone();
+    let mut conn = lock.lock().unwrap();
+
+    let schema_response: String = conn.get(schema_key)?;
     if schema_response == "" {
         return Err(format!("No schema found for {name}").into());
     }
@@ -173,7 +174,7 @@ async fn update_settings_for_publishers(
 
     trace!("encrypt settings for publishers");
 
-    let keys = state.security.lock().await;
+    let keys = state.security.read().unwrap();
     let data = payload.settings.to_vec()?;
     let settings = security::aes_encrypt(
         keys.no_once.as_slice(),
@@ -185,9 +186,8 @@ async fn update_settings_for_publishers(
     trace!("save encrypted in redis");
 
     let publishers_key = topics::publisher_settings_key(state.get_namespace(), name.clone());
-    client
+    let _ = conn
         .set(publishers_key.clone(), settings)
-        .await
         .map_err(|x| x.to_string())?;
 
     // 3. notify all other publishers
@@ -201,9 +201,8 @@ async fn update_settings_for_publishers(
     })
     .map_err(|x| x.to_string())?;
 
-    client
+    let _ = conn
         .publish(pub_topic, rpc_message)
-        .await
         .map_err(|x| x.to_string())?;
 
     info!("pubsub update settings message sent");
@@ -223,10 +222,10 @@ pub async fn update_settings(
 
     if state.env.name == payload.name {
         trace!("update hub settings");
-        update_fn = update_settings_for_hub(payload, state).await;
+        update_fn = update_settings_for_hub(payload, state);
     } else {
         trace!("update publisher settings");
-        update_fn = update_settings_for_publishers(payload, state).await;
+        update_fn = update_settings_for_publishers(payload, state);
     }
 
     // return response
