@@ -1,6 +1,8 @@
+export REDIS_MODE=sentinel
 export REDIS_PASSWORD=welcome
-export REDIS_ADDRESS=localhost:6379
-export REDIS_SENTINEL_ADDRESSES=localhost:26379
+export REDIS_ADDRESS=0.0.0.0:6379
+export REDIS_SENTINEL_MASTER=mymaster
+export REDIS_SENTINEL_ADDRESSES=localhost:26379,localhost:26380,localhost:26381
 
 export ID=fc5e1420-cbec-11ed-afa1-0242ac120002
 export NAME=hub
@@ -64,7 +66,8 @@ run:
 
 .PHONY: run-release
 run-release:
-	RUST_LOG=rhiaqey_hub=info cargo run --bin hub --release
+	RUST_LOG=rhiaqey_hub=info \
+		cargo run --bin hub --release
 
 .PHONY: ops
 ops:
@@ -125,32 +128,8 @@ docker-run:
 redis:
 	docker run -it --rm --name redis -p 6379:6379 \
 		-e ALLOW_EMPTY_PASSWORD=no \
-		-e REDIS_MASTER_HOST=localhost \
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
-		-e REDIS_MASTER_PASSWORD=${REDIS_PASSWORD} \
-		-e REDIS_SENTINEL_PASSWORD=${REDIS_PASSWORD} \
 		rhiaqey/redis:latest
-
-.PHONY: sentinel
-sentinel:
-	docker run -it --rm --name redis-sentinel -p 26379:26379 \
-		-e REDIS_MASTER_HOST=localhost \
-		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
-		-e REDIS_MASTER_PASSWORD=${REDIS_PASSWORD} \
-		-e REDIS_SENTINEL_PASSWORD=${REDIS_PASSWORD} \
-		rhiaqey/redis-sentinel:latest
-
-.PHONY: sentinel2
-sentinel2:
-	docker run -it --rm --name redis-sentinel-2 -p 26380:26379 \
-		-e ALLOW_EMPTY_PASSWORD=no \
-		-e REDIS_MASTER_HOST=localhost \
-		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
-		bitnami/redis-sentinel:7.2.4
-
-.PHONY: test
-test:
-	cargo test
 
 .PHONY: docker
 docker: docker-build docker-push
