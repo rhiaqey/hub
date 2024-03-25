@@ -8,6 +8,7 @@ use crate::http::metrics::get_metrics;
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
+use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
@@ -15,6 +16,7 @@ use axum_client_ip::SecureClientIpSource;
 use log::info;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK
@@ -80,10 +82,15 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
 }
 
 pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>) {
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET])
+        .allow_origin(Any);
+
     let app = Router::new()
         .route("/", get(get_home))
         .route("/ws", get(ws_handler))
         .route("/snapshot", get(get_snapshot))
+        .layer(cors)
         .with_state(shared_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

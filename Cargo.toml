@@ -44,6 +44,7 @@ axum-extra = { version = "0.9", features = ["typed-header", "cookie"] }
 axum-client-ip = "0.5"
 jsonschema = "0.17"
 openssl = { version = "0.10", features = ["vendored"] }
+tower-http = { version = "0.5", features = ["cors"] }
 
 [features]
 cli = ["dep:clap"]
