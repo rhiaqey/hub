@@ -4,6 +4,7 @@ use crate::http::channels::{
     get_hub, get_publishers, get_snapshot, purge_channel,
 };
 use crate::http::client::get_users;
+use crate::http::metrics::get_metrics;
 use crate::http::settings::update_settings;
 use crate::http::state::SharedState;
 use crate::http::websockets::ws_handler;
@@ -12,27 +13,11 @@ use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
 use axum_client_ip::SecureClientIpSource;
 use log::info;
-use prometheus::{Encoder, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 async fn get_ready() -> impl IntoResponse {
     StatusCode::OK
-}
-
-async fn get_metrics() -> impl IntoResponse {
-    let encoder = TextEncoder::new();
-    let mut buffer = vec![];
-    let mf = prometheus::gather();
-    encoder.encode(&mf, &mut buffer).unwrap();
-    (
-        StatusCode::OK,
-        [(
-            hyper::header::CONTENT_TYPE,
-            encoder.format_type().to_string(),
-        )],
-        buffer.into_response(),
-    )
 }
 
 async fn get_version() -> &'static str {
