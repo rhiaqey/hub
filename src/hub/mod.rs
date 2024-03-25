@@ -126,10 +126,10 @@ impl Hub {
         Ok(())
     }
 
-    async fn load_key_async(config: &Env, client: &Client) -> RhiaqeyResult<SecurityKey> {
+    fn load_key(config: &Env, client: &mut redis::Connection) -> RhiaqeyResult<SecurityKey> {
         let namespace = config.namespace.clone();
         let security_key = topics::security_key(namespace);
-        let security_str: String = client.get(security_key.clone()).await?;
+        let security_str: String = client.get(security_key.clone()).unwrap_or(String::from(""));
         let security = match serde_json::from_str::<SecurityKey>(security_str.as_str()) {
             Ok(mut security) => {
                 debug!("security keys loaded");
@@ -144,7 +144,7 @@ impl Hub {
                 security.no_once = config.encrypt(security.no_once)?;
                 security.key = config.encrypt(security.key)?;
                 let key_result = serde_json::to_string(&security)?;
-                client.set(security_key.clone(), key_result).await?;
+                client.set(security_key.clone(), key_result)?;
                 debug!("new keys generated and saved");
                 original
             }
@@ -154,9 +154,9 @@ impl Hub {
 
     pub async fn create(config: Env) -> RhiaqeyResult<Hub> {
         let redis_rs_client = connect_and_ping(&config.redis)?;
-        let redis_rs_connection = redis_rs_client.get_connection()?;
+        let mut redis_rs_connection = redis_rs_client.get_connection()?;
+        let security = Self::load_key(&config, &mut redis_rs_connection)?;
         let client = connect_and_ping_async(config.redis.clone()).await?;
-        let security = Self::load_key_async(&config, &client).await?;
 
         Ok(Hub {
             env: Arc::from(config),

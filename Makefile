@@ -1,4 +1,4 @@
-export REDIS_MODE=sentinel
+export REDIS_MODE=standalone
 export REDIS_PASSWORD=welcome
 export REDIS_ADDRESS=0.0.0.0:6379
 export REDIS_SENTINEL_MASTER=mymaster
