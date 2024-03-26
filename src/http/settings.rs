@@ -77,9 +77,6 @@ fn update_settings_for_hub(
         return Err("Schema validation failed for payload".into());
     }
 
-    let lock = state.redis_rs.clone();
-    let mut conn = lock.lock().unwrap();
-
     trace!("encrypt settings for hub");
 
     let keys = state.security.read().unwrap();
@@ -89,30 +86,14 @@ fn update_settings_for_hub(
         keys.key.as_slice(),
         data.as_slice(),
     )?;
-    drop(keys);
-
-    trace!("save encrypted in redis");
 
     let hub_settings_key = topics::hub_settings_key(state.get_namespace());
-
-    let _ = conn
+    let _ = state.redis_rs.lock().unwrap()
         .set(hub_settings_key.clone(), settings)
         .map_err(|x| x.to_string())?;
+    trace!("encrypted settings saved in redis");
 
-    trace!("notify all other hubs");
-
-    let hub_pub_topic = topics::hub_raw_to_hub_clean_pubsub_topic(state.get_namespace());
-    debug!("publishing to topic {}", hub_pub_topic);
-
-    let rpc_message = serde_json::to_string(&RPCMessage {
-        data: RPCMessageData::UpdateSettings(),
-    })
-    .map_err(|x| x.to_string())?;
-
-    let _ = conn
-        .publish(hub_pub_topic, rpc_message)
-        .map_err(|x| x.to_string())?;
-
+    state.publish_rpc_message(RPCMessageData::UpdateSettings())?;
     info!("pubsub update settings message sent");
 
     Ok(payload.settings)

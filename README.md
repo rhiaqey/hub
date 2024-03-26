@@ -28,3 +28,9 @@ Early development stage
 }
 ```
 
+## TODO
+
+* Move all crud operations to redis_rs
+* Introduce new actions for RPCMessage + RPCMessageData
+* All crud operations will have to publish an action to hub_raw_to_hub_clean_pubsub_topic similar to update_settings_for_hub
+* Handle each new action in every hub
