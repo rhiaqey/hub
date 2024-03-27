@@ -18,14 +18,14 @@ use redis::Commands;
 use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
-use rhiaqey_common::redis::{connect_and_ping_async, RhiaqeyBufVec};
+use rhiaqey_common::redis::connect_and_ping_async;
 use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::security::SecurityKey;
 use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use rustis::client::{Client, PubSubStream};
-use rustis::commands::{PubSubCommands, StringCommands};
+use rustis::commands::PubSubCommands;
 use sha256::digest;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -78,22 +78,24 @@ impl Hub {
         Ok(channel_list.channels)
     }
 
-    pub async fn read_settings_async(&self) -> RhiaqeyResult<HubSettings> {
-        let settings_key = topics::hub_settings_key(self.get_namespace());
+    pub fn read_settings(&self) -> RhiaqeyResult<HubSettings> {
+        info!("reading hu settings");
 
-        let result: RhiaqeyBufVec = self.redis.lock().await.get(settings_key).await?;
-        debug!("encrypted settings retrieved");
+        let settings_key = topics::hub_settings_key(self.get_namespace());
+        let result: Vec<u8> = self.redis_rs.lock().unwrap().get(settings_key)?;
+        trace!("encrypted settings retrieved");
 
         let keys = self.security.read().unwrap();
 
         let data = security::aes_decrypt(
             keys.no_once.as_slice(),
             keys.key.as_slice(),
-            result.0.as_slice(),
+            result.as_slice(),
         )?;
+        trace!("settings decrypted");
 
         let settings = MessageValue::Binary(data).decode::<HubSettings>()?;
-        debug!("decrypted data decoded into settings");
+        trace!("decrypted data decoded into settings");
 
         Ok(settings)
     }
@@ -113,9 +115,9 @@ impl Hub {
             })
             .collect();
 
-        *locked_settings = new_settings;
+        *locked_settings = new_settings.clone();
 
-        trace!("new settings updated");
+        trace!("new settings updated to {:?}", new_settings);
     }
 
     pub fn set_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
@@ -172,10 +174,7 @@ impl Hub {
     pub async fn start(&mut self) -> RhiaqeyResult<()> {
         info!("starting hub");
 
-        let settings = self
-            .read_settings_async()
-            .await
-            .unwrap_or(HubSettings::default());
+        let settings = self.read_settings().unwrap_or(HubSettings::default());
         self.set_settings(settings);
         debug!("settings loaded");
 
@@ -309,9 +308,9 @@ impl Hub {
                             debug!("schema updated");
                         }
                         // this comes from another hub to notify all other hubs
-                        RPCMessageData::UpdateSettings() => {
+                        RPCMessageData::UpdatePublisherSettings() => {
                             info!("received update settings rpc");
-                            match self.read_settings_async().await {
+                            match self.read_settings() {
                                 Ok(settings) => {
                                     self.set_settings(settings);
                                     info!("settings updated successfully");

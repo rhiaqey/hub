@@ -88,12 +88,15 @@ fn update_settings_for_hub(
     )?;
 
     let hub_settings_key = topics::hub_settings_key(state.get_namespace());
-    let _ = state.redis_rs.lock().unwrap()
+    let _ = state
+        .redis_rs
+        .lock()
+        .unwrap()
         .set(hub_settings_key.clone(), settings)
         .map_err(|x| x.to_string())?;
     trace!("encrypted settings saved in redis");
 
-    state.publish_rpc_message(RPCMessageData::UpdateSettings())?;
+    state.publish_rpc_message(RPCMessageData::UpdatePublisherSettings())?;
     info!("pubsub update settings message sent");
 
     Ok(payload.settings)
@@ -178,7 +181,7 @@ fn update_settings_for_publishers(
     info!("publishing to topic {}", pub_topic);
 
     let rpc_message = serde_json::to_string(&RPCMessage {
-        data: RPCMessageData::UpdateSettings(),
+        data: RPCMessageData::UpdatePublisherSettings(),
     })
     .map_err(|x| x.to_string())?;
 
