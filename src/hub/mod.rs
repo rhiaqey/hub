@@ -21,6 +21,7 @@ use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessag
 use rhiaqey_common::redis::connect_and_ping_async;
 use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::security::SecurityKey;
+use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
@@ -120,14 +121,6 @@ impl Hub {
         trace!("new settings updated");
     }
 
-    pub fn set_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
-        let schema_key = topics::publisher_schema_key(data.namespace.clone(), data.name.clone());
-        let encoded = serde_json::to_string(&data)?;
-        let lock = self.redis_rs.clone();
-        lock.lock().unwrap().set(schema_key, encoded)?;
-        Ok(())
-    }
-
     fn load_key(config: &Env, client: &mut redis::Connection) -> RhiaqeyResult<SecurityKey> {
         let namespace = config.namespace.clone();
         let security_key = topics::security_key(namespace);
@@ -178,6 +171,8 @@ impl Hub {
         self.set_settings(settings);
         debug!("settings loaded");
 
+        // let namespace = self.env.namespace.clone();
+
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
             settings: self.settings.clone(),
@@ -202,11 +197,18 @@ impl Hub {
             start_public_http_server(public_port, public_state.clone()).await;
         });
 
-        let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub_async().await.unwrap();
+        /*
+        Some(redis_msg) = stream.next() => {
+            trace!("clean message arrived");
+            trace!("message dump {:?}", redis_msg);
+        }*/
+        // let client = connect_and_ping(&self.env.redis.clone()).unwrap();
+        // let mut pubsub = client.get_async_pubsub().await.unwrap();
+        // let key = topics::hub_raw_to_hub_clean_pubsub_topic(namespace);
+        // pubsub.subscribe(key).await.unwrap();
+        // let mut stream = pubsub.on_message().into_future().await;
 
-        let hub_id = self.get_id();
-        let streams = self.streams.clone();
-        let clients = self.clients.clone();
+        let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub_async().await.unwrap();
 
         loop {
             tokio::select! {
@@ -227,166 +229,219 @@ impl Hub {
                     match data.unwrap().data {
                         RPCMessageData::PurgeChannel(channel) => {
                             info!("purging channel {channel}");
-
-                            let mut streams = self.streams.lock().await;
-                            match streams.get_mut(&channel) {
-                                None => {
-                                    warn!(
-                                        "could not find streaming channel by name {}",
-                                        channel.clone()
-                                    );
-                                }
-                                Some(streaming_channel) => {
-                                    // get all keys
-
-                                    let keys = streaming_channel
-                                        .get_snapshot_keys()
-                                        .unwrap_or(vec![]);
-
-                                    debug!("{} keys found", keys.len());
-
-                                    let mut conn = self.redis_rs.lock().unwrap();
-                                    let result: i32 = conn.del(keys).unwrap_or(0);
-
-                                    debug!("{result} entries purged");
-                                }
-                            }
+                            self.purge_channel(channel)
+                                .await
+                                .expect("failed to purge channel");
                         }
                         RPCMessageData::CreateChannels(channels) => {
                             info!("creating channels {:?}", channels);
-
-                            let mut total_channels = 0;
-                            let namespace = self.get_namespace();
-                            let mut streams = self.streams.lock().await;
-
-                            for channel in channels.iter() {
-                                let channel_name = channel.name.to_string();
-                                if streams.contains_key(&channel_name) {
-                                    warn!("channel {} already exists", channel_name);
-                                    continue;
-                                }
-
-                                let Ok(mut streaming_channel) = StreamingChannel::create(
-                                    hub_id.clone(),
-                                    namespace.clone(),
-                                    channel.clone(),
-                                    self.env.redis.clone()
-                                ) else {
-                                    warn!("failed to create streaming channel {}", channel.name);
-                                    continue;
-                                };
-
-                                info!(
-                                    "starting up streaming channel {}",
-                                    streaming_channel.channel.name
-                                );
-
-                                streaming_channel.start();
-                                streams.insert(streaming_channel.get_name(), streaming_channel);
-                                total_channels += 1;
-                            }
-
-                            drop(streams);
-                            info!("added {} streams", total_channels);
-                            TOTAL_CHANNELS.set(total_channels as f64);
+                            self.create_channels(self.get_id(), channels)
+                                .await
+                                .expect("failed to create channels")
                         }
                         RPCMessageData::DeleteChannels(channels) => {
                             info!("deleting channels {:?}", channels);
-
-                            let total_channels = channels.len();
-                            let mut lock = self.streams.lock().await;
-                            for channel in channels {
-                                lock.remove(&channel.name.to_string());
-                            }
-
-                            debug!("{} channels deleted", total_channels);
+                            self.delete_channels(channels)
+                                .await
+                                .expect("failed to delete channels");
                         }
                         RPCMessageData::RegisterPublisher(data) => {
                             info!("setting publisher schema for [id={}, name={}, namespace={}]",
                                 data.id, data.name, data.namespace);
-
-                            self.set_schema(data).expect("failed to set schema for publisher");
-                            debug!("schema updated");
+                            self.update_publisher_schema(data)
+                                .expect("failed to set schema for publisher");
                         }
-                        // this comes from another hub to notify all other hubs
                         RPCMessageData::UpdateHubSettings() => {
                             info!("received update settings rpc");
-
-                            match self.read_settings() {
-                                Ok(settings) => {
-                                    self.set_settings(settings);
-                                    info!("settings updated successfully");
-                                },
-                                Err(err) => {
-                                    warn!("error decoding to hub settings: {err}")
-                                }
-                            }
+                            self.update_hub_settings()
+                                .expect("failed to update hub settings");
                         }
-                        // hub raw to hub clean
-                        // from xstream to pubsub
-                        // from a load balanced to broadcast
                         RPCMessageData::NotifyClients(stream_message) => {
-                            trace!("received notify clients rpc");
-                            // get a streaming channel by channel name
-                            let all_hub_streams = streams.lock().await;
-                            let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
-                            if let Some(s_channel) = streaming_channel {
-                                trace!("streaming channel found {}", s_channel.channel.name);
-
-                                let all_stream_channel_clients = s_channel.clients.read().unwrap();
-
-                                let mut all_hub_clients = clients.lock().await;
-
-                                let mut client_message = ClientMessage::from(stream_message);
-                                if client_message.hub_id.is_none() {
-                                    client_message.hub_id = Some(hub_id.clone());
-                                }
-
-                                let raw = serde_json::to_vec(&client_message).unwrap();
-
-                                let mut to_delete = vec!();
-
-                                // TODO: Move broadcast to streaming channel
-                                for client_id in all_stream_channel_clients.iter() {
-                                    match all_hub_clients.get_mut(client_id) {
-                                        Some(socket) => {
-                                            match socket.send(Message::Binary(raw.clone())).await {
-                                                Ok(_) => {},
-                                                Err(e) => {
-                                                    warn!("failed to sent message: {e}");
-                                                    to_delete.push(client_id);
-                                                }
-                                            }
-                                        },
-                                        None => {
-                                            warn!("failed to find client by id {client_id}");
-                                        }
-                                    }
-                                }
-
-                                if to_delete.is_empty() {
-                                    info!("message sent to {:?} client(s)", all_stream_channel_clients.len());
-                                } else {
-                                    warn!("disconnecting {} clients", to_delete.len());
-
-                                    for client_id in all_stream_channel_clients.iter() {
-                                        all_hub_clients.remove(client_id);
-                                        let mut lock = streaming_channel.unwrap().clients.write().unwrap();
-                                        if let Some(i) = lock.iter().position(|x| x == client_id) {
-                                            warn!("removing client from channel by index {i}");
-                                            lock.remove(i);
-                                        }
-                                    }
-
-                                    let total_clients = all_hub_clients.len();
-                                    TOTAL_CLIENTS.set(total_clients as f64);
-                                    trace!("total clients set to {total_clients}");
-                                }
-                            }
+                            info!("received notify clients rpc");
+                            self.notify_clients(self.get_id(), stream_message)
+                                .await
+                                .expect("failed to notify clients");
                         }
-                        _ => {}
+                        other => {
+                            warn!("handler for rpc message missing: {:?}", other);
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    async fn create_channels(&self, hub_id: String, channels: Vec<Channel>) -> RhiaqeyResult<()> {
+        let mut total_channels = 0;
+        let namespace = self.get_namespace();
+        let mut streams = self.streams.lock().await;
+
+        for channel in channels.iter() {
+            let channel_name = channel.name.to_string();
+            if streams.contains_key(&channel_name) {
+                warn!("channel {} already exists", channel_name);
+                continue;
+            }
+
+            let Ok(mut streaming_channel) = StreamingChannel::create(
+                hub_id.clone(),
+                namespace.clone(),
+                channel.clone(),
+                self.env.redis.clone(),
+            ) else {
+                warn!("failed to create streaming channel {}", channel.name);
+                continue;
+            };
+
+            info!(
+                "starting up streaming channel {}",
+                streaming_channel.channel.name
+            );
+
+            streaming_channel.start();
+            streams.insert(streaming_channel.get_name(), streaming_channel);
+            total_channels += 1;
+        }
+
+        drop(streams);
+        info!("added {} streams", total_channels);
+        TOTAL_CHANNELS.set(total_channels as f64);
+
+        Ok(())
+    }
+
+    async fn delete_channels(&self, channels: Vec<Channel>) -> RhiaqeyResult<()> {
+        let total_channels = channels.len();
+        let mut lock = self.streams.lock().await;
+
+        for channel in channels {
+            lock.remove(&channel.name.to_string());
+        }
+
+        debug!("{} channels deleted", total_channels);
+
+        Ok(())
+    }
+
+    async fn notify_clients(
+        &self,
+        hub_id: String,
+        stream_message: StreamMessage,
+    ) -> RhiaqeyResult<()> {
+        // get a streaming channel by channel name
+        let all_hub_streams = self.streams.lock().await;
+        let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
+
+        if let Some(s_channel) = streaming_channel {
+            trace!("streaming channel found {}", s_channel.channel.name);
+
+            let all_stream_channel_clients = s_channel.clients.read().unwrap();
+
+            let mut all_hub_clients = self.clients.lock().await;
+
+            let mut client_message = ClientMessage::from(stream_message);
+            if client_message.hub_id.is_none() {
+                client_message.hub_id = Some(hub_id.clone());
+            }
+
+            let raw = serde_json::to_vec(&client_message).unwrap();
+
+            let mut to_delete = vec![];
+
+            // TODO: Move broadcast to streaming channel
+            for client_id in all_stream_channel_clients.iter() {
+                match all_hub_clients.get_mut(client_id) {
+                    Some(socket) => match socket.send(Message::Binary(raw.clone())).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            warn!("failed to sent message: {e}");
+                            to_delete.push(client_id);
+                        }
+                    },
+                    None => {
+                        warn!("failed to find client by id {client_id}");
+                    }
+                }
+            }
+
+            if to_delete.is_empty() {
+                info!(
+                    "message sent to {:?} client(s)",
+                    all_stream_channel_clients.len()
+                );
+            } else {
+                warn!("disconnecting {} clients", to_delete.len());
+
+                for client_id in all_stream_channel_clients.iter() {
+                    all_hub_clients.remove(client_id);
+                    let mut lock = streaming_channel.unwrap().clients.write().unwrap();
+                    if let Some(i) = lock.iter().position(|x| x == client_id) {
+                        warn!("removing client from channel by index {i}");
+                        lock.remove(i);
+                    }
+                }
+
+                let total_clients = all_hub_clients.len();
+                TOTAL_CLIENTS.set(total_clients as f64);
+                trace!("total clients set to {total_clients}");
+            }
+
+            Ok(())
+        } else {
+            Err("could not find a streaming channel".to_string().into())
+        }
+    }
+
+    fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
+        let schema_key = topics::publisher_schema_key(data.namespace.clone(), data.name.clone());
+        let encoded = serde_json::to_string(&data)?;
+        let lock = self.redis_rs.clone();
+        lock.lock().unwrap().set(schema_key, encoded)?;
+        debug!("schema updated");
+        Ok(())
+    }
+
+    fn update_hub_settings(&mut self) -> RhiaqeyResult<()> {
+        match self.read_settings() {
+            Ok(settings) => {
+                self.set_settings(settings);
+                info!("settings updated successfully");
+                Ok(())
+            }
+            Err(err) => {
+                warn!("error decoding to hub settings: {err}");
+                Err(err)
+            }
+        }
+    }
+
+    async fn purge_channel(&self, channel: String) -> RhiaqeyResult<()> {
+        let mut streams = self.streams.lock().await;
+        match streams.get_mut(&channel) {
+            None => {
+                warn!(
+                    "could not find streaming channel by name {}",
+                    channel.clone()
+                );
+                Err(format!(
+                    "could not find streaming channel by name {}",
+                    channel.clone()
+                )
+                .into())
+            }
+            Some(streaming_channel) => {
+                // get all keys
+
+                let keys = streaming_channel.get_snapshot_keys().unwrap_or(vec![]);
+
+                debug!("{} keys found", keys.len());
+
+                let mut conn = self.redis_rs.lock().unwrap();
+                let result: i32 = conn.del(keys).unwrap_or(0);
+
+                debug!("{result} entries purged");
+
+                Ok(())
             }
         }
     }
