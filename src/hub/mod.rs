@@ -79,7 +79,7 @@ impl Hub {
     }
 
     pub fn read_settings(&self) -> RhiaqeyResult<HubSettings> {
-        info!("reading hu settings");
+        info!("reading hub settings");
 
         let settings_key = topics::hub_settings_key(self.get_namespace());
         let result: Vec<u8> = self.redis_rs.lock().unwrap().get(settings_key)?;
@@ -117,7 +117,7 @@ impl Hub {
 
         *locked_settings = new_settings.clone();
 
-        trace!("new settings updated to {:?}", new_settings);
+        trace!("new settings updated");
     }
 
     pub fn set_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
@@ -304,12 +304,14 @@ impl Hub {
                         RPCMessageData::RegisterPublisher(data) => {
                             info!("setting publisher schema for [id={}, name={}, namespace={}]",
                                 data.id, data.name, data.namespace);
+
                             self.set_schema(data).expect("failed to set schema for publisher");
                             debug!("schema updated");
                         }
                         // this comes from another hub to notify all other hubs
-                        RPCMessageData::UpdatePublisherSettings() => {
+                        RPCMessageData::UpdateHubSettings() => {
                             info!("received update settings rpc");
+
                             match self.read_settings() {
                                 Ok(settings) => {
                                     self.set_settings(settings);

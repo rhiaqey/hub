@@ -96,10 +96,16 @@ fn update_settings_for_hub(
         .map_err(|x| x.to_string())?;
     trace!("encrypted settings saved in redis");
 
-    state.publish_rpc_message(RPCMessageData::UpdatePublisherSettings())?;
-    info!("pubsub update settings message sent");
-
-    Ok(payload.settings)
+    match state.publish_rpc_message(RPCMessageData::UpdateHubSettings()) {
+        Ok(_) => {
+            info!("pubsub update settings message sent");
+            Ok(payload.settings)
+        }
+        Err(err) => {
+            warn!("error publishing update hub settings pubsub: {err}");
+            Err(err)
+        }
+    }
 }
 
 fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> RhiaqeyResult<bool> {
