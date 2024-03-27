@@ -19,7 +19,7 @@ pub struct MessageHandler {
     pub hub_id: String,
     pub namespace: String,
     pub channel: Channel,
-    pub redis: redis::Connection,
+    pub redis_rs: redis::Connection,
 }
 
 /// Message handler per channel
@@ -34,7 +34,7 @@ impl MessageHandler {
             hub_id,
             channel,
             namespace,
-            redis: redis_rs_connection,
+            redis_rs: redis_rs_connection,
         }
     }
 
@@ -67,7 +67,7 @@ impl MessageHandler {
         let new_tag = new_message.tag.unwrap_or("".to_string());
 
         let results: StreamRangeReply =
-            self.redis
+            self.redis_rs
                 .xrevrange_count(topic, "+", "-", self.channel.size)?;
 
         if results.ids.len() == 0 {
@@ -113,7 +113,7 @@ impl MessageHandler {
             return Ok(MessageProcessResult::AllowUnprocessed);
         }
 
-        let results: StreamRangeReply = self.redis.xrevrange_count(topic, "+", "-", 1)?;
+        let results: StreamRangeReply = self.redis_rs.xrevrange_count(topic, "+", "-", 1)?;
 
         if results.ids.len() == 0 {
             // allow it since we have not stored data to compare against
@@ -239,7 +239,7 @@ impl MessageHandler {
         // Prepare to broadcast to all hubs that we have clean message
         let raw = message.ser_to_string()?;
 
-        self.redis.publish(&clean_topic, raw)?;
+        self.redis_rs.publish(&clean_topic, raw)?;
         trace!("message sent to pubsub {}", &clean_topic);
 
         let tag = stream_message.tag.unwrap_or(String::from(""));
@@ -247,7 +247,7 @@ impl MessageHandler {
         items.insert("raw", raw_message);
         items.insert("tag", tag);
 
-        let id = self.redis.xadd_maxlen_map(
+        let id = self.redis_rs.xadd_maxlen_map(
             snapshot_topic.clone(),
             StreamMaxlen::Equals(channel_size),
             "*",
