@@ -9,7 +9,7 @@ use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
-use crate::hub::metrics::TOTAL_CLIENTS;
+use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
 use crate::hub::settings::HubSettings;
 use axum::extract::ws::Message;
 use futures::StreamExt;
@@ -226,6 +226,53 @@ impl Hub {
                     }
 
                     match data.unwrap().data {
+                        RPCMessageData::CreateChannels(channels) => {
+                            info!("creating channels {:?}", channels);
+
+                            let mut total_channels = 0;
+                            let namespace = self.get_namespace();
+                            let mut streams = self.streams.lock().await;
+
+                            for channel in channels.iter() {
+                                let channel_name = channel.name.to_string();
+                                if streams.contains_key(&channel_name) {
+                                    warn!("channel {} already exists", channel_name);
+                                    continue;
+                                }
+
+                                let Ok(mut streaming_channel) = StreamingChannel::create(
+                                    hub_id.clone(),
+                                    namespace.clone(),
+                                    channel.clone(),
+                                    self.env.redis.clone()
+                                ) else {
+                                    warn!("failed to create streaming channel {}", channel.name);
+                                    continue;
+                                };
+
+                                info!(
+                                    "starting up streaming channel {}",
+                                    streaming_channel.channel.name
+                                );
+
+                                streaming_channel.start();
+                                streams.insert(streaming_channel.get_name(), streaming_channel);
+                                total_channels += 1;
+                            }
+
+                            drop(streams);
+                            info!("added {} streams", total_channels);
+                            TOTAL_CHANNELS.set(total_channels as f64);
+                        }
+                        RPCMessageData::DeleteChannels(channels) => {
+                            info!("deleting channels {:?}", channels);
+                            let total_channels = channels.len();
+                            let mut lock = self.streams.lock().await;
+                            for channel in channels {
+                                lock.remove(&channel.name.to_string());
+                            }
+                            debug!("{} channels deleted", total_channels);
+                        }
                         RPCMessageData::RegisterPublisher(data) => {
                             info!("setting publisher schema for [id={}, name={}, namespace={}]",
                                 data.id, data.name, data.namespace);

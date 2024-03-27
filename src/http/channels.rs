@@ -1,26 +1,76 @@
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
-use crate::hub::channel::StreamingChannel;
-use crate::hub::metrics::TOTAL_CHANNELS;
+// use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use axum::extract::{Path, Query, State};
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::error::RhiaqeyError;
-use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
+use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
 use rhiaqey_sdk_rs::channel::ChannelList;
-use rustis::client::BatchPreparedCommand;
-use rustis::commands::{StreamCommands, StringCommands, XGroupCreateOptions};
-use rustis::resp::Value;
-use rustis::Result as RedisResult;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+pub async fn create_channels(
+    State(state): State<Arc<SharedState>>,
+    Json(payload): Json<CreateChannelsRequest>,
+) -> impl IntoResponse {
+    info!("[PUT] Creating channels");
+
+    let lock = state.redis_rs.clone();
+    let mut conn = lock.lock().unwrap();
+
+    // create channels
+
+    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
+    let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
+    let _: () = conn.set(hub_channels_key.clone(), content).unwrap();
+
+    // create xgroups
+
+    trace!("creating xstreams");
+
+    for channel in &payload.channels.channels {
+        let _: () = conn
+            .xgroup_create_mkstream(
+                topics::publishers_to_hub_stream_topic(
+                    state.get_namespace(),
+                    channel.name.to_string(),
+                ),
+                "hub",
+                "$",
+            )
+            .unwrap_or_default();
+    }
+
+    // get result
+
+    trace!("read back result");
+
+    let result: String = conn.get(hub_channels_key).unwrap();
+    drop(conn);
+
+    // notify all
+
+    match state.publish_rpc_message(RPCMessageData::CreateChannels(payload.channels.channels)) {
+        Ok(_) => (
+            StatusCode::OK,
+            [(hyper::header::CONTENT_TYPE, "application/json")],
+            result,
+        )
+            .into_response(),
+        Err(err) => {
+            warn!("error publishing creating channels: {err}");
+            err.into_response()
+        }
+    }
+}
 
 pub async fn delete_channels(
     State(state): State<Arc<SharedState>>,
@@ -28,28 +78,16 @@ pub async fn delete_channels(
 ) -> impl IntoResponse {
     info!("[Delete] Delete channels");
 
-    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
-    let result: String = state
-        .redis
-        .lock()
-        .await
-        .get(hub_channels_key.clone())
-        .await
-        .unwrap();
+    /*
+    let mut lock = state.redis_rs.lock().unwrap();
 
+    // retrieve channel list
+
+    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
+    let result: String = lock.get(hub_channels_key.clone()).unwrap();
     let mut channel_list: ChannelList = serde_json::from_str(result.as_str()).unwrap_or_default();
 
-    debug!("turning off streams for channels {:?}", payload.channels);
-
-    for streaming_channel_name in &payload.channels {
-        state
-            .streams
-            .lock()
-            .await
-            .remove(streaming_channel_name.as_str());
-    }
-
-    debug!("current channel list {:?}", channel_list);
+    // retain/remove channels from payload
 
     channel_list.channels.retain_mut(|list_channel| {
         let index = payload
@@ -60,17 +98,21 @@ pub async fn delete_channels(
         index.is_none()
     });
 
-    debug!("updated channel list {:?}", channel_list);
+    // store updated list
 
     let content = serde_json::to_string(&channel_list).unwrap();
+    let _: () = lock.set(hub_channels_key.clone(), content).unwrap();
+    drop(lock);
 
-    state
-        .redis
-        .lock()
-        .await
-        .set(hub_channels_key.clone(), content)
-        .await
-        .unwrap();
+    // notify hubs for channel deletion
+
+    match state.publish_rpc_message(RPCMessageData::DeleteChannels(channel_list.channels)) {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => {
+            warn!("error publishing delete channels: {err}");
+            err.into_response()
+        }
+    }*/
 
     StatusCode::NO_CONTENT
 }
@@ -150,6 +192,16 @@ pub async fn purge_channel(
 ) -> impl IntoResponse {
     info!("[DELETE] Purging channel {}", channel);
 
+    match state.publish_rpc_message(RPCMessageData::PurgeChannel(channel.clone())) {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => {
+            warn!("error publishing purge channel {channel}: {err}");
+            err.into_response()
+        }
+    }
+
+    /*
+
     let mut streams = state.streams.lock().await;
     let streaming_channel = streams.get_mut(&channel);
     if streaming_channel.is_none() {
@@ -186,86 +238,7 @@ pub async fn purge_channel(
             "count": result
         })
         .to_string(),
-    )
-}
-
-pub async fn create_channels(
-    State(state): State<Arc<SharedState>>,
-    Json(payload): Json<CreateChannelsRequest>,
-) -> impl IntoResponse {
-    info!("[PUT] Creating channels");
-
-    let hub_channels_key = topics::hub_channels_key(state.get_namespace());
-    let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
-
-    let redis = state.redis.clone().lock().await.clone();
-    let mut pipeline = redis.create_pipeline();
-    pipeline.set(hub_channels_key.clone(), content).forget();
-
-    // 1. for every channel we create a topic that the publishers can stream to
-
-    for channel in &payload.channels.channels {
-        pipeline
-            .xgroup_create(
-                topics::publishers_to_hub_stream_topic(
-                    state.get_namespace(),
-                    channel.name.to_string(),
-                ),
-                "hub",
-                "$",
-                XGroupCreateOptions::default().mk_stream(),
-            )
-            .forget();
-    }
-
-    pipeline.get::<_, ()>(&hub_channels_key).queue(); // get channels back
-    let pipeline_result: RedisResult<Value> = pipeline.execute().await;
-
-    trace!("pipeline result: {:?}", pipeline_result);
-
-    // 2. for every channel we create and store a streaming channel
-
-    let mut total_channels = 0;
-    let hub_id = state.env.id.clone();
-    let namespace = state.env.namespace.clone();
-    let mut streams = state.streams.lock().await;
-
-    for channel in &payload.channels.channels {
-        let channel_name = channel.name.to_string();
-        if streams.contains_key(&channel_name) {
-            warn!("channel {} already exists", channel_name);
-            continue;
-        }
-
-        let Ok(mut streaming_channel) = StreamingChannel::create(
-            hub_id.clone(),
-            namespace.clone(),
-            channel.clone(),
-            state.env.redis.clone(),
-        ) else {
-            warn!("failed to create streaming channel {}", channel.name);
-            continue;
-        };
-
-        info!(
-            "starting up streaming channel {}",
-            streaming_channel.channel.name
-        );
-
-        streaming_channel.start();
-        streams.insert(streaming_channel.get_name(), streaming_channel);
-        total_channels += 1;
-    }
-
-    info!("added {} streams", total_channels);
-    drop(streams);
-    TOTAL_CHANNELS.set(total_channels as f64);
-
-    (
-        StatusCode::OK,
-        [(hyper::header::CONTENT_TYPE, "application/json")],
-        pipeline_result.unwrap().to_string(),
-    )
+    )*/
 }
 
 pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
@@ -311,19 +284,13 @@ pub async fn assign_channels(
     info!("[POST] Assign channels");
     debug!("[POST] Payload {:?}", payload);
 
-    let channel_name = payload.name;
-
-    let mut conn = state.redis_rs.lock().unwrap();
-    trace!("client lock acquired");
-
-    // calculate channels key
-    let channels_key = topics::hub_channels_key(state.get_namespace());
-    trace!("channels key {}", channels_key);
-
     // get all channels in the system
-    let result: String = conn.get(channels_key.clone()).unwrap();
+    let mut lock = state.redis_rs.lock().unwrap();
+    let channels_key = topics::hub_channels_key(state.get_namespace());
+    let result: String = lock.get(channels_key.clone()).unwrap();
     trace!("got channels {}", result);
 
+    // decode result into a channel list
     let all_channels: ChannelList = serde_json::from_str(result.as_str()).unwrap_or_default();
 
     // find only valid channels
@@ -341,42 +308,29 @@ pub async fn assign_channels(
         .map(|x| x.clone())
         .collect::<Vec<_>>();
 
-    let publishers_key =
-        topics::publisher_channels_key(state.get_namespace(), channel_name.clone());
-
-    debug!("saving channels for publisher {}", publishers_key);
-
-    let assigned_channels = valid_channels
-        .iter()
-        .map(|x| x.name.to_string())
-        .collect::<Vec<_>>();
-
+    // prepare pubsub payload
     let content = serde_json::to_string(&AssignChannelsRequest {
-        name: channel_name.clone(),
-        channels: assigned_channels,
+        name: payload.name.clone(),
+        channels: valid_channels
+            .iter()
+            .map(|x| x.name.to_string())
+            .collect::<Vec<_>>(),
     })
     .unwrap();
 
-    let _: () = conn.set(publishers_key, content).unwrap();
+    // store locally
+    let publishers_key = topics::publisher_channels_key(state.get_namespace(), payload.name);
+    let _: () = lock.set(publishers_key, content).unwrap();
+    drop(lock);
 
-    // stream to publisher
-
-    let stream_topic =
-        topics::hub_to_publisher_pubsub_topic(state.get_namespace(), channel_name.clone());
-
-    debug!("streaming to topic {}", stream_topic);
-
-    let content = serde_json::to_string(&RPCMessage {
-        data: RPCMessageData::AssignChannels(ChannelList {
-            channels: valid_channels.clone(),
-        }),
-    })
-    .unwrap();
-    let _: () = conn.publish(stream_topic, content).unwrap();
-
-    // return response
-
-    (StatusCode::OK, Json(valid_channels))
+    // notify publishers
+    match state.publish_rpc_message(RPCMessageData::AssignChannels(valid_channels)) {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => {
+            warn!("error publishing assign channels: {err}");
+            err.into_response()
+        }
+    }
 }
 
 #[derive(Deserialize)]

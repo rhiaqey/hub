@@ -18,7 +18,7 @@ codegen-units = 1
 
 [dependencies]
 rhiaqey-sdk-rs = { git = "https://github.com/rhiaqey/sdk-rs.git" }
-rhiaqey-common = { git = "https://github.com/rhiaqey/common.git" }
+rhiaqey-common = { path = "../common" }
 env_logger = "0.11"
 log = "0.4"
 lazy_static = { version = "1.4" }

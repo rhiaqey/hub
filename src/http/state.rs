@@ -44,8 +44,7 @@ impl SharedState {
         let lock = self.redis_rs.clone();
         let mut conn = lock.lock().unwrap();
 
-        let rpc_message = serde_json::to_string(&RPCMessage { data })
-            .map_err(|x| x.to_string())?;
+        let rpc_message = serde_json::to_string(&RPCMessage { data }).map_err(|x| x.to_string())?;
 
         let hub_broadcast_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
         debug!("broadcasting to topic {}", hub_broadcast_topic);
@@ -55,6 +54,8 @@ impl SharedState {
             .map_err(|x| x.to_string())?;
 
         info!("broadcast message sent");
+
+        drop(conn);
 
         Ok(())
     }
