@@ -266,11 +266,13 @@ impl Hub {
                         }
                         RPCMessageData::DeleteChannels(channels) => {
                             info!("deleting channels {:?}", channels);
+
                             let total_channels = channels.len();
                             let mut lock = self.streams.lock().await;
                             for channel in channels {
                                 lock.remove(&channel.name.to_string());
                             }
+
                             debug!("{} channels deleted", total_channels);
                         }
                         RPCMessageData::RegisterPublisher(data) => {

@@ -56,7 +56,7 @@ pub async fn create_channels(
     let result: String = conn.get(hub_channels_key).unwrap();
     drop(conn);
 
-    // notify all
+    // notify all hub to create and start streaming channels
 
     match state.publish_rpc_message(RPCMessageData::CreateChannels(payload.channels.channels)) {
         Ok(_) => (
@@ -78,16 +78,17 @@ pub async fn delete_channels(
 ) -> impl IntoResponse {
     info!("[Delete] Delete channels");
 
-    /*
-    let mut lock = state.redis_rs.lock().unwrap();
+    let lock = state.redis_rs.clone();
+    let mut conn = lock.lock().unwrap();
 
-    // retrieve channel list
+    // get channels
 
     let hub_channels_key = topics::hub_channels_key(state.get_namespace());
-    let result: String = lock.get(hub_channels_key.clone()).unwrap();
+    let result: String = conn.get(hub_channels_key.clone()).unwrap();
     let mut channel_list: ChannelList = serde_json::from_str(result.as_str()).unwrap_or_default();
+    trace!("channel list retrieved");
 
-    // retain/remove channels from payload
+    // remove channels
 
     channel_list.channels.retain_mut(|list_channel| {
         let index = payload
@@ -97,14 +98,10 @@ pub async fn delete_channels(
 
         index.is_none()
     });
+    let content = serde_json::to_string(&channel_list).unwrap_or(String::from("{}"));
+    let _: () = conn.set(hub_channels_key.clone(), content).unwrap();
 
-    // store updated list
-
-    let content = serde_json::to_string(&channel_list).unwrap();
-    let _: () = lock.set(hub_channels_key.clone(), content).unwrap();
-    drop(lock);
-
-    // notify hubs for channel deletion
+    // notify all hubs to stop and drop streaming channels
 
     match state.publish_rpc_message(RPCMessageData::DeleteChannels(channel_list.channels)) {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
@@ -112,9 +109,7 @@ pub async fn delete_channels(
             warn!("error publishing delete channels: {err}");
             err.into_response()
         }
-    }*/
-
-    StatusCode::NO_CONTENT
+    }
 }
 
 pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
