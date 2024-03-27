@@ -56,7 +56,7 @@ pub async fn create_channels(
     let result: String = conn.get(hub_channels_key).unwrap();
     drop(conn);
 
-    // notify all hub to create and start streaming channels
+    // notify all hubs to create and start streaming channels
 
     match state.publish_rpc_message(RPCMessageData::CreateChannels(payload.channels.channels)) {
         Ok(_) => (
@@ -194,46 +194,6 @@ pub async fn purge_channel(
             err.into_response()
         }
     }
-
-    /*
-
-    let mut streams = state.streams.lock().await;
-    let streaming_channel = streams.get_mut(&channel);
-    if streaming_channel.is_none() {
-        warn!(
-            "could not find streaming channel by name {}",
-            channel.clone()
-        );
-        return (
-            StatusCode::NOT_FOUND,
-            [(hyper::header::CONTENT_TYPE, "application/json")],
-            json!({
-                "message": "Streaming channel could not be found"
-            })
-            .to_string(),
-        );
-    }
-
-    // get all keys
-    let keys = streaming_channel
-        .unwrap()
-        .get_snapshot_keys()
-        .unwrap_or(vec![]);
-    debug!("{} keys found", keys.len());
-
-    let mut conn = state.redis_rs.lock().unwrap();
-    let result = conn.del(keys).unwrap_or(0);
-
-    debug!("{result} entries purged");
-
-    (
-        StatusCode::OK,
-        [(hyper::header::CONTENT_TYPE, "application/json")],
-        json!({
-            "count": result
-        })
-        .to_string(),
-    )*/
 }
 
 pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
@@ -319,6 +279,7 @@ pub async fn assign_channels(
     drop(lock);
 
     // notify publishers
+
     match state.publish_rpc_message(RPCMessageData::AssignChannels(valid_channels)) {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {

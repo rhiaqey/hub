@@ -226,6 +226,33 @@ impl Hub {
                     }
 
                     match data.unwrap().data {
+                        RPCMessageData::PurgeChannel(channel) => {
+                            info!("purging channel {channel}");
+
+                            let mut streams = self.streams.lock().await;
+                            match streams.get_mut(&channel) {
+                                None => {
+                                    warn!(
+                                        "could not find streaming channel by name {}",
+                                        channel.clone()
+                                    );
+                                }
+                                Some(streaming_channel) => {
+                                    // get all keys
+
+                                    let keys = streaming_channel
+                                        .get_snapshot_keys()
+                                        .unwrap_or(vec![]);
+
+                                    debug!("{} keys found", keys.len());
+
+                                    let mut conn = self.redis_rs.lock().unwrap();
+                                    let result: i32 = conn.del(keys).unwrap_or(0);
+
+                                    debug!("{result} entries purged");
+                                }
+                            }
+                        }
                         RPCMessageData::CreateChannels(channels) => {
                             info!("creating channels {:?}", channels);
 
