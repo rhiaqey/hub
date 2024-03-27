@@ -98,7 +98,7 @@ impl Hub {
         Ok(settings)
     }
 
-    pub async fn set_settings_async(&mut self, settings: HubSettings) {
+    pub fn set_settings(&mut self, settings: HubSettings) {
         let mut locked_settings = self.settings.write().unwrap();
 
         let mut new_settings = settings.clone();
@@ -176,7 +176,7 @@ impl Hub {
             .read_settings_async()
             .await
             .unwrap_or(HubSettings::default());
-        self.set_settings_async(settings).await;
+        self.set_settings(settings);
         debug!("settings loaded");
 
         let shared_state = Arc::new(SharedState {
@@ -313,7 +313,7 @@ impl Hub {
                             info!("received update settings rpc");
                             match self.read_settings_async().await {
                                 Ok(settings) => {
-                                    self.set_settings_async(settings).await;
+                                    self.set_settings(settings);
                                     info!("settings updated successfully");
                                 },
                                 Err(err) => {
