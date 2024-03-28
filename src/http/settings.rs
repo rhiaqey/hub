@@ -8,7 +8,7 @@ use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
-use rhiaqey_common::{security, topics, RhiaqeyResult};
+use rhiaqey_common::{result::RhiaqeyResult, security, topics};
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde_json::Value;
 use std::collections::HashSet;

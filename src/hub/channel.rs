@@ -13,9 +13,9 @@ use redis::Commands;
 use redis::RedisResult;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::redis_rs::connect_and_ping;
+use rhiaqey_common::result::RhiaqeyResult;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
-use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::Channel;
 
 pub struct StreamingChannel {

@@ -6,7 +6,7 @@ use redis::Commands;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::security::SecurityKey;
-use rhiaqey_common::{topics, RhiaqeyResult};
+use rhiaqey_common::{result::RhiaqeyResult, topics};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde::{Deserialize, Serialize};

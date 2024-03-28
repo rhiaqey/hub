@@ -22,7 +22,7 @@ use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessag
 use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::security::SecurityKey;
 use rhiaqey_common::stream::StreamMessage;
-use rhiaqey_common::{security, topics, RhiaqeyResult};
+use rhiaqey_common::{result::RhiaqeyResult, security, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use sha256::digest;

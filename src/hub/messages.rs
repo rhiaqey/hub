@@ -3,7 +3,7 @@ use redis::streams::{StreamMaxlen, StreamRangeReply};
 use redis::Commands;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
-use rhiaqey_common::{topics, RhiaqeyResult};
+use rhiaqey_common::{result::RhiaqeyResult, topics};
 use rhiaqey_sdk_rs::channel::Channel;
 use std::collections::BTreeMap;
 
