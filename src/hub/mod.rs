@@ -12,6 +12,7 @@ use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
 use crate::hub::settings::HubSettings;
 use axum::extract::ws::Message;
+use futures::stream::select_all;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use redis::Commands;
@@ -171,7 +172,7 @@ impl Hub {
         self.set_settings(settings);
         debug!("settings loaded");
 
-        // let namespace = self.env.namespace.clone();
+        let namespace = self.env.namespace.clone();
 
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
@@ -201,15 +202,37 @@ impl Hub {
         Some(redis_msg) = stream.next() => {
             trace!("clean message arrived");
             trace!("message dump {:?}", redis_msg);
-        }*/
-        // let client = connect_and_ping(&self.env.redis.clone()).unwrap();
-        // let mut pubsub = client.get_async_pubsub().await.unwrap();
-        // let key = topics::hub_raw_to_hub_clean_pubsub_topic(namespace);
-        // pubsub.subscribe(key).await.unwrap();
-        // let mut stream = pubsub.on_message().into_future().await;
+        }
+        */
+        let client = connect_and_ping(&self.env.redis.clone()).unwrap();
+        let mut pubsub = client.get_async_pubsub().await.unwrap();
+        let key = topics::hub_raw_to_hub_clean_pubsub_topic(namespace);
+        pubsub.subscribe(key).await.unwrap();
+        let pubsub_stream = pubsub.on_message();
+        let mut streamz = select_all(vec![Box::pin(pubsub_stream)]);
 
-        let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub_async().await.unwrap();
+        while let Some(pubsub_message) = streamz.next().await {
+            trace!("clean message arrived");
 
+            let Ok(msg_str) = pubsub_message.get_payload::<String>() else {
+                warn!("invalid clean message");
+                continue;
+            };
+
+            let data = serde_json::from_str::<RPCMessage>(msg_str.as_str());
+            if data.is_err() {
+                warn!("failed to parse rpc message");
+                continue;
+            }
+
+            self.handle_rpc_message(data.unwrap()).await;
+        }
+
+        Ok(())
+
+        // let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub_async().await.unwrap();
+
+        /*
         loop {
             tokio::select! {
                 Some(pubsub_message) = clean_message_stream.next() => {
@@ -269,6 +292,52 @@ impl Hub {
                 }
             }
         }
+        */
+    }
+
+    async fn handle_rpc_message(&mut self, data: RPCMessage) {
+        match data.data {
+            RPCMessageData::PurgeChannel(channel) => {
+                info!("purging channel {channel}");
+                self.purge_channel(channel)
+                    .await
+                    .expect("failed to purge channel");
+            }
+            RPCMessageData::CreateChannels(channels) => {
+                info!("creating channels {:?}", channels);
+                self.create_channels(self.get_id(), channels)
+                    .await
+                    .expect("failed to create channels")
+            }
+            RPCMessageData::DeleteChannels(channels) => {
+                info!("deleting channels {:?}", channels);
+                self.delete_channels(channels)
+                    .await
+                    .expect("failed to delete channels");
+            }
+            RPCMessageData::RegisterPublisher(data) => {
+                info!(
+                    "setting publisher schema for [id={}, name={}, namespace={}]",
+                    data.id, data.name, data.namespace
+                );
+                self.update_publisher_schema(data)
+                    .expect("failed to set schema for publisher");
+            }
+            RPCMessageData::UpdateHubSettings() => {
+                info!("received update settings rpc");
+                self.update_hub_settings()
+                    .expect("failed to update hub settings");
+            }
+            RPCMessageData::NotifyClients(stream_message) => {
+                info!("received notify clients rpc");
+                self.notify_clients(self.get_id(), stream_message)
+                    .await
+                    .expect("failed to notify clients");
+            }
+            other => {
+                warn!("handler for rpc message missing: {:?}", other);
+            }
+        };
     }
 
     async fn create_channels(&self, hub_id: String, channels: Vec<Channel>) -> RhiaqeyResult<()> {

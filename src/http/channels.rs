@@ -8,7 +8,7 @@ use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::error::RhiaqeyError;
-use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessageData};
+use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
 use rhiaqey_sdk_rs::channel::ChannelList;
@@ -240,9 +240,10 @@ pub async fn assign_channels(
     debug!("[POST] Payload {:?}", payload);
 
     // get all channels in the system
-    let mut lock = state.redis_rs.lock().unwrap();
+    let channel_name = payload.name.clone();
+    let mut conn = state.redis_rs.lock().unwrap();
     let channels_key = topics::hub_channels_key(state.get_namespace());
-    let result: String = lock.get(channels_key.clone()).unwrap();
+    let result: String = conn.get(channels_key.clone()).unwrap();
     trace!("got channels {}", result);
 
     // decode result into a channel list
@@ -274,19 +275,22 @@ pub async fn assign_channels(
     .unwrap();
 
     // store locally
-    let publishers_key = topics::publisher_channels_key(state.get_namespace(), payload.name);
-    let _: () = lock.set(publishers_key, content).unwrap();
-    drop(lock);
+
+    let publishers_key =
+        topics::publisher_channels_key(state.get_namespace(), channel_name.clone());
+    let _: () = conn.set(publishers_key, content).unwrap();
 
     // notify publishers
 
-    match state.publish_rpc_message(RPCMessageData::AssignChannels(valid_channels)) {
-        Ok(_) => StatusCode::NO_CONTENT.into_response(),
-        Err(err) => {
-            warn!("error publishing assign channels: {err}");
-            err.into_response()
-        }
-    }
+    let content = serde_json::to_string(&RPCMessage {
+        data: RPCMessageData::AssignChannels(ChannelList {
+            channels: valid_channels.clone(),
+        }),
+    })
+    .unwrap();
+    let stream_topic =
+        topics::hub_to_publisher_pubsub_topic(state.get_namespace(), channel_name.clone());
+    let _: () = conn.publish(stream_topic, content).unwrap();
 }
 
 #[derive(Deserialize)]
