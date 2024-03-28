@@ -18,15 +18,12 @@ use rhiaqey_common::topics;
 use rhiaqey_common::RhiaqeyResult;
 use rhiaqey_sdk_rs::channel::Channel;
 
-use tokio::task::JoinHandle;
-
 pub struct StreamingChannel {
     pub hub_id: String,
     pub channel: Channel,
     pub namespace: String,
     pub redis: Arc<Mutex<redis::Connection>>,
     pub message_handler: Arc<Mutex<MessageHandler>>,
-    pub join_handler: Option<Arc<JoinHandle<u32>>>,
     pub clients: Arc<RwLock<Vec<String>>>,
 }
 
@@ -48,7 +45,6 @@ impl StreamingChannel {
             namespace: namespace.clone(),
             redis: rx.clone(),
             clients: Arc::new(RwLock::new(vec![])),
-            join_handler: None,
             message_handler: Arc::new(Mutex::new(MessageHandler::create(
                 hub_id.clone(),
                 channel.clone(),
@@ -107,7 +103,7 @@ impl StreamingChannel {
         let lock = self.redis.clone();
         let message_handler = self.message_handler.clone();
 
-        let join_handler = tokio::task::spawn(async move {
+        tokio::task::spawn(async move {
             loop {
                 for entry in Self::read_group_records(lock.clone(), &hub_id, &channel, &namespace)
                     .unwrap_or(vec![])
@@ -124,8 +120,6 @@ impl StreamingChannel {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         });
-
-        self.join_handler = Some(Arc::new(join_handler));
     }
 
     pub fn get_hub_id(&self) -> String {
@@ -204,14 +198,6 @@ impl StreamingChannel {
         debug!("found {} keys", keys.len());
 
         Ok(keys)
-    }
-}
-
-impl Drop for StreamingChannel {
-    fn drop(&mut self) {
-        if self.join_handler.is_some() {
-            self.join_handler.as_mut().unwrap().abort();
-        }
     }
 }
 
