@@ -322,14 +322,10 @@ impl Hub {
         Ok(())
     }
 
-    async fn notify_clients(
-        &self,
-        hub_id: String,
-        stream_message: StreamMessage,
-    ) -> RhiaqeyResult<()> {
+    async fn notify_clients(&self, hub_id: String, message: StreamMessage) -> RhiaqeyResult<()> {
         // get a streaming channel by channel name
         let all_hub_streams = self.streams.lock().await;
-        let streaming_channel = all_hub_streams.get(stream_message.channel.as_str());
+        let streaming_channel = all_hub_streams.get(message.channel.as_str());
 
         if let Some(s_channel) = streaming_channel {
             trace!("streaming channel found {}", s_channel.channel.name);
@@ -338,7 +334,7 @@ impl Hub {
 
             let mut all_hub_clients = self.clients.lock().await;
 
-            let mut client_message = ClientMessage::from(stream_message);
+            let mut client_message = ClientMessage::from(message);
             if client_message.hub_id.is_none() {
                 client_message.hub_id = Some(hub_id.clone());
             }
