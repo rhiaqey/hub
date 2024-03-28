@@ -283,9 +283,7 @@ pub async fn assign_channels(
     // notify publishers
 
     let content = serde_json::to_string(&RPCMessage {
-        data: RPCMessageData::AssignChannels(ChannelList {
-            channels: valid_channels.clone(),
-        }),
+        data: RPCMessageData::AssignChannels(valid_channels.clone()),
     })
     .unwrap();
     let stream_topic =
