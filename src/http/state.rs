@@ -9,7 +9,6 @@ use rhiaqey_common::security::SecurityKey;
 use rhiaqey_common::{topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rhiaqey_sdk_rs::message::MessageValue;
-use rustis::client::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -17,7 +16,6 @@ use tokio::sync::Mutex;
 
 pub struct SharedState {
     pub env: Arc<Env>,
-    pub redis: Arc<Mutex<Client>>,
     pub redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
     pub security: Arc<RwLock<SecurityKey>>,
     pub settings: Arc<RwLock<HubSettings>>,

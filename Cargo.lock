@@ -1768,7 +1768,6 @@ dependencies = [
  "rhiaqey-common",
  "rhiaqey-sdk-rs",
  "rsa",
- "rustis",
  "rusty_ulid",
  "serde",
  "serde_json",
