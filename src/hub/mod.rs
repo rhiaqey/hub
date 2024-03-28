@@ -26,8 +26,7 @@ use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::{security, topics, RhiaqeyResult};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
-use rustis::client::{Client, PubSubStream};
-use rustis::commands::PubSubCommands;
+use rustis::client::Client;
 use sha256::digest;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -63,13 +62,6 @@ impl Hub {
 
     pub fn get_namespace(&self) -> String {
         self.env.namespace.clone()
-    }
-
-    pub async fn create_raw_to_hub_clean_pubsub_async(&mut self) -> RhiaqeyResult<PubSubStream> {
-        let client = connect_and_ping_async(self.env.redis.clone()).await?;
-        let key = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
-        let stream = client.subscribe(key.clone()).await?;
-        Ok(stream)
     }
 
     pub fn get_channels(&self) -> RhiaqeyResult<Vec<Channel>> {
