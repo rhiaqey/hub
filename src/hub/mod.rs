@@ -198,12 +198,6 @@ impl Hub {
             start_public_http_server(public_port, public_state.clone()).await;
         });
 
-        /*
-        Some(redis_msg) = stream.next() => {
-            trace!("clean message arrived");
-            trace!("message dump {:?}", redis_msg);
-        }
-        */
         let client = connect_and_ping(&self.env.redis.clone()).unwrap();
         let mut pubsub = client.get_async_pubsub().await.unwrap();
         let key = topics::hub_raw_to_hub_clean_pubsub_topic(namespace);
@@ -229,70 +223,6 @@ impl Hub {
         }
 
         Ok(())
-
-        // let mut clean_message_stream = self.create_raw_to_hub_clean_pubsub_async().await.unwrap();
-
-        /*
-        loop {
-            tokio::select! {
-                Some(pubsub_message) = clean_message_stream.next() => {
-                    trace!("clean message arrived");
-
-                    if pubsub_message.is_err() {
-                        warn!("invalid clean message");
-                        continue;
-                    }
-
-                    let data = serde_json::from_slice::<RPCMessage>(pubsub_message.unwrap().payload.as_slice());
-                    if data.is_err() {
-                        warn!("failed to parse rpc message");
-                        continue;
-                    }
-
-                    match data.unwrap().data {
-                        RPCMessageData::PurgeChannel(channel) => {
-                            info!("purging channel {channel}");
-                            self.purge_channel(channel)
-                                .await
-                                .expect("failed to purge channel");
-                        }
-                        RPCMessageData::CreateChannels(channels) => {
-                            info!("creating channels {:?}", channels);
-                            self.create_channels(self.get_id(), channels)
-                                .await
-                                .expect("failed to create channels")
-                        }
-                        RPCMessageData::DeleteChannels(channels) => {
-                            info!("deleting channels {:?}", channels);
-                            self.delete_channels(channels)
-                                .await
-                                .expect("failed to delete channels");
-                        }
-                        RPCMessageData::RegisterPublisher(data) => {
-                            info!("setting publisher schema for [id={}, name={}, namespace={}]",
-                                data.id, data.name, data.namespace);
-                            self.update_publisher_schema(data)
-                                .expect("failed to set schema for publisher");
-                        }
-                        RPCMessageData::UpdateHubSettings() => {
-                            info!("received update settings rpc");
-                            self.update_hub_settings()
-                                .expect("failed to update hub settings");
-                        }
-                        RPCMessageData::NotifyClients(stream_message) => {
-                            info!("received notify clients rpc");
-                            self.notify_clients(self.get_id(), stream_message)
-                                .await
-                                .expect("failed to notify clients");
-                        }
-                        other => {
-                            warn!("handler for rpc message missing: {:?}", other);
-                        }
-                    }
-                }
-            }
-        }
-        */
     }
 
     async fn handle_rpc_message(&mut self, data: RPCMessage) {
