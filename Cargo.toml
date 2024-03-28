@@ -28,7 +28,7 @@ async-trait = "0.1"
 futures = "0.3"
 prometheus = { version = "0.13", features = ["process"] }
 redis = { version = "0.25", features = ["tokio-comp", "sentinel"] }
-tokio = { version = "1.36", features = ["full"] }
+tokio = { version = "1.37", features = ["full"] }
 axum = { version = "0.7", features = ["http2", "json", "macros",
     "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
 hyper = { version = "1.1", features = ["full"] }
