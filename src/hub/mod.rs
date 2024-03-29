@@ -406,16 +406,13 @@ impl Hub {
                 Err(format!("could not find streaming channel by name {}", channel).into())
             }
             Some(streaming_channel) => {
-                // get all keys
-
                 let keys = streaming_channel.get_snapshot_keys().unwrap_or(vec![]);
-
-                debug!("{} keys found", keys.len());
+                trace!("{} keys found", keys.len());
 
                 let mut conn = self.redis_rs.lock().unwrap();
                 let result: i32 = conn.del(keys).unwrap_or(0);
 
-                debug!("{result} entries purged");
+                trace!("{result} entries purged");
 
                 Ok(())
             }
