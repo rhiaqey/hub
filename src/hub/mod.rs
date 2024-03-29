@@ -213,11 +213,13 @@ impl Hub {
 
     async fn handle_rpc_message(&mut self, data: RPCMessage) {
         match data.data {
-            RPCMessageData::PurgeChannel(channel) => {
-                info!("purging channel {channel}");
-                self.purge_channel(channel)
-                    .await
-                    .expect("failed to purge channel");
+            RPCMessageData::PurgeChannels(channels) => {
+                info!("purging {} channels", channels.len());
+                for channel in channels.iter() {
+                    self.purge_channel(channel)
+                        .await
+                        .expect(format!("failed to purge channel {channel}").as_str());
+                }
             }
             RPCMessageData::CreateChannels(channels) => {
                 info!("creating channels {:?}", channels);
@@ -396,19 +398,12 @@ impl Hub {
         }
     }
 
-    async fn purge_channel(&self, channel: String) -> RhiaqeyResult<()> {
+    async fn purge_channel(&self, channel: &String) -> RhiaqeyResult<()> {
         let mut streams = self.streams.lock().await;
-        match streams.get_mut(&channel) {
+        match streams.get_mut(channel) {
             None => {
-                warn!(
-                    "could not find streaming channel by name {}",
-                    channel.clone()
-                );
-                Err(format!(
-                    "could not find streaming channel by name {}",
-                    channel.clone()
-                )
-                .into())
+                warn!("could not find streaming channel by name {}", channel);
+                Err(format!("could not find streaming channel by name {}", channel).into())
             }
             Some(streaming_channel) => {
                 // get all keys

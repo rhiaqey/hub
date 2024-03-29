@@ -187,7 +187,7 @@ pub async fn purge_channel(
 ) -> impl IntoResponse {
     info!("[DELETE] Purging channel {}", channel);
 
-    match state.publish_rpc_message(RPCMessageData::PurgeChannel(channel.clone())) {
+    match state.publish_rpc_message(RPCMessageData::PurgeChannels(vec![channel.clone()])) {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
             warn!("error publishing purge channel {channel}: {err}");
