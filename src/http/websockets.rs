@@ -69,12 +69,12 @@ async fn handle_ws_connection(
 ) {
     info!("connection {ip} established");
     tokio::task::spawn(
-        async move { handle_client(socket, channels, snapshot_request, state).await },
+        async move { handle_ws_client(socket, channels, snapshot_request, state).await },
     );
 }
 
 /// Handle each client here
-async fn handle_client(
+async fn handle_ws_client(
     socket: WebSocket,
     channels: Vec<String>,
     snapshot_request: bool,
