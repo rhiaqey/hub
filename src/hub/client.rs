@@ -29,4 +29,10 @@ impl WebSocketClient {
     pub async fn send(&mut self, message: Message) -> Result<(), Error> {
         self.sender.lock().await.send(message).await
     }
+
+    pub fn get_category_for_channel(&self, name: &String) -> Option<String> {
+        self.channels
+            .iter()
+            .find_map(|x| if x.0.name == *name { x.1.clone() } else { None })
+    }
 }

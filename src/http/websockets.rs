@@ -171,6 +171,17 @@ async fn handle_ws_client(
             if let Some(chx) = streaming_channel {
                 let snapshot = chx.get_snapshot().unwrap_or(vec![]);
                 for stream_message in snapshot.iter() {
+                    // case where clients have specified a category for their channel
+                    if channel.1.is_some() {
+                        if !stream_message.category.eq(&channel.1) {
+                            warn!(
+                                "snapshot category {:?} does not match with specified {:?}",
+                                stream_message.category, channel.1
+                            );
+                            continue;
+                        }
+                    }
+
                     let mut client_message = ClientMessage::from(stream_message);
                     if client_message.hub_id.is_none() {
                         client_message.hub_id = Some(hub_id.clone());
@@ -178,7 +189,11 @@ async fn handle_ws_client(
 
                     let raw = serde_json::to_vec(&client_message).unwrap();
                     if let Ok(_) = sender.send(Message::Binary(raw)).await {
-                        trace!("channel snapshot message sent successfully to {client_id}");
+                        trace!(
+                            "channel snapshot message[category={:?}] sent successfully to {}",
+                            channel.1,
+                            client_id
+                        );
                     } else {
                         warn!("could not send snapshot message to {client_id}");
                         break;

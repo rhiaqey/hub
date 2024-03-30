@@ -9,7 +9,7 @@ use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
-use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
+use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use axum::extract::ws::Message;
 use futures::stream::select_all;
@@ -312,11 +312,13 @@ impl Hub {
 
     async fn notify_clients(&self, hub_id: String, message: StreamMessage) -> RhiaqeyResult<()> {
         // get a streaming channel by channel name
+        let category = message.category.clone();
         let all_hub_streams = self.streams.lock().await;
         let streaming_channel = all_hub_streams.get(message.channel.as_str());
 
         if let Some(s_channel) = streaming_channel {
-            trace!("streaming channel found {}", s_channel.channel.name);
+            let channel_name = s_channel.channel.name.clone();
+            trace!("streaming channel found {}", channel_name);
 
             let all_stream_channel_clients = s_channel.clients.read().unwrap();
 
@@ -329,44 +331,24 @@ impl Hub {
 
             let raw = serde_json::to_vec(&client_message).unwrap();
 
-            let mut to_delete = vec![];
-
-            // TODO: Move broadcast to streaming channel
             for client_id in all_stream_channel_clients.iter() {
                 match all_hub_clients.get_mut(client_id) {
-                    Some(socket) => match socket.send(Message::Binary(raw.clone())).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!("failed to sent message: {e}");
-                            to_delete.push(client_id);
+                    Some(client) => {
+                        if let Some(cat) = client.get_category_for_channel(&channel_name) {
+                            if !category.eq(&Some(cat)) {
+                                warn!("skipping message broadcast as the categories do not match: {:?}", category);
+                                continue;
+                            }
                         }
-                    },
-                    None => {
-                        warn!("failed to find client by id {client_id}");
+
+                        if let Err(e) = client.send(Message::Binary(raw.clone())).await {
+                            warn!("failed to sent message: {e}")
+                        } else {
+                            trace!("message sent successfully to client {client_id}");
+                        }
                     }
+                    None => warn!("failed to find client by id {client_id}"),
                 }
-            }
-
-            if to_delete.is_empty() {
-                info!(
-                    "message sent to {:?} client(s)",
-                    all_stream_channel_clients.len()
-                );
-            } else {
-                warn!("disconnecting {} clients", to_delete.len());
-
-                for client_id in all_stream_channel_clients.iter() {
-                    all_hub_clients.remove(client_id);
-                    let mut lock = streaming_channel.unwrap().clients.write().unwrap();
-                    if let Some(i) = lock.iter().position(|x| x == client_id) {
-                        warn!("removing client from channel by index {i}");
-                        lock.remove(i);
-                    }
-                }
-
-                let total_clients = all_hub_clients.len();
-                TOTAL_CLIENTS.set(total_clients as f64);
-                trace!("total clients set to {total_clients}");
             }
 
             Ok(())
