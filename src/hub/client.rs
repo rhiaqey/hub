@@ -10,14 +10,14 @@ use tokio::sync::Mutex;
 pub struct WebSocketClient {
     pub id: String,
     pub sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-    pub channels: Vec<Channel>,
+    pub channels: Vec<(Channel, Option<String>)>,
 }
 
 impl WebSocketClient {
     pub fn create(
         client_id: String,
         sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
-        channels: Vec<Channel>,
+        channels: Vec<(Channel, Option<String>)>,
     ) -> WebSocketClient {
         WebSocketClient {
             id: client_id,

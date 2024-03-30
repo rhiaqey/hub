@@ -399,6 +399,8 @@ impl Hub {
     }
 
     async fn purge_channel(&self, channel: &String) -> RhiaqeyResult<()> {
+        debug!("purging channel {channel}");
+
         let mut streams = self.streams.lock().await;
         match streams.get_mut(channel) {
             None => {
@@ -406,13 +408,13 @@ impl Hub {
                 Err(format!("could not find streaming channel by name {}", channel).into())
             }
             Some(streaming_channel) => {
-                let keys = streaming_channel.get_snapshot_keys().unwrap_or(vec![]);
-                trace!("{} keys found", keys.len());
+                trace!("streaming channel found");
 
-                let mut conn = self.redis_rs.lock().unwrap();
-                let result: i32 = conn.del(keys).unwrap_or(0);
+                let keys = streaming_channel.delete_snapshot_keys().unwrap_or(0);
+                trace!("{keys} snapshot keys deleted");
 
-                trace!("{result} entries purged");
+                let entries = streaming_channel.xtrim().unwrap_or(0);
+                trace!("{entries} entries xtrimmed");
 
                 Ok(())
             }

@@ -84,19 +84,34 @@ async fn handle_client(
     let client_id = generate_ulid_string();
 
     info!("handle client {client_id}");
-    debug!("channels found {:?}", channels);
+    debug!("{} channels found", channels.len());
 
-    let mut added_channels: Vec<Channel> = vec![];
+    // With this, we will support channel names that can include categories seperated with a `/`
+    // Valid examples would be `ticks` but also `ticks/historical`.
+    // Any other format would be considered invalid and would be filtered out.
+    let channels: Vec<(String, Option<String>)> = channels
+        .iter()
+        .filter_map(|x| {
+            let parts: Vec<&str> = x.split('/').collect();
+            match parts.len() {
+                1 => Some((parts[0].to_string(), None)),
+                2 => Some((parts[0].to_string(), Some(parts[1].to_string()))),
+                _ => None,
+            }
+        })
+        .collect();
+
+    let mut added_channels: Vec<(Channel, Option<String>)> = vec![];
     let mut streaming_channels = state.streams.lock().await;
 
     for channel in channels.iter() {
-        let streaming_channel = streaming_channels.get_mut(channel);
+        let streaming_channel = streaming_channels.get_mut(&channel.0);
         if let Some(chx) = streaming_channel {
             chx.add_client(client_id.clone());
-            added_channels.push(chx.channel.clone());
-            debug!("client joined channel {}", channel);
+            added_channels.push((chx.channel.clone(), channel.1.clone()));
+            debug!("client joined channel {}", channel.0);
         } else {
-            warn!("could not find channel {}", channel);
+            warn!("could not find channel {}", channel.0);
         }
     }
 
@@ -123,20 +138,21 @@ async fn handle_client(
     }
 
     for channel in added_channels.iter() {
-        let channel_name = channel.name.clone();
+        let channel_name = channel.0.name.clone();
         let mut data = client_message.clone();
 
         data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
-        data.channel = channel.name.clone().into();
-        data.key = channel.name.clone().into();
+        data.channel = channel.0.name.clone().into();
+        data.key = channel.0.name.clone().into();
         data.value = ClientMessageValue::ClientChannelSubscription(
             ClientMessageValueClientChannelSubscription {
                 channel: Channel {
-                    name: channel.name.clone(),
-                    size: channel.size,
+                    name: channel.0.name.clone(),
+                    size: channel.0.size,
                 },
             },
         );
+        data.category = channel.1.clone();
 
         let Ok(raw) = serde_json::to_vec(&data) else {
             warn!("failed to serialize to vec");
@@ -208,17 +224,18 @@ async fn handle_client(
     if let Some(client) = state.clients.lock().await.remove(&cid) {
         trace!("client was removed from all clients");
         for channel in client.channels.iter() {
-            trace!("removing client from {} channel as well", channel.name);
+            trace!("removing client from {} channel as well", channel.0.name);
             if let Some(sc) = state
                 .streams
                 .lock()
                 .await
-                .get_mut(&channel.name.to_string())
+                .get_mut(&channel.0.name.to_string())
             {
                 sc.remove_client(cid.clone());
             }
         }
     }
+
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client {cid} was disconnected");

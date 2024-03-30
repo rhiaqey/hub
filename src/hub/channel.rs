@@ -6,9 +6,9 @@ use std::time::Duration;
 
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
-use redis::streams::StreamKey;
 use redis::streams::StreamReadReply;
 use redis::streams::{StreamId, StreamReadOptions};
+use redis::streams::{StreamKey, StreamMaxlen};
 use redis::Commands;
 use redis::RedisResult;
 use rhiaqey_common::redis::RedisSettings;
@@ -185,7 +185,7 @@ impl StreamingChannel {
     }
 
     pub fn get_snapshot_keys(&mut self) -> RhiaqeyResult<Vec<String>> {
-        let snapshot_topic = topics::hub_channel_snapshot_topic(
+        let topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),
             String::from("*"),
@@ -194,10 +194,37 @@ impl StreamingChannel {
 
         let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();
-        let keys: Vec<String> = client.scan_match(&snapshot_topic)?.collect();
+        let keys: Vec<String> = client.scan_match(&topic)?.collect();
         debug!("found {} keys", keys.len());
 
         Ok(keys)
+    }
+
+    pub fn delete_snapshot_keys(&mut self) -> RhiaqeyResult<i32> {
+        let keys = self.get_snapshot_keys().unwrap_or(vec![]);
+        trace!("{} keys found", keys.len());
+
+        let lock = self.redis.clone();
+        let mut client = lock.lock().unwrap();
+
+        let result: i32 = client.del(keys).unwrap_or(0);
+
+        Ok(result)
+    }
+
+    pub fn xtrim(&self) -> RhiaqeyResult<i32> {
+        let topic = topics::publishers_to_hub_stream_topic(
+            self.namespace.clone(),
+            self.channel.name.to_string(),
+        );
+
+        let lock = self.redis.clone();
+        let mut client = lock.lock().unwrap();
+
+        let result: i32 = client.xtrim(topic, StreamMaxlen::Equals(0)).unwrap_or(0);
+        debug!("trimmed {} entries", result);
+
+        Ok(result)
     }
 }
 
