@@ -117,8 +117,8 @@ async fn handle_ws_client(
 
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
-        channel: "".into(),
-        key: "".into(),
+        channel: String::from(""),
+        key: String::from(""),
         value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
             client_id: client_id.to_string(),
             hub_id: hub_id.to_string(),
