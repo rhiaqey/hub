@@ -142,8 +142,9 @@ async fn handle_ws_client(
         let mut data = client_message.clone();
 
         data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
-        data.channel = channel.0.name.clone().into();
-        data.key = channel.0.name.clone().into();
+        data.channel = channel.0.name.to_string();
+        data.key = channel.0.name.to_string();
+        data.category = channel.1.clone();
         data.value = ClientMessageValue::ClientChannelSubscription(
             ClientMessageValueClientChannelSubscription {
                 channel: Channel {
@@ -152,7 +153,6 @@ async fn handle_ws_client(
                 },
             },
         );
-        data.category = channel.1.clone();
 
         let Ok(raw) = serde_json::to_vec(&data) else {
             warn!("failed to serialize to vec");
