@@ -331,6 +331,8 @@ impl Hub {
 
             let raw = serde_json::to_vec(&client_message).unwrap();
 
+            let mut total = 0u32;
+
             for client_id in all_stream_channel_clients.iter() {
                 match all_hub_clients.get_mut(client_id) {
                     Some(client) => {
@@ -345,11 +347,18 @@ impl Hub {
                             warn!("failed to sent message: {e}")
                         } else {
                             trace!("message sent successfully to client {client_id}");
+                            total += 1;
                         }
                     }
                     None => warn!("failed to find client by id {client_id}"),
                 }
             }
+
+            info!(
+                "notified {}/{} clients",
+                total,
+                s_channel.clients.read().unwrap().len()
+            );
 
             Ok(())
         } else {
