@@ -219,6 +219,7 @@ async fn handle_ws_client(
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client {client_id} was connected");
+    debug!("total connected clients: {}", TOTAL_CLIENTS.get());
 
     let handler = tokio::spawn(async move {
         let client_id = client_id.clone();
@@ -266,4 +267,5 @@ async fn handle_ws_client(
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client {cid} was disconnected");
+    debug!("total connected clients: {}", TOTAL_CLIENTS.get());
 }
