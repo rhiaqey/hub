@@ -357,7 +357,7 @@ impl Hub {
             info!(
                 "notified {}/{} clients",
                 total,
-                s_channel.clients.read().unwrap().len()
+                s_channel.get_total_clients()
             );
 
             Ok(())
