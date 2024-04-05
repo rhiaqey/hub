@@ -5,8 +5,8 @@ use log::info;
 use serde_json::json;
 
 pub async fn get_users() -> impl IntoResponse {
-    info!("[GET] get total connected users");
     let clients = TOTAL_CLIENTS.get();
+    info!("[GET] get total connected users: {}", clients);
 
     (
         StatusCode::OK,

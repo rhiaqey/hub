@@ -84,7 +84,7 @@ async fn handle_ws_client(
     let client_id = generate_ulid_string();
 
     info!("handle client {client_id}");
-    debug!("{} channels found", channels.len());
+    debug!("{} channels extracted", channels.len());
 
     // With this, we will support channel names that can include categories seperated with a `/`
     // Valid examples would be `ticks` but also `ticks/historical`.
@@ -102,16 +102,18 @@ async fn handle_ws_client(
         .collect();
 
     let mut added_channels: Vec<(Channel, Option<String>)> = vec![];
-    let mut streaming_channels = state.streams.lock().await;
 
-    for channel in channels.iter() {
-        let streaming_channel = streaming_channels.get_mut(&channel.0);
-        if let Some(chx) = streaming_channel {
-            chx.add_client(client_id.clone());
-            added_channels.push((chx.channel.clone(), channel.1.clone()));
-            debug!("client joined channel {}", channel.0);
-        } else {
-            warn!("could not find channel {}", channel.0);
+    {
+        for channel in channels.iter() {
+            let mut lock = state.streams.lock().await;
+            let streaming_channel = lock.get_mut(&channel.0);
+            if let Some(chx) = streaming_channel {
+                chx.add_client(client_id.clone());
+                added_channels.push((chx.channel.clone(), channel.1.clone()));
+                debug!("client joined channel {}", channel.0);
+            } else {
+                warn!("could not find channel {}", channel.0);
+            }
         }
     }
 
@@ -137,68 +139,73 @@ async fn handle_ws_client(
         warn!("Could not send binary data due to {}", e);
     }
 
-    for channel in added_channels.iter() {
-        let channel_name = channel.0.name.clone();
-        let mut data = client_message.clone();
+    {
+        for channel in added_channels.iter() {
+            let channel_name = channel.0.name.clone();
+            let mut data = client_message.clone();
+            trace!("iterating channel {}", channel_name);
 
-        data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
-        data.channel = channel.0.name.to_string();
-        data.key = channel.0.name.to_string();
-        data.category = channel.1.clone();
-        data.value = ClientMessageValue::ClientChannelSubscription(
-            ClientMessageValueClientChannelSubscription {
-                channel: Channel {
-                    name: channel.0.name.clone(),
-                    size: channel.0.size,
+            data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
+            data.channel = channel.0.name.to_string();
+            data.key = channel.0.name.to_string();
+            data.category = channel.1.clone();
+            data.value = ClientMessageValue::ClientChannelSubscription(
+                ClientMessageValueClientChannelSubscription {
+                    channel: Channel {
+                        name: channel.0.name.clone(),
+                        size: channel.0.size,
+                    },
                 },
-            },
-        );
+            );
 
-        let Ok(raw) = serde_json::to_vec(&data) else {
-            warn!("failed to serialize to vec");
-            continue;
-        };
+            let Ok(raw) = serde_json::to_vec(&data) else {
+                warn!("failed to serialize to vec");
+                continue;
+            };
 
-        if let Ok(_) = sender.send(Message::Binary(raw)).await {
-            trace!("channel subscription message sent successfully");
-        } else {
-            warn!("could not send subscription message");
-        }
+            if let Ok(_) = sender.send(Message::Binary(raw)).await {
+                trace!("channel subscription message sent successfully");
+            } else {
+                warn!("could not send subscription message");
+            }
 
-        if snapshot_request {
-            debug!("sending snapshot to client");
-            let streaming_channel = streaming_channels.get_mut(&*channel_name);
-            if let Some(chx) = streaming_channel {
-                let snapshot = chx.get_snapshot().unwrap_or(vec![]);
-                for stream_message in snapshot.iter() {
-                    // case where clients have specified a category for their channel
-                    if channel.1.is_some() {
-                        if !stream_message.category.eq(&channel.1) {
-                            warn!(
-                                "snapshot category {:?} does not match with specified {:?}",
-                                stream_message.category, channel.1
+            if snapshot_request {
+                debug!("sending snapshot to client");
+                let mut lock = state.streams.lock().await;
+                let streaming_channel = lock.get_mut(&*channel_name);
+                if let Some(chx) = streaming_channel {
+                    let snapshot = chx.get_snapshot().unwrap_or(vec![]);
+                    for stream_message in snapshot.iter() {
+                        // case where clients have specified a category for their channel
+                        if channel.1.is_some() {
+                            if !stream_message.category.eq(&channel.1) {
+                                warn!(
+                                    "snapshot category {:?} does not match with specified {:?}",
+                                    stream_message.category, channel.1
+                                );
+                                continue;
+                            }
+                        }
+
+                        let mut client_message = ClientMessage::from(stream_message);
+                        if client_message.hub_id.is_none() {
+                            client_message.hub_id = Some(hub_id.clone());
+                        }
+
+                        let raw = serde_json::to_vec(&client_message).unwrap();
+                        if let Ok(_) = sender.send(Message::Binary(raw)).await {
+                            trace!(
+                                "channel snapshot message[category={:?}] sent successfully to {}",
+                                channel.1,
+                                client_id
                             );
-                            continue;
+                        } else {
+                            warn!("could not send snapshot message to {client_id}");
+                            break;
                         }
                     }
-
-                    let mut client_message = ClientMessage::from(stream_message);
-                    if client_message.hub_id.is_none() {
-                        client_message.hub_id = Some(hub_id.clone());
-                    }
-
-                    let raw = serde_json::to_vec(&client_message).unwrap();
-                    if let Ok(_) = sender.send(Message::Binary(raw)).await {
-                        trace!(
-                            "channel snapshot message[category={:?}] sent successfully to {}",
-                            channel.1,
-                            client_id
-                        );
-                    } else {
-                        warn!("could not send snapshot message to {client_id}");
-                        break;
-                    }
                 }
+                drop(lock);
             }
         }
     }
@@ -212,8 +219,6 @@ async fn handle_ws_client(
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
     debug!("client {client_id} was connected");
-    // NOTE: Required. Do not remove
-    drop(streaming_channels);
 
     let handler = tokio::spawn(async move {
         let client_id = client_id.clone();
@@ -223,6 +228,13 @@ async fn handle_ws_client(
                 Message::Pong(_) => {}
                 Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
                     let id = client_id.clone();
+
+                    if let Message::Close(_) = msg {
+                        trace!("close request received from {id}");
+                    } else {
+                        trace!("data received from {id}");
+                    }
+
                     warn!("must close connection for client {id}");
                     if let Err(err) = sx.lock().await.close().await {
                         warn!("error closing connection for {id}: {err}");
