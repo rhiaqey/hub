@@ -355,9 +355,10 @@ impl Hub {
             }
 
             info!(
-                "notified {}/{} clients",
+                "notified {}/{}/{} clients",
                 total,
-                s_channel.get_total_clients()
+                s_channel.get_total_clients(),
+                all_hub_clients.len()
             );
 
             Ok(())
