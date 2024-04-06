@@ -1726,9 +1726,10 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.0"
-source = "git+https://github.com/rhiaqey/common.git#7b43d67692ed7bfa71a75aa2c92ba277408585b7"
+source = "git+https://github.com/rhiaqey/common.git#a8f0db1527b8ae5e7c790de00604536bb9723a5a"
 dependencies = [
  "aes-gcm-siv",
+ "anyhow",
  "axum-core",
  "env_logger",
  "envy",
@@ -1782,7 +1783,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.1"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#8f7cfdbcb5a9e329b7e52eb6a2a16a017e8e22be"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#82b32757e67db193cc6a6894804bd4a748a02d1c"
 dependencies = [
  "async-trait",
  "serde",
