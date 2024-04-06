@@ -121,8 +121,7 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
 
     // find assigned publisher keys
 
-    let schema_key =
-        topics::publisher_schema_key(state.get_namespace(), "*".to_string(), "*".to_string());
+    let schema_key = topics::publisher_schema_key(state.get_namespace(), "*".to_string());
     debug!("schema key {}", schema_key);
 
     let keys: Vec<String> = conn.keys(schema_key).unwrap_or(vec![]);

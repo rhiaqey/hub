@@ -469,10 +469,11 @@
         document.getElementsByClassName('channels_total').item(0).innerHTML = `${channel_list.length} total channels`;
     }
 
-    function update_settings(publisher_name) {
+    function update_settings(pid, publisher_name) {
         return fetch(`${temp_api_prefix}/admin/api/settings`, {
             method: 'POST',
             body: JSON.stringify({
+                Id: pid,
                 Name: publisher_name,
                 Settings: JSON.parse(editor.getValue()),
             }, null, 4),
@@ -506,13 +507,13 @@
         document.getElementsByClassName('update_settings_btn').item(0).style.display = 'none';
     }
 
-    function set_settings(publisher_name) {
+    function set_settings(pid, publisher_name) {
         editor.getDoc().setValue(JSON.stringify({
             Key: "Value" // example
         }, null, 4));
 
         document.getElementsByClassName('update_settings_btn').item(0).onclick = function () {
-            update_settings(publisher_name);
+            update_settings(pid, publisher_name);
         };
 
         document.getElementsByClassName('update_settings_btn').item(0).style.display = 'block';
@@ -558,12 +559,14 @@
     }
 
     function render_publisher_list() {
-        let content = "<table><tr><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
+        let content = "<table><tr><th>Id</th><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
         publisher_list.forEach(pub => {
             content += `<tr>
+                    <td class="pub_id">${pub.Id}</td>
                     <td class="pub_name">${pub.Name}</td>
                     <td class="pub_namespace">${pub.Namespace}</td>`;
 
+            let id = pub.Id;
             let name = pub.Name;
             let schema = JSON.stringify(pub.Schema);
 
@@ -571,7 +574,7 @@
                 `<td>
                         <a onclick='view_schema(${schema})' href="javascript:void(0);">[view schema]</a>
                         <span>&nbsp;</span>
-                        <a onclick="set_settings('${name}')" href="javascript:void(0);">[set settings]</a>
+                        <a onclick="set_settings('${id}', '${name}')" href="javascript:void(0);">[set settings]</a>
                     </td>
                 </tr>`;
         });

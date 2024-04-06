@@ -393,11 +393,7 @@ impl Hub {
     }
 
     fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
-        let schema_key = topics::publisher_schema_key(
-            data.namespace.clone(),
-            data.name.clone(),
-            data.id.clone(),
-        );
+        let schema_key = topics::publisher_schema_key(data.namespace.clone(), data.name.clone());
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
         lock.lock().unwrap().set(schema_key, encoded)?;

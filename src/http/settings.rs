@@ -142,7 +142,7 @@ fn update_settings_for_publishers(
     trace!("find first schema for publisher");
     let name = payload.name;
     let namespace = state.get_namespace();
-    let schema_key = topics::publisher_schema_key(namespace, name.clone(), payload.id);
+    let schema_key = topics::publisher_schema_key(namespace, name.clone());
     debug!("schema key {schema_key}");
 
     let lock = state.redis_rs.clone();
