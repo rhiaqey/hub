@@ -1,26 +1,10 @@
-FROM --platform=$BUILDPLATFORM rust:1.77-slim-bookworm as builder
+FROM --platform=$BUILDPLATFORM rhiaqey/build:1.0.0 as builder
 
 ARG TARGETPLATFORM
 
 ENV RUST_BACKTRACE=1
+ENV RUST_LOG=trace
 
-RUN echo Building $TARGETPLATFORM on $BUILDPLATFORM
-
-RUN    apt-get update \
-    && apt-get install -y \
-        gcc-aarch64-linux-gnu \
-        libc6-dev-arm64-cross \
-        build-essential \
-        pkg-config \
-        libssl-dev \
-        cmake \
-        gcc \
-        libc-bin \
-        libc6-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates
-
-# Set the default target to ARM64
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
 
@@ -37,7 +21,7 @@ RUN case "${TARGETPLATFORM}" in \
     && cargo install --target ${rust_target} --bin hub --path . \
     && cargo install --target ${rust_target} --bin ops --features=cli --path .
 
-FROM debian:bookworm-slim
+FROM --platform=$BUILDPLATFORM rhiaqey/run:1.0.0
 
 ARG BINARY
 ARG USER=1000
@@ -51,15 +35,6 @@ ENV USER=$USER
 ENV GROUP=$GROUP
 
 LABEL org.opencontainers.image.description="Rhiaqey Hub ${BINARY}"
-
-RUN    apt-get update \
-    && apt-get install -y \
-        ca-certificates \
-        net-tools \
-        libssl-dev \
-        curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates
 
 # Create the specified group and user, and add the user to the group
 RUN groupadd -g $GROUP $GROUP \
