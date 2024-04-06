@@ -318,23 +318,6 @@ impl Hub {
         Ok(())
     }
 
-    async fn update_publisher_metrics(&self, data: MetricsMessage) -> RhiaqeyResult<()> {
-        let schema_key = topics::publisher_metrics_key(
-            data.namespace.clone(),
-            data.name.clone(),
-            data.id.clone(),
-        );
-        let encoded = serde_json::to_string(&data)?;
-        let lock = self.redis_rs.clone();
-        lock.lock().unwrap().set(schema_key, encoded)?;
-        debug!(
-            "metrics updated for {}[id={}]",
-            data.name.clone(),
-            data.id.clone()
-        );
-        Ok(())
-    }
-
     async fn notify_clients(&self, hub_id: String, message: StreamMessage) -> RhiaqeyResult<()> {
         // get a streaming channel by channel name
         let category = message.category.clone();
@@ -392,12 +375,37 @@ impl Hub {
         }
     }
 
-    fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
-        let schema_key = topics::publisher_schema_key(data.namespace.clone(), data.name.clone());
+    async fn update_publisher_metrics(&self, data: MetricsMessage) -> RhiaqeyResult<()> {
+        let schema_key = topics::publisher_metrics_key(
+            data.namespace.clone(),
+            data.name.clone(),
+            data.id.clone(),
+        );
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
         lock.lock().unwrap().set(schema_key, encoded)?;
-        debug!("schema updated");
+        debug!(
+            "metrics updated for {}[id={}]",
+            data.name.clone(),
+            data.id.clone()
+        );
+        Ok(())
+    }
+
+    fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
+        let schema_key = topics::publisher_schema_key(
+            data.namespace.clone(),
+            data.name.clone(),
+            data.id.clone(),
+        );
+        let encoded = serde_json::to_string(&data)?;
+        let lock = self.redis_rs.clone();
+        lock.lock().unwrap().set(schema_key, encoded)?;
+        debug!(
+            "schema updated for {}[id={}]",
+            data.name.clone(),
+            data.id.clone()
+        );
         Ok(())
     }
 
