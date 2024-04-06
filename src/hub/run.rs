@@ -9,7 +9,9 @@ pub async fn run() {
     let env = parse_env();
     info!(
         "running hub [id={}, name={}, namespace={}]",
-        env.id, env.name, env.namespace
+        env.get_id(),
+        env.name,
+        env.namespace
     );
 
     let namespace = env.namespace.clone();

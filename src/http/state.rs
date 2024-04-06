@@ -25,15 +25,15 @@ pub struct SharedState {
 
 impl SharedState {
     pub fn get_id(&self) -> String {
-        return self.env.id.to_string();
+        self.env.get_id()
     }
 
     pub fn get_name(&self) -> String {
-        return self.env.name.to_string();
+        self.env.name.to_string()
     }
 
     pub fn get_namespace(&self) -> String {
-        return self.env.namespace.to_string();
+        self.env.namespace.to_string()
     }
 
     pub fn publish_rpc_message(&self, data: RPCMessageData) -> RhiaqeyResult<()> {

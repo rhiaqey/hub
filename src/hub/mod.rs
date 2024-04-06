@@ -42,7 +42,7 @@ pub struct Hub {
 
 impl Hub {
     pub fn get_id(&self) -> String {
-        self.env.id.clone()
+        self.env.get_id()
     }
 
     pub fn get_name(&self) -> String {
@@ -50,11 +50,11 @@ impl Hub {
     }
 
     pub fn get_private_port(&self) -> u16 {
-        self.env.private_port.unwrap()
+        self.env.get_private_port()
     }
 
     pub fn get_public_port(&self) -> u16 {
-        self.env.public_port.unwrap()
+        self.env.get_public_port()
     }
 
     pub fn get_namespace(&self) -> String {
