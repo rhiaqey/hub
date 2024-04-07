@@ -352,9 +352,9 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
-version = "1.0.90"
+version = "1.0.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cd6604a82acf3039f1144f54b8eb34e91ffba622051189e71b781822d5ee1f5"
+checksum = "1fd97381a8cc6493395a5afc4c691c1084b3768db713b73aa215217aa245d153"
 
 [[package]]
 name = "cfg-if"
@@ -1783,9 +1783,8 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.1"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#82b32757e67db193cc6a6894804bd4a748a02d1c"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#e14ca2c0948cf69c3882738508a78cd7a22cf307"
 dependencies = [
- "async-trait",
  "serde",
  "serde_bytes",
  "serde_json",
