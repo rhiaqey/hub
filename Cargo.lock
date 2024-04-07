@@ -1842,9 +1842,9 @@ checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
 
 [[package]]
 name = "rustis"
-version = "0.12.9"
+version = "0.12.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43691c945a6f15cbf078b4aa0536e78c52eac1084376ee39c66eeba7e6884c92"
+checksum = "5949e453cb82348d4ab36d36015061358c10fb31af5eda7a1ea291222eb18ab6"
 dependencies = [
  "atoi",
  "bytes",
@@ -1881,9 +1881,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.14"
+version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
+checksum = "80af6f9131f277a45a3fba6ce8e2258037bb0477a67e610d3c1fe046ab31de47"
 
 [[package]]
 name = "rusty_ulid"
