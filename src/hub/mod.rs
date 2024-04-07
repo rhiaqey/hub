@@ -216,7 +216,7 @@ impl Hub {
     async fn handle_rpc_message(&mut self, data: RPCMessage) {
         match data.data {
             RPCMessageData::PurgeChannels(channels) => {
-                info!("purging {} channels", channels.len());
+                debug!("purging {} channels", channels.len());
                 for channel in channels.iter() {
                     self.purge_channel(channel)
                         .await
@@ -224,19 +224,19 @@ impl Hub {
                 }
             }
             RPCMessageData::CreateChannels(channels) => {
-                info!("creating channels {:?}", channels);
+                debug!("creating channels {:?}", channels);
                 self.create_channels(self.get_id(), channels)
                     .await
                     .expect("failed to create channels")
             }
             RPCMessageData::DeleteChannels(channels) => {
-                info!("deleting channels {:?}", channels);
+                debug!("deleting channels {:?}", channels);
                 self.delete_channels(channels)
                     .await
                     .expect("failed to delete channels");
             }
             RPCMessageData::RegisterPublisher(data) => {
-                info!(
+                debug!(
                     "setting publisher schema for [id={}, name={}, namespace={}]",
                     data.id, data.name, data.namespace
                 );
@@ -244,18 +244,18 @@ impl Hub {
                     .expect("failed to set schema for publisher");
             }
             RPCMessageData::UpdateHubSettings() => {
-                info!("received update settings rpc");
+                debug!("received update settings rpc");
                 self.update_hub_settings()
                     .expect("failed to update hub settings");
             }
             RPCMessageData::NotifyClients(stream_message) => {
-                info!("received notify clients rpc");
+                debug!("received notify clients rpc");
                 self.notify_clients(self.get_id(), stream_message)
                     .await
                     .expect("failed to notify clients");
             }
             RPCMessageData::Metrics(metrics) => {
-                info!("metrics rpc received");
+                debug!("metrics rpc received");
                 self.update_publisher_metrics(metrics)
                     .await
                     .expect("failed to handle metrics");
