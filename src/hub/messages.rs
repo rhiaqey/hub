@@ -1,9 +1,10 @@
+use anyhow::bail;
 use log::{debug, trace, warn};
 use redis::streams::{StreamMaxlen, StreamRangeReply};
 use redis::Commands;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
-use rhiaqey_common::{result::RhiaqeyResult, topics};
+use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
 use std::collections::BTreeMap;
 
@@ -59,7 +60,7 @@ impl MessageHandler {
         &mut self,
         new_message: &StreamMessage,
         topic: &String,
-    ) -> RhiaqeyResult<MessageProcessResult> {
+    ) -> anyhow::Result<MessageProcessResult> {
         trace!("checking if message should be processed 1-to-many (compare by tags)");
         trace!("checking topic {}", topic);
 
@@ -100,7 +101,7 @@ impl MessageHandler {
         &mut self,
         new_message: &StreamMessage,
         topic: &String,
-    ) -> RhiaqeyResult<MessageProcessResult> {
+    ) -> anyhow::Result<MessageProcessResult> {
         trace!("checking if message should be processed (compare by timestamps)");
         trace!("checking topic {}", topic);
 
@@ -132,7 +133,7 @@ impl MessageHandler {
         };
 
         let redis::Value::Data(bytes) = last_message else {
-            return Err("could not extract bytes from last message".into());
+            bail!("could not extract bytes from last message")
         };
 
         let msg = String::from_utf8(bytes.clone())?;
@@ -172,7 +173,7 @@ impl MessageHandler {
     pub fn handle_stream_message_from_publishers(
         &mut self,
         stream_message: StreamMessage,
-    ) -> RhiaqeyResult<()> {
+    ) -> anyhow::Result<()> {
         debug!("handle raw stream message");
 
         let channel_size = stream_message.size.unwrap_or(self.channel.size);

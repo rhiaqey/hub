@@ -13,7 +13,6 @@ use redis::Commands;
 use redis::RedisResult;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::redis_rs::connect_and_ping;
-use rhiaqey_common::result::RhiaqeyResult;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
@@ -33,7 +32,7 @@ impl StreamingChannel {
         namespace: String,
         channel: Channel,
         config: RedisSettings,
-    ) -> RhiaqeyResult<StreamingChannel> {
+    ) -> anyhow::Result<StreamingChannel> {
         let redis_rs_client = connect_and_ping(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let redis_ms_connection = redis_rs_client.get_connection()?;
@@ -59,7 +58,7 @@ impl StreamingChannel {
         hub_id: &String,
         channel: &Channel,
         namespace: &String,
-    ) -> RhiaqeyResult<Vec<StreamMessage>> {
+    ) -> anyhow::Result<Vec<StreamMessage>> {
         let mut connection = redis_rs_connection.lock().unwrap();
 
         let options = StreamReadOptions::default()
@@ -145,7 +144,7 @@ impl StreamingChannel {
         self.clients.read().unwrap().len()
     }
 
-    pub fn get_snapshot(&mut self) -> RhiaqeyResult<Vec<StreamMessage>> {
+    pub fn get_snapshot(&mut self) -> anyhow::Result<Vec<StreamMessage>> {
         let keys = self.get_snapshot_keys()?;
         debug!("keys are here {:?}", keys);
 
@@ -188,7 +187,7 @@ impl StreamingChannel {
         Ok(messages)
     }
 
-    pub fn get_snapshot_keys(&mut self) -> RhiaqeyResult<Vec<String>> {
+    pub fn get_snapshot_keys(&mut self) -> anyhow::Result<Vec<String>> {
         let topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),
@@ -204,7 +203,7 @@ impl StreamingChannel {
         Ok(keys)
     }
 
-    pub fn delete_snapshot_keys(&mut self) -> RhiaqeyResult<i32> {
+    pub fn delete_snapshot_keys(&mut self) -> anyhow::Result<i32> {
         let keys = self.get_snapshot_keys().unwrap_or(vec![]);
         trace!("{} keys found", keys.len());
 
@@ -216,7 +215,7 @@ impl StreamingChannel {
         Ok(result)
     }
 
-    pub fn xtrim(&self) -> RhiaqeyResult<i32> {
+    pub fn xtrim(&self) -> anyhow::Result<i32> {
         let topic = topics::publishers_to_hub_stream_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),

@@ -1,13 +1,11 @@
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
-// use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use axum::extract::{Path, Query, State};
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
 use redis::Commands;
-use rhiaqey_common::error::RhiaqeyError;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
@@ -67,7 +65,16 @@ pub async fn create_channels(
             .into_response(),
         Err(err) => {
             warn!("error publishing creating channels: {err}");
-            err.into_response()
+            return (
+                StatusCode::OK,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                json!({
+                    "code": 500,
+                    "message": "failed to create channel"
+                })
+                .to_string(),
+            )
+                .into_response();
         }
     }
 }
@@ -107,7 +114,16 @@ pub async fn delete_channels(
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
             warn!("error publishing delete channels: {err}");
-            err.into_response()
+            return (
+                StatusCode::OK,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                json!({
+                    "code": 500,
+                    "message": "failed to delete channel"
+                })
+                .to_string(),
+            )
+                .into_response();
         }
     }
 }
@@ -191,7 +207,16 @@ pub async fn purge_channel(
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
             warn!("error publishing purge channel {channel}: {err}");
-            err.into_response()
+            return (
+                StatusCode::OK,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                json!({
+                    "code": 500,
+                    "message": "failed to purge channel"
+                })
+                .to_string(),
+            )
+                .into_response();
         }
     }
 }
@@ -306,7 +331,16 @@ pub async fn get_snapshot(
     trace!("channel from params extracted {:?}", channels);
 
     if channels.is_empty() {
-        return RhiaqeyError::from("channels are missing").into_response();
+        return (
+            StatusCode::OK,
+            [(hyper::header::CONTENT_TYPE, "application/json")],
+            json!({
+                "code": 404,
+                "message": "channels are missing"
+            })
+            .to_string(),
+        )
+            .into_response();
     }
 
     let mut streaming_channels = state.streams.lock().await;

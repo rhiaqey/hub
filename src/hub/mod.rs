@@ -11,6 +11,7 @@ use crate::hub::channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
+use anyhow::{bail, Context};
 use axum::extract::ws::Message;
 use futures::stream::select_all;
 use futures::StreamExt;
@@ -24,7 +25,7 @@ use rhiaqey_common::pubsub::{
 use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::security::SecurityKey;
 use rhiaqey_common::stream::StreamMessage;
-use rhiaqey_common::{result::RhiaqeyResult, security, topics};
+use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use sha256::digest;
@@ -63,19 +64,28 @@ impl Hub {
         self.env.get_namespace()
     }
 
-    pub fn get_channels(&self) -> RhiaqeyResult<Vec<Channel>> {
+    pub fn get_channels(&self) -> anyhow::Result<Vec<Channel>> {
         let channels_key = topics::hub_channels_key(self.get_namespace());
         let mut lock = self.redis_rs.lock().unwrap();
-        let result: String = lock.get(channels_key)?;
-        let channel_list: ChannelList = serde_json::from_str(result.as_str())?;
+        let result: String = lock
+            .get(channels_key)
+            .context("failed to retrieve channels")?;
+        let channel_list: ChannelList =
+            serde_json::from_str(result.as_str()).context("failed to deserialize channels")?;
         Ok(channel_list.channels)
     }
 
-    pub fn read_settings(&self) -> RhiaqeyResult<HubSettings> {
+    pub fn read_settings(&self) -> anyhow::Result<HubSettings> {
         info!("reading hub settings");
 
         let settings_key = topics::hub_settings_key(self.get_namespace());
-        let result: Vec<u8> = self.redis_rs.lock().unwrap().get(settings_key)?;
+        let result: Vec<u8> = self
+            .redis_rs
+            .lock()
+            .unwrap()
+            .get(settings_key)
+            .context("failed to acquire lock")?;
+
         trace!("encrypted settings retrieved");
 
         let keys = self.security.read().unwrap();
@@ -84,10 +94,15 @@ impl Hub {
             keys.no_once.as_slice(),
             keys.key.as_slice(),
             result.as_slice(),
-        )?;
+        )
+        .context("failed to decrypt settings with key")?;
+
         trace!("settings decrypted");
 
-        let settings = MessageValue::Binary(data).decode::<HubSettings>()?;
+        let settings = MessageValue::Binary(data)
+            .decode::<HubSettings>()
+            .context("failed to decode settings")?;
+
         trace!("decrypted data decoded into settings");
 
         Ok(settings)
@@ -113,25 +128,35 @@ impl Hub {
         trace!("new settings updated");
     }
 
-    fn load_key(config: &Env, client: &mut redis::Connection) -> RhiaqeyResult<SecurityKey> {
+    fn load_key(config: &Env, client: &mut redis::Connection) -> anyhow::Result<SecurityKey> {
         let namespace = config.get_namespace();
         let security_key = topics::security_key(namespace);
         let security_str: String = client.get(security_key.clone()).unwrap_or(String::from(""));
         let security = match serde_json::from_str::<SecurityKey>(security_str.as_str()) {
             Ok(mut security) => {
                 debug!("security keys loaded");
-                security.key = config.decrypt(security.key)?;
-                security.no_once = config.decrypt(security.no_once)?;
+                security.key = config
+                    .decrypt(security.key)
+                    .context("failed to decrypt security key")?;
+                security.no_once = config
+                    .decrypt(security.no_once)
+                    .context("failed to decrypt no once")?;
                 security
             }
             Err(_) => {
                 warn!("security keys not found");
                 let mut security = SecurityKey::default();
                 let original = security.clone();
-                security.no_once = config.encrypt(security.no_once)?;
-                security.key = config.encrypt(security.key)?;
-                let key_result = serde_json::to_string(&security)?;
-                client.set(security_key.clone(), key_result)?;
+                security.no_once = config
+                    .encrypt(security.no_once)
+                    .context("failed to encrypt no once")?;
+                security.key = config
+                    .encrypt(security.key)
+                    .context("failed to encrypt security key")?;
+                let key_result = serde_json::to_string(&security).context("failed to serialize")?;
+                client
+                    .set(security_key.clone(), key_result)
+                    .context("failed to store security key")?;
                 debug!("new keys generated and saved");
                 original
             }
@@ -139,10 +164,13 @@ impl Hub {
         Ok(security)
     }
 
-    pub async fn create(config: Env) -> RhiaqeyResult<Hub> {
+    pub async fn create(config: Env) -> anyhow::Result<Hub> {
         let redis_rs_client = connect_and_ping(&config.redis)?;
-        let mut redis_rs_connection = redis_rs_client.get_connection()?;
-        let security = Self::load_key(&config, &mut redis_rs_connection)?;
+        let mut redis_rs_connection = redis_rs_client
+            .get_connection()
+            .context("failed to get connection")?;
+        let security = Self::load_key(&config, &mut redis_rs_connection)
+            .context("failed to load security key")?;
 
         Ok(Hub {
             env: Arc::from(config),
@@ -154,7 +182,7 @@ impl Hub {
         })
     }
 
-    pub async fn start(&mut self) -> RhiaqeyResult<()> {
+    pub async fn start(&mut self) -> anyhow::Result<()> {
         info!("starting hub");
 
         let settings = self.read_settings().unwrap_or(HubSettings::default());
@@ -266,7 +294,7 @@ impl Hub {
         };
     }
 
-    async fn create_channels(&self, hub_id: String, channels: Vec<Channel>) -> RhiaqeyResult<()> {
+    async fn create_channels(&self, hub_id: String, channels: Vec<Channel>) -> anyhow::Result<()> {
         let mut total_channels = 0;
         let namespace = self.get_namespace();
         let mut streams = self.streams.lock().await;
@@ -305,7 +333,7 @@ impl Hub {
         Ok(())
     }
 
-    async fn delete_channels(&self, channels: Vec<Channel>) -> RhiaqeyResult<()> {
+    async fn delete_channels(&self, channels: Vec<Channel>) -> anyhow::Result<()> {
         let total_channels = channels.len();
         let mut lock = self.streams.lock().await;
 
@@ -318,7 +346,7 @@ impl Hub {
         Ok(())
     }
 
-    async fn notify_clients(&self, hub_id: String, message: StreamMessage) -> RhiaqeyResult<()> {
+    async fn notify_clients(&self, hub_id: String, message: StreamMessage) -> anyhow::Result<()> {
         // get a streaming channel by channel name
         let category = message.category.clone();
         let all_hub_streams = self.streams.lock().await;
@@ -371,19 +399,22 @@ impl Hub {
 
             Ok(())
         } else {
-            Err("could not find a streaming channel".to_string().into())
+            bail!("could not find a streaming channel")
         }
     }
 
-    async fn update_publisher_metrics(&self, data: MetricsMessage) -> RhiaqeyResult<()> {
-        let schema_key = topics::publisher_metrics_key(
+    async fn update_publisher_metrics(&self, data: MetricsMessage) -> anyhow::Result<()> {
+        let metrics_key = topics::publisher_metrics_key(
             data.namespace.clone(),
             data.name.clone(),
             data.id.clone(),
         );
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
-        lock.lock().unwrap().set(schema_key, encoded)?;
+        lock.lock()
+            .unwrap()
+            .set(metrics_key, encoded)
+            .context("failed to store metrics")?;
         debug!(
             "metrics updated for {}[id={}]",
             data.name.clone(),
@@ -392,11 +423,14 @@ impl Hub {
         Ok(())
     }
 
-    fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> RhiaqeyResult<()> {
+    fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> anyhow::Result<()> {
         let schema_key = topics::publisher_schema_key(data.namespace.clone(), data.name.clone());
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
-        lock.lock().unwrap().set(schema_key, encoded)?;
+        lock.lock()
+            .unwrap()
+            .set(schema_key, encoded)
+            .context("failed to store schema")?;
         debug!(
             "schema updated for {}[id={}]",
             data.name.clone(),
@@ -405,7 +439,7 @@ impl Hub {
         Ok(())
     }
 
-    fn update_hub_settings(&mut self) -> RhiaqeyResult<()> {
+    fn update_hub_settings(&mut self) -> anyhow::Result<()> {
         match self.read_settings() {
             Ok(settings) => {
                 self.set_settings(settings);
@@ -419,14 +453,17 @@ impl Hub {
         }
     }
 
-    async fn purge_channel(&self, channel: &String) -> RhiaqeyResult<()> {
+    async fn purge_channel(&self, channel: &String) -> anyhow::Result<()> {
         debug!("purging channel {channel}");
 
         let mut streams = self.streams.lock().await;
         match streams.get_mut(channel) {
             None => {
                 warn!("could not find streaming channel by name {}", channel);
-                Err(format!("could not find streaming channel by name {}", channel).into())
+                bail!(format!(
+                    "could not find streaming channel by name {}",
+                    channel
+                ))
             }
             Some(streaming_channel) => {
                 trace!("streaming channel found");

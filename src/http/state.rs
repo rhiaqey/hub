@@ -1,12 +1,13 @@
 use crate::hub::channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
 use crate::hub::settings::HubSettings;
+use anyhow::Context;
 use log::{debug, info};
 use redis::Commands;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::security::SecurityKey;
-use rhiaqey_common::{result::RhiaqeyResult, topics};
+use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde::{Deserialize, Serialize};
@@ -36,20 +37,20 @@ impl SharedState {
         self.env.get_namespace()
     }
 
-    pub fn publish_rpc_message(&self, data: RPCMessageData) -> RhiaqeyResult<()> {
+    pub fn publish_rpc_message(&self, data: RPCMessageData) -> anyhow::Result<()> {
         info!("broadcasting to all hubs");
 
         let lock = self.redis_rs.clone();
         let mut conn = lock.lock().unwrap();
 
-        let rpc_message = serde_json::to_string(&RPCMessage { data }).map_err(|x| x.to_string())?;
+        let rpc_message = serde_json::to_string(&RPCMessage { data })?;
 
         let hub_broadcast_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
         debug!("broadcasting to topic {}", hub_broadcast_topic);
 
         let _ = conn
             .publish(hub_broadcast_topic, rpc_message)
-            .map_err(|x| x.to_string())?;
+            .context("failed to publish message")?;
 
         info!("broadcast message sent");
 

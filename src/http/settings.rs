@@ -1,5 +1,6 @@
 use crate::http::state::{SharedState, UpdateSettingsRequest};
 use crate::hub::settings::HubSettings;
+use anyhow::{bail, Context};
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -8,9 +9,9 @@ use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
-use rhiaqey_common::{result::RhiaqeyResult, security, topics};
+use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::message::MessageValue;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -24,40 +25,32 @@ where
     iter.into_iter().all(move |x| uniq.insert(x))
 }
 
-fn validate_settings_for_hub(message: &MessageValue) -> RhiaqeyResult<bool> {
-    let raw = message.to_vec()?;
-    let settings_value = serde_json::from_slice(raw.as_slice())?;
+fn validate_settings_for_hub(message: &MessageValue, schema: Value) -> bool {
+    let Ok(raw) = message.to_vec() else {
+        return false;
+    };
 
-    let schema = HubSettings::schema();
+    let Ok(settings) = serde_json::from_slice(raw.as_slice()) else {
+        return false;
+    };
 
     let compiled_schema = JSONSchema::options()
         .with_draft(Draft::Draft7)
         .compile(&schema)
-        .map_err(|x| x.to_string())?;
+        .expect("failed to compile json schema");
 
-    let result = match compiled_schema.validate(&settings_value) {
-        Ok(_) => Ok(true),
-        Err(errors) => {
-            for error in errors {
-                warn!("hub setting schema validation error: {}", error);
-                warn!(
-                    "hub setting schema validation instance path: {}",
-                    error.instance_path
-                );
-            }
-
-            Ok(false)
-        }
-    };
-
-    if result.is_err() {
-        return result;
-    }
+    let result = compiled_schema.is_valid(&settings);
 
     trace!("checking for duplicate api keys");
-    let settings: HubSettings = serde_json::from_value(settings_value)?;
+
+    let Ok(settings) = serde_json::from_value::<HubSettings>(settings) else {
+        warn!("failed to deserialize from value");
+        return false;
+    };
+
     if !has_unique_elements(settings.security.api_keys.iter().map(|x| &x.api_key)) {
-        return Err("duplicate api keys found".into());
+        warn!("duplicate api keys found");
+        return false;
     }
 
     result
@@ -66,15 +59,15 @@ fn validate_settings_for_hub(message: &MessageValue) -> RhiaqeyResult<bool> {
 fn update_settings_for_hub(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
-) -> RhiaqeyResult<MessageValue> {
+) -> anyhow::Result<MessageValue> {
     debug!("hub settings payload {:?}", payload);
 
-    let valid = validate_settings_for_hub(&payload.settings)?;
+    let valid = validate_settings_for_hub(&payload.settings, HubSettings::schema());
     trace!("hub settings valid: {valid}");
 
     if !valid {
         warn!("failed payload schema validation");
-        return Err("Schema validation failed for payload".into());
+        bail!("Schema validation failed for payload")
     }
 
     trace!("encrypt settings for hub");
@@ -93,7 +86,7 @@ fn update_settings_for_hub(
         .lock()
         .unwrap()
         .set(hub_settings_key.clone(), settings)
-        .map_err(|x| x.to_string())?;
+        .context("failed to store settings for hub")?;
     trace!("encrypted settings saved in redis");
 
     match state.publish_rpc_message(RPCMessageData::UpdateHubSettings()) {
@@ -108,37 +101,27 @@ fn update_settings_for_hub(
     }
 }
 
-fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> RhiaqeyResult<bool> {
-    let raw = message.to_vec()?;
-    let settings = serde_json::from_slice(raw.as_slice())?;
+fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> bool {
+    let Ok(raw) = message.to_vec() else {
+        return false;
+    };
+
+    let Ok(settings) = serde_json::from_slice(raw.as_slice()) else {
+        return false;
+    };
 
     let compiled_schema = JSONSchema::options()
         .with_draft(Draft::Draft7)
         .compile(&schema)
-        .map_err(|x| x.to_string())?;
+        .expect("failed to compile json schema");
 
-    let result = match compiled_schema.validate(&settings) {
-        Ok(_) => Ok(true),
-        Err(errors) => {
-            for error in errors {
-                debug!("publishers setting schema validation error: {}", error);
-                debug!(
-                    "publishers setting schema validation instance path: {}",
-                    error.instance_path
-                );
-            }
-
-            Ok(false)
-        }
-    };
-
-    result
+    compiled_schema.is_valid(&settings)
 }
 
 fn update_settings_for_publishers(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
-) -> RhiaqeyResult<MessageValue> {
+) -> anyhow::Result<MessageValue> {
     trace!("find first schema for publisher");
     let name = payload.name;
     let namespace = state.get_namespace();
@@ -150,18 +133,17 @@ fn update_settings_for_publishers(
 
     let schema_response: String = conn.get(schema_key)?;
     if schema_response == "" {
-        return Err(format!("No schema found for {name}").into());
+        bail!(format!("No schema found for {name}"))
     }
 
     let schema: PublisherRegistrationMessage = serde_json::from_str(schema_response.as_str())?;
-    let valid = validate_settings_for_publishers(&payload.settings, schema.schema)?;
-    debug!("publishers settings valid: {valid}");
+    let valid = validate_settings_for_publishers(&payload.settings, schema.schema);
+    debug!("publishers settings for id={} is valid: {valid}", schema.id);
 
     if !valid {
         warn!("failed payload schema validation");
-        return Err("Schema validation failed for payload".into());
+        bail!("Schema validation failed for payload")
     }
-
     trace!("encrypt settings for publishers");
 
     let keys = state.security.read().unwrap();
@@ -178,7 +160,7 @@ fn update_settings_for_publishers(
     let publishers_key = topics::publisher_settings_key(state.get_namespace(), name.clone());
     let _ = conn
         .set(publishers_key.clone(), settings)
-        .map_err(|x| x.to_string())?;
+        .context("failed to store settings for publisher")?;
 
     // 3. notify all other publishers
 
@@ -189,11 +171,11 @@ fn update_settings_for_publishers(
     let rpc_message = serde_json::to_string(&RPCMessage {
         data: RPCMessageData::UpdatePublisherSettings(),
     })
-    .map_err(|x| x.to_string())?;
+    .context("failed to serialize rpc message")?;
 
     let _ = conn
         .publish(pub_topic, rpc_message)
-        .map_err(|x| x.to_string())?;
+        .context("failed to publish message")?;
 
     info!("pubsub update settings message sent");
 
@@ -208,7 +190,7 @@ pub async fn update_settings(
 ) -> impl IntoResponse {
     info!("[POST] Update settings");
 
-    let update_fn: RhiaqeyResult<MessageValue>;
+    let update_fn: anyhow::Result<MessageValue>;
 
     if state.env.get_name() == payload.name {
         trace!("update hub settings");
@@ -224,6 +206,18 @@ pub async fn update_settings(
             info!("settings updated successfully");
             (StatusCode::OK, Json(response)).into_response()
         }
-        Err(err) => err.into_response(),
+        Err(err) => {
+            warn!("error updating settings: {}", err);
+            return (
+                StatusCode::OK,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                json!({
+                    "code": 500,
+                    "message": "failed to update settings"
+                })
+                .to_string(),
+            )
+                .into_response();
+        }
     }
 }

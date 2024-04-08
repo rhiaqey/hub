@@ -44,6 +44,7 @@ axum-client-ip = "0.5"
 jsonschema = "0.17"
 openssl = { version = "0.10", features = ["vendored"] }
 tower-http = { version = "0.5", features = ["cors"] }
+anyhow = { version = "1.0" }
 
 [features]
 cli = ["dep:clap"]
