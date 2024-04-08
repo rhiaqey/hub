@@ -29,11 +29,11 @@ impl SharedState {
     }
 
     pub fn get_name(&self) -> String {
-        self.env.name.to_string()
+        self.env.get_name()
     }
 
     pub fn get_namespace(&self) -> String {
-        self.env.namespace.to_string()
+        self.env.get_namespace()
     }
 
     pub fn publish_rpc_message(&self, data: RPCMessageData) -> RhiaqeyResult<()> {

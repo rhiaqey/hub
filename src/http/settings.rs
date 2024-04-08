@@ -210,7 +210,7 @@ pub async fn update_settings(
 
     let update_fn: RhiaqeyResult<MessageValue>;
 
-    if state.env.name == payload.name {
+    if state.env.get_name() == payload.name {
         trace!("update hub settings");
         update_fn = update_settings_for_hub(payload, state);
     } else {

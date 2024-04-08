@@ -10,11 +10,11 @@ pub async fn run() {
     info!(
         "running hub [id={}, name={}, namespace={}]",
         env.get_id(),
-        env.name,
-        env.namespace
+        env.get_name(),
+        env.get_namespace()
     );
 
-    let namespace = env.namespace.clone();
+    let namespace = env.get_namespace();
 
     let mut hub = match Hub::create(env).await {
         Ok(exec) => exec,

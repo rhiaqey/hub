@@ -48,7 +48,7 @@ impl Hub {
     }
 
     pub fn get_name(&self) -> String {
-        self.env.name.clone()
+        self.env.get_name()
     }
 
     pub fn get_private_port(&self) -> u16 {
@@ -60,7 +60,7 @@ impl Hub {
     }
 
     pub fn get_namespace(&self) -> String {
-        self.env.namespace.clone()
+        self.env.get_namespace()
     }
 
     pub fn get_channels(&self) -> RhiaqeyResult<Vec<Channel>> {
@@ -114,7 +114,7 @@ impl Hub {
     }
 
     fn load_key(config: &Env, client: &mut redis::Connection) -> RhiaqeyResult<SecurityKey> {
-        let namespace = config.namespace.clone();
+        let namespace = config.get_namespace();
         let security_key = topics::security_key(namespace);
         let security_str: String = client.get(security_key.clone()).unwrap_or(String::from(""));
         let security = match serde_json::from_str::<SecurityKey>(security_str.as_str()) {
@@ -161,7 +161,7 @@ impl Hub {
         self.set_settings(settings);
         debug!("settings loaded");
 
-        let namespace = self.env.namespace.clone();
+        let namespace = self.env.get_namespace();
 
         let shared_state = Arc::new(SharedState {
             env: self.env.clone(),
