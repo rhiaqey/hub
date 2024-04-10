@@ -51,7 +51,7 @@ pub async fn ws_handler(
     let channels: Vec<String> = params.channels.split(",").map(|x| x.to_string()).collect();
     trace!("channel from params extracted {:?}", channels);
 
-    let snapshot_request = params.snapshot.unwrap_or(true);
+    let snapshot_request = params.snapshot.unwrap_or(false);
     trace!("snapshot request: {}", snapshot_request);
 
     // finalize the upgrade process by returning upgrade callback.
