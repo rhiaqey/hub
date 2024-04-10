@@ -62,19 +62,16 @@ hub: run
 
 .PHONY: run
 run:
-	cargo run --bin hub
+	cargo run -- run
 
 .PHONY: run-release
 run-release:
 	RUST_LOG=rhiaqey_hub=info \
-		cargo run --bin hub --release
+		cargo run --release -- run
 
-.PHONY: ops
-ops:
-	cargo run \
-		--bin ops \
-		--features cli \
-		-- generate-keys --skip --write .
+.PHONY: keys
+keys:
+	cargo run --release -- generate-keys --skip --write .
 
 .PHONY: hub1
 hub1: run
@@ -84,22 +81,20 @@ hub2:
 	ID=hub2 \
 	PRIVATE_PORT=3010 \
 	PUBLIC_PORT=3020 \
-		cargo run --bin hub
+		cargo run -- run
 
 .PHONY: dev
 dev: build
 
 .PHONY: build
 build:
-	cargo build --all-features
-	ls -lah target/debug/hub
+	cargo build
+	ls -lah target/debug/rhiaqey-hub
 
 .PHONY: prod
 prod:
-	cargo build --release --bin hub
-	cargo build --release --bin ops --features=cli
-	ls -lah target/release/hub
-	ls -lah target/release/ops
+	cargo build --release
+	ls -lah target/release/rhiaqey-hub
 
 .PHONY: docker-build
 docker-build:

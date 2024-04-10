@@ -1,14 +1,18 @@
+mod http;
+mod hub;
+
 use clap::{arg, Command};
 use rsa::pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use std::fs;
 
 fn cli() -> Command {
-    Command::new("ops")
-        .about("rhiaqey operations")
+    Command::new("hub")
+        .about("rhiaqey hub")
         .subcommand_required(true)
         .arg_required_else_help(true)
         .allow_external_subcommands(true)
+        .subcommand(Command::new("run").about("Run hub"))
         .subcommand(
             Command::new("generate-keys")
                 .about("Generate RSA keys")
@@ -35,9 +39,13 @@ fn generate_keys(bits: Option<usize>) -> (RsaPrivateKey, RsaPublicKey) {
     (pr, pb)
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let matches = cli().get_matches();
     match matches.subcommand() {
+        Some(("run", _sub_matches)) => {
+            hub::exe::run().await;
+        }
         Some(("generate-keys", sub_matches)) => {
             println!("generating keys");
 

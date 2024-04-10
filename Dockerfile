@@ -18,12 +18,11 @@ RUN case "${TARGETPLATFORM}" in \
       *) echo "Unsupported platform: ${TARGETPLATFORM}" ; exit 1 ;; \
     esac \
     && rustup target add ${rust_target} \
-    && cargo install --target ${rust_target} --bin hub --path . \
-    && cargo install --target ${rust_target} --bin ops --features=cli --path .
+    && cargo install --target ${rust_target} --path . \
 
 FROM --platform=$BUILDPLATFORM rhiaqey/run:1.0.0
 
-ARG BINARY
+ARG BINARY=hub
 ARG USER=1000
 ARG GROUP=1000
 
@@ -43,6 +42,5 @@ RUN groupadd -g $GROUP $GROUP \
 USER $USER
 
 COPY --from=builder --chown=$USER:$GROUP /usr/local/cargo/bin/hub /usr/local/bin/hub
-COPY --from=builder --chown=$USER:$GROUP /usr/local/cargo/bin/ops /usr/local/bin/ops
 
 CMD [ "sh", "-c", "${BINARY}" ]
