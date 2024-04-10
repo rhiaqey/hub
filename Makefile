@@ -99,7 +99,7 @@ prod:
 .PHONY: docker-build
 docker-build:
 	docker build . \
- 		--build-arg BINARY=hub \
+ 		--build-arg BINARY=rhiaqey-hub \
  		-t rhiaqey/hub:dev \
  		-f Dockerfile \
  		--squash
@@ -113,7 +113,7 @@ docker-run:
 	docker run -it --rm --init \
 		-e RUST_BACKTRACE=1 \
 		-e RUST_LOG=1 \
-		-e BINARY=hub \
+		-e BINARY=rhiaqey-hub \
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
 		--network host \
 		--name hub \
@@ -135,4 +135,5 @@ docker-multi:
 		--platform linux/arm64 \
 		--platform linux/amd64 \
 		-t rhiaqey/hub:dev \
+		-o type=image \
 		.

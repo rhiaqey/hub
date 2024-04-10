@@ -76,7 +76,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           outputs: "type=registry"
           build-args: |
-            BINARY=hub
+            BINARY=rhiaqey-hub
 
       - name: Git push
         run: |

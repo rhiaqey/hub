@@ -22,7 +22,7 @@ RUN case "${TARGETPLATFORM}" in \
 
 FROM --platform=$BUILDPLATFORM rhiaqey/run:1.0.0
 
-ARG BINARY=hub
+ARG BINARY=rhiaqey-hub
 ARG USER=1000
 ARG GROUP=1000
 
@@ -41,6 +41,6 @@ RUN groupadd -g $GROUP $GROUP \
 
 USER $USER
 
-COPY --from=builder --chown=$USER:$GROUP /usr/local/cargo/bin/hub /usr/local/bin/hub
+COPY --from=builder --chown=$USER:$GROUP /usr/local/cargo/bin/${BINARY} /usr/local/bin/${BINARY}
 
 CMD [ "sh", "-c", "${BINARY}" ]
