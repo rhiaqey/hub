@@ -366,6 +366,11 @@ impl Hub {
             }
 
             let raw = serde_json::to_vec(&client_message).unwrap();
+            s_channel.set_last_client_message(raw.clone());
+            trace!(
+                "last message cached in streaming channel[name={}]",
+                channel_name
+            );
 
             let mut total = 0u32;
 

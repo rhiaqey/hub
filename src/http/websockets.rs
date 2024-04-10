@@ -169,11 +169,12 @@ async fn handle_ws_client(
                 warn!("could not send subscription message");
             }
 
-            if snapshot_request {
-                debug!("sending snapshot to client");
-                let mut lock = state.streams.lock().await;
-                let streaming_channel = lock.get_mut(&*channel_name);
-                if let Some(chx) = streaming_channel {
+            debug!("sending snapshot to client");
+            let mut lock = state.streams.lock().await;
+            let streaming_channel = lock.get_mut(&*channel_name);
+
+            if let Some(chx) = streaming_channel {
+                if snapshot_request {
                     let snapshot = chx.get_snapshot().unwrap_or(vec![]);
                     for stream_message in snapshot.iter() {
                         // case where clients have specified a category for their channel
@@ -204,9 +205,24 @@ async fn handle_ws_client(
                             break;
                         }
                     }
+                } else {
+                    if let Some(raw) = chx.get_last_client_message() {
+                        trace!("sending last channel message instead");
+                        if let Ok(_) = sender.send(Message::Binary(raw)).await {
+                            trace!(
+                                "last channel message[category={:?}] sent successfully to {}",
+                                channel.1,
+                                client_id
+                            );
+                        } else {
+                            warn!("could not send last channel message to {client_id}");
+                            break;
+                        }
+                    }
                 }
-                drop(lock);
             }
+
+            drop(lock);
         }
     }
 

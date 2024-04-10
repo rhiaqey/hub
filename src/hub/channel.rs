@@ -24,6 +24,7 @@ pub struct StreamingChannel {
     pub redis: Arc<Mutex<redis::Connection>>,
     pub message_handler: Arc<Mutex<MessageHandler>>,
     pub clients: Arc<RwLock<Vec<String>>>,
+    last_message: Arc<RwLock<Option<Vec<u8>>>>,
 }
 
 impl StreamingChannel {
@@ -43,13 +44,14 @@ impl StreamingChannel {
             channel: channel.clone(),
             namespace: namespace.clone(),
             redis: rx.clone(),
-            clients: Arc::new(RwLock::new(vec![])),
             message_handler: Arc::new(Mutex::new(MessageHandler::create(
                 hub_id.clone(),
                 channel.clone(),
                 namespace.clone(),
                 redis_ms_connection,
             ))),
+            clients: Arc::new(RwLock::new(vec![])),
+            last_message: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -228,6 +230,17 @@ impl StreamingChannel {
         debug!("trimmed {} entries", result);
 
         Ok(result)
+    }
+
+    pub fn set_last_client_message(&self, message: Vec<u8>) {
+        let mut msg = self.last_message.write().unwrap();
+        *msg = Some(message);
+    }
+
+    pub fn get_last_client_message(&self) -> Option<Vec<u8>> {
+        let result = self.last_message.read().unwrap();
+        let raw = (*result).clone();
+        raw
     }
 }
 
