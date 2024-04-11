@@ -15,12 +15,12 @@ pub struct WebSocketClient {
 
 impl WebSocketClient {
     pub fn create(
-        client_id: String,
+        id: String,
         sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
         channels: Vec<(Channel, Option<String>)>,
     ) -> WebSocketClient {
         WebSocketClient {
-            id: client_id,
+            id,
             sender,
             channels,
         }
@@ -31,8 +31,12 @@ impl WebSocketClient {
     }
 
     pub fn get_category_for_channel(&self, name: &String) -> Option<String> {
-        self.channels
-            .iter()
-            .find_map(|x| if x.0.name == *name { x.1.clone() } else { None })
+        self.channels.iter().find_map(|x| {
+            if x.0.get_name().eq(name) {
+                x.1.clone()
+            } else {
+                None
+            }
+        })
     }
 }

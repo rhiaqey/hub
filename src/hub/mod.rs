@@ -35,12 +35,12 @@ use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct Hub {
-    pub env: Arc<Env>,
-    pub redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
-    pub security: Arc<RwLock<SecurityKey>>,
-    pub settings: Arc<RwLock<HubSettings>>,
-    pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
-    pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    env: Arc<Env>,
+    redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
+    security: Arc<RwLock<SecurityKey>>,
+    settings: Arc<RwLock<HubSettings>>,
+    clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 
 impl Hub {
