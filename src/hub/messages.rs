@@ -17,10 +17,10 @@ enum MessageProcessResult {
 }
 
 pub struct MessageHandler {
-    pub hub_id: String,
-    pub namespace: String,
-    pub channel: Channel,
-    pub redis_rs: redis::Connection,
+    hub_id: String,
+    namespace: String,
+    channel: Channel,
+    redis_rs: redis::Connection,
 }
 
 /// Message handler per channel
