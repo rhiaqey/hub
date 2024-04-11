@@ -109,7 +109,7 @@ async fn handle_ws_client(
             let streaming_channel = lock.get_mut(&channel.0);
             if let Some(chx) = streaming_channel {
                 chx.add_client(client_id.clone());
-                added_channels.push((chx.channel.clone(), channel.1.clone()));
+                added_channels.push((chx.get_channel().clone(), channel.1.clone()));
                 debug!("client joined channel {}", channel.0);
             } else {
                 warn!("could not find channel {}", channel.0);

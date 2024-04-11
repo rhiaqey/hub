@@ -318,7 +318,7 @@ impl Hub {
 
             info!(
                 "starting up streaming channel {}",
-                streaming_channel.channel.name
+                streaming_channel.get_channel().name
             );
 
             streaming_channel.start();
@@ -353,7 +353,7 @@ impl Hub {
         let streaming_channel = all_hub_streams.get(message.channel.as_str());
 
         if let Some(s_channel) = streaming_channel {
-            let channel_name = s_channel.channel.name.clone();
+            let channel_name = s_channel.get_channel().name.clone();
             trace!("streaming channel found {}", channel_name);
 
             let all_stream_channel_clients = s_channel.clients.read().unwrap();

@@ -18,13 +18,13 @@ use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
 
 pub struct StreamingChannel {
-    pub hub_id: String,
-    pub channel: Channel,
-    pub namespace: String,
-    pub redis: Arc<Mutex<redis::Connection>>,
-    pub message_handler: Arc<Mutex<MessageHandler>>,
-    pub clients: Arc<RwLock<Vec<String>>>,
+    hub_id: String,
+    channel: Channel,
+    namespace: String,
+    redis: Arc<Mutex<redis::Connection>>,
+    message_handler: Arc<Mutex<MessageHandler>>,
     last_message: Arc<RwLock<Option<Vec<u8>>>>,
+    pub clients: Arc<RwLock<Vec<String>>>,
 }
 
 impl StreamingChannel {
@@ -125,6 +125,10 @@ impl StreamingChannel {
 
     pub fn get_hub_id(&self) -> String {
         return self.hub_id.to_string();
+    }
+
+    pub fn get_channel(&self) -> &Channel {
+        &self.channel
     }
 
     pub fn get_name(&self) -> String {

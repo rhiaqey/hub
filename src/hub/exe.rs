@@ -54,7 +54,7 @@ pub async fn run() {
 
         info!(
             "starting up streaming channel {}",
-            streaming_channel.channel.name
+            streaming_channel.get_channel().name
         );
 
         streaming_channel.start();
