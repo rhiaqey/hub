@@ -1,6 +1,6 @@
 use axum::extract::ws::{Message, WebSocket};
 
-use axum::Error;
+use anyhow::bail;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use rhiaqey_sdk_rs::channel::Channel;
@@ -26,8 +26,11 @@ impl WebSocketClient {
         }
     }
 
-    pub async fn send(&mut self, message: Message) -> Result<(), Error> {
-        self.sender.lock().await.send(message).await
+    pub async fn send(&mut self, message: Message) -> anyhow::Result<()> {
+        match self.sender.lock().await.send(message).await {
+            Ok(_) => Ok(()),
+            Err(err) => bail!(err.to_string()),
+        }
     }
 
     pub fn get_category_for_channel(&self, name: &String) -> Option<String> {
