@@ -131,10 +131,6 @@ impl StreamingChannel {
         &self.channel
     }
 
-    pub fn get_name(&self) -> String {
-        return self.channel.name.to_string();
-    }
-
     pub fn add_client(&mut self, connection_id: String) {
         self.clients.write().unwrap().push(connection_id);
     }

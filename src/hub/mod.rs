@@ -322,7 +322,10 @@ impl Hub {
             );
 
             streaming_channel.start();
-            streams.insert(streaming_channel.get_name(), streaming_channel);
+            streams.insert(
+                streaming_channel.get_channel().name.clone(),
+                streaming_channel,
+            );
             total_channels += 1;
         }
 

@@ -50,13 +50,8 @@ pub async fn run() {
             continue;
         };
 
-        let streaming_channel_name = streaming_channel.get_name();
-
-        info!(
-            "starting up streaming channel {}",
-            streaming_channel.get_channel().name
-        );
-
+        let streaming_channel_name = streaming_channel.get_channel().name.clone();
+        info!("starting up streaming channel {}", streaming_channel_name);
         streaming_channel.start();
         streams.insert(streaming_channel_name.into(), streaming_channel);
         total_channels += 1;
