@@ -147,8 +147,8 @@ impl StreamingChannel {
         self.clients.read().unwrap().len()
     }
 
-    pub fn get_snapshot(&mut self) -> anyhow::Result<Vec<StreamMessage>> {
-        let keys = self.get_snapshot_keys()?;
+    pub fn get_snapshot(&mut self, category: Option<String>) -> anyhow::Result<Vec<StreamMessage>> {
+        let keys = self.get_snapshot_keys(category)?;
         debug!("keys are here {:?}", keys);
 
         if keys.len() == 0 {
@@ -190,24 +190,25 @@ impl StreamingChannel {
         Ok(messages)
     }
 
-    pub fn get_snapshot_keys(&mut self) -> anyhow::Result<Vec<String>> {
-        let topic = topics::hub_channel_snapshot_topic(
+    pub fn get_snapshot_keys(&mut self, category: Option<String>) -> anyhow::Result<Vec<String>> {
+        let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),
-            String::from("*"),
+            String::from(category.unwrap_or(String::from("*"))),
             String::from("*"),
         );
+        trace!("snapshot key topic: {}", snapshot_topic);
 
         let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();
-        let keys: Vec<String> = client.scan_match(&topic)?.collect();
+        let keys: Vec<String> = client.scan_match(&snapshot_topic)?.collect();
         debug!("found {} keys", keys.len());
 
         Ok(keys)
     }
 
-    pub fn delete_snapshot_keys(&mut self) -> anyhow::Result<i32> {
-        let keys = self.get_snapshot_keys().unwrap_or(vec![]);
+    pub fn delete_snapshot_keys(&mut self, category: Option<String>) -> anyhow::Result<i32> {
+        let keys = self.get_snapshot_keys(category).unwrap_or(vec![]);
         trace!("{} keys found", keys.len());
 
         let lock = self.redis.clone();

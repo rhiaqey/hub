@@ -347,10 +347,30 @@ pub async fn get_snapshot(
 
     let mut result: HashMap<String, Vec<StreamMessage>> = HashMap::new();
 
+    // With this, we will support channel names that can include categories seperated with a `/`
+    // Valid examples would be `ticks` but also `ticks/historical`.
+    // Any other format would be considered invalid and would be filtered out.
+    let channels: Vec<(String, Option<String>)> = channels
+        .iter()
+        .filter_map(|x| {
+            let parts: Vec<&str> = x.split('/').collect();
+            match parts.len() {
+                1 => Some((parts[0].to_string(), None)),
+                2 => Some((parts[0].to_string(), Some(parts[1].to_string()))),
+                _ => None,
+            }
+        })
+        .collect();
+
+    trace!("DUMP{:?}", channels.clone());
+
     for channel in channels.iter() {
-        let streaming_channel = streaming_channels.get_mut(channel);
+        let streaming_channel = streaming_channels.get_mut(&channel.0);
         if let Some(chx) = streaming_channel {
-            result.insert(channel.clone(), chx.get_snapshot().unwrap_or(vec![]));
+            result.insert(
+                channel.0.clone(),
+                chx.get_snapshot(channel.1.clone()).unwrap_or(vec![]),
+            );
         }
     }
 

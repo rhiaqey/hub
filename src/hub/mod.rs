@@ -245,10 +245,23 @@ impl Hub {
         match data.data {
             RPCMessageData::PurgeChannels(channels) => {
                 debug!("purging {} channels", channels.len());
+
+                let channels: Vec<(String, Option<String>)> = channels
+                    .iter()
+                    .filter_map(|x| {
+                        let parts: Vec<&str> = x.split('/').collect();
+                        match parts.len() {
+                            1 => Some((parts[0].to_string(), None)),
+                            2 => Some((parts[0].to_string(), Some(parts[1].to_string()))),
+                            _ => None,
+                        }
+                    })
+                    .collect();
+
                 for channel in channels.iter() {
-                    self.purge_channel(channel)
+                    self.purge_channel(channel.0.clone(), channel.1.clone())
                         .await
-                        .expect(format!("failed to purge channel {channel}").as_str());
+                        .expect(format!("failed to purge channel {}", channel.0).as_str());
                 }
             }
             RPCMessageData::CreateChannels(channels) => {
@@ -461,11 +474,11 @@ impl Hub {
         }
     }
 
-    async fn purge_channel(&self, channel: &String) -> anyhow::Result<()> {
+    async fn purge_channel(&self, channel: String, category: Option<String>) -> anyhow::Result<()> {
         debug!("purging channel {channel}");
 
         let mut streams = self.streams.lock().await;
-        match streams.get_mut(channel) {
+        match streams.get_mut(&channel) {
             None => {
                 warn!("could not find streaming channel by name {}", channel);
                 bail!(format!(
@@ -476,7 +489,9 @@ impl Hub {
             Some(streaming_channel) => {
                 trace!("streaming channel found");
 
-                let keys = streaming_channel.delete_snapshot_keys().unwrap_or(0);
+                let keys = streaming_channel
+                    .delete_snapshot_keys(category)
+                    .unwrap_or(0);
                 trace!("{keys} snapshot keys deleted");
 
                 let entries = streaming_channel.xtrim().unwrap_or(0);

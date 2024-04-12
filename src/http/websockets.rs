@@ -175,7 +175,7 @@ async fn handle_ws_client(
 
             if let Some(chx) = streaming_channel {
                 if snapshot_request {
-                    let snapshot = chx.get_snapshot().unwrap_or(vec![]);
+                    let snapshot = chx.get_snapshot(channel.1.clone()).unwrap_or(vec![]);
                     for stream_message in snapshot.iter() {
                         // case where clients have specified a category for their channel
                         if channel.1.is_some() {

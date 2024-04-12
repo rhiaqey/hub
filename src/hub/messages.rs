@@ -183,11 +183,11 @@ impl MessageHandler {
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             stream_message.channel.clone().into(),
-            stream_message.key.clone(),
             stream_message
                 .category
                 .clone()
                 .unwrap_or(String::from("default")),
+            stream_message.key.clone(),
         );
 
         let compare_timestamps = self.compare_by_timestamp(&stream_message, &snapshot_topic)?;
