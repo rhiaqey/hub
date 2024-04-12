@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 use std::task::Context;
@@ -23,7 +24,7 @@ pub struct StreamingChannel {
     namespace: String,
     redis: Arc<Mutex<redis::Connection>>,
     message_handler: Arc<Mutex<MessageHandler>>,
-    last_message: Arc<RwLock<Option<Vec<u8>>>>,
+    last_message: Arc<RwLock<HashMap<String, Vec<u8>>>>,
     pub clients: Arc<RwLock<Vec<String>>>,
 }
 
@@ -51,7 +52,7 @@ impl StreamingChannel {
                 redis_ms_connection,
             ))),
             clients: Arc::new(RwLock::new(vec![])),
-            last_message: Arc::new(RwLock::new(None)),
+            last_message: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
@@ -232,15 +233,16 @@ impl StreamingChannel {
         Ok(result)
     }
 
-    pub fn set_last_client_message(&self, message: Vec<u8>) {
+    pub fn set_last_client_message(&self, message: Vec<u8>, category: Option<String>) {
         let mut msg = self.last_message.write().unwrap();
-        *msg = Some(message);
+        msg.insert(category.unwrap_or(String::from("default")), message);
     }
 
-    pub fn get_last_client_message(&self) -> Option<Vec<u8>> {
-        let result = self.last_message.read().unwrap();
-        let raw = (*result).clone();
-        raw
+    pub fn get_last_client_message(&self, category: Option<String>) -> Option<Vec<u8>> {
+        let lock = self.last_message.clone();
+        let raw = lock.read().unwrap();
+        let result = raw.get(&category.unwrap_or(String::from("default")));
+        result.cloned()
     }
 }
 

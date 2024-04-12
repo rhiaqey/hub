@@ -206,7 +206,7 @@ async fn handle_ws_client(
                         }
                     }
                 } else {
-                    if let Some(raw) = chx.get_last_client_message() {
+                    if let Some(raw) = chx.get_last_client_message(channel.1.clone()) {
                         trace!("sending last channel message instead");
                         if let Ok(_) = sender.send(Message::Binary(raw)).await {
                             trace!(
