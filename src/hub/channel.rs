@@ -147,7 +147,11 @@ impl StreamingChannel {
         self.clients.read().unwrap().len()
     }
 
-    pub fn get_snapshot(&mut self, category: Option<String>) -> anyhow::Result<Vec<StreamMessage>> {
+    pub fn get_snapshot(
+        &mut self,
+        category: Option<String>,
+        count: Option<usize>,
+    ) -> anyhow::Result<Vec<StreamMessage>> {
         let keys = self.get_snapshot_keys(category)?;
         debug!("keys are here {:?}", keys);
 
@@ -158,7 +162,8 @@ impl StreamingChannel {
         let ids = vec![0; keys.len()];
         debug!("ids are key {:?}", ids);
 
-        let options = StreamReadOptions::default().count(self.channel.size);
+        let options = StreamReadOptions::default().count(count.unwrap_or(self.channel.size));
+        trace!("stream read options: {:?}", options);
 
         let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();

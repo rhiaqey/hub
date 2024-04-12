@@ -319,6 +319,7 @@ pub async fn assign_channels(
 #[derive(Deserialize)]
 pub struct SnapshotParams {
     channels: String,
+    size: Option<usize>,
 }
 
 pub async fn get_snapshot(
@@ -362,14 +363,13 @@ pub async fn get_snapshot(
         })
         .collect();
 
-    trace!("DUMP{:?}", channels.clone());
-
     for channel in channels.iter() {
         let streaming_channel = streaming_channels.get_mut(&channel.0);
         if let Some(chx) = streaming_channel {
             result.insert(
                 channel.0.clone(),
-                chx.get_snapshot(channel.1.clone()).unwrap_or(vec![]),
+                chx.get_snapshot(channel.1.clone(), params.size)
+                    .unwrap_or(vec![]),
             );
         }
     }

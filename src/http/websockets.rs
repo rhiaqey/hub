@@ -22,6 +22,7 @@ use std::sync::Arc;
 pub struct Params {
     channels: String,
     snapshot: Option<bool>,
+    snapshot_size: Option<usize>,
 }
 
 /// The handler for the HTTP request (this gets called when the HTTP GET lands at the start
@@ -56,7 +57,16 @@ pub async fn ws_handler(
 
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| handle_ws_connection(socket, ip, channels, snapshot_request, state))
+    ws.on_upgrade(move |socket| {
+        handle_ws_connection(
+            socket,
+            ip,
+            channels,
+            snapshot_request,
+            params.snapshot_size,
+            state,
+        )
+    })
 }
 
 /// Handle each websocket connection here
@@ -65,12 +75,13 @@ async fn handle_ws_connection(
     ip: String,
     channels: Vec<String>,
     snapshot_request: bool,
+    snapshot_size: Option<usize>,
     state: Arc<SharedState>,
 ) {
     info!("connection {ip} established");
-    tokio::task::spawn(
-        async move { handle_ws_client(socket, channels, snapshot_request, state).await },
-    );
+    tokio::task::spawn(async move {
+        handle_ws_client(socket, channels, snapshot_request, snapshot_size, state).await
+    });
 }
 
 /// Handle each client here
@@ -78,6 +89,7 @@ async fn handle_ws_client(
     socket: WebSocket,
     channels: Vec<String>,
     snapshot_request: bool,
+    snapshot_size: Option<usize>,
     state: Arc<SharedState>,
 ) {
     let hub_id = state.get_id();
@@ -175,7 +187,9 @@ async fn handle_ws_client(
 
             if let Some(chx) = streaming_channel {
                 if snapshot_request {
-                    let snapshot = chx.get_snapshot(channel.1.clone()).unwrap_or(vec![]);
+                    let snapshot = chx
+                        .get_snapshot(channel.1.clone(), snapshot_size)
+                        .unwrap_or(vec![]);
                     for stream_message in snapshot.iter() {
                         // case where clients have specified a category for their channel
                         if channel.1.is_some() {
