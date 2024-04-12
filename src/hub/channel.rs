@@ -162,7 +162,13 @@ impl StreamingChannel {
         let ids = vec![0; keys.len()];
         debug!("ids are key {:?}", ids);
 
-        let options = StreamReadOptions::default().count(count.unwrap_or(self.channel.size));
+        let count = count.unwrap_or(self.channel.size);
+        if count == 0 {
+            // If size is return 0 then return early
+            return Ok(vec![]);
+        }
+
+        let options = StreamReadOptions::default().count(count);
         trace!("stream read options: {:?}", options);
 
         let lock = self.redis.clone();
