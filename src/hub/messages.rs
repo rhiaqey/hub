@@ -65,7 +65,7 @@ impl MessageHandler {
         trace!("checking topic {}", topic);
 
         let new_message = new_message.clone();
-        let new_tag = new_message.tag.unwrap_or("".to_string());
+        let new_tag = new_message.tag.unwrap_or(String::from(""));
 
         let results: StreamRangeReply =
             self.redis_rs

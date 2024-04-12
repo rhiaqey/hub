@@ -27,7 +27,7 @@ pub async fn create_channels(
     // create channels
 
     let hub_channels_key = topics::hub_channels_key(state.get_namespace());
-    let content = serde_json::to_string(&payload).unwrap_or("{}".to_string());
+    let content = serde_json::to_string(&payload).unwrap_or(String::from("{}"));
     let _: () = conn.set(hub_channels_key.clone(), content).unwrap();
 
     // create xgroups
