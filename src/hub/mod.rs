@@ -365,10 +365,12 @@ impl Hub {
     async fn notify_clients(&self, hub_id: String, message: StreamMessage) -> anyhow::Result<()> {
         // get a streaming channel by channel name
         let category = message.category.clone();
-        let all_hub_streams = self.streams.lock().await;
-        let streaming_channel = all_hub_streams.get(message.channel.as_str());
+        let mut all_hub_streams = self.streams.lock().await;
+        let streaming_channel = all_hub_streams.get_mut(message.channel.as_str());
 
         if let Some(s_channel) = streaming_channel {
+            s_channel.broadcast(message, self.clients.clone()).await
+            /*
             let channel_name = s_channel.get_channel().name.clone();
             trace!("streaming channel found {}", channel_name);
 
@@ -388,7 +390,24 @@ impl Hub {
                 channel_name
             );
 
-            let mut total = 0u32;
+            let mut total_messages = 0u32;
+            let total_channel_clients = s_channel.get_total_clients();
+            let total_hub_clients = all_hub_clients.len();
+
+            /*
+            if message.client_ids.is_none() && message.user_ids.is_none() {
+                trace!("broadcasting to all");
+                // TODO: broadcast to all
+            } else if message.client_ids.is_some() && message.user_ids.is_none() {
+                trace!("broadcasting only to client ids");
+                // TODO: Broadcast to client ids only
+            } else if message.client_ids.is_none() && message.user_ids.is_some() {
+                trace!("broadcasting only to user ids");
+                // TODO: broadcast to user ids only
+            } else {
+                trace!("broadcasting only to client ids and user ids");
+                // TODO: Broadcast to client ids and user ids
+            }*/
 
             for client_id in all_stream_channel_clients.iter() {
                 match all_hub_clients.get_mut(client_id) {
@@ -404,7 +423,7 @@ impl Hub {
                             warn!("failed to sent message: {e}")
                         } else {
                             trace!("message sent successfully to client {client_id}");
-                            total += 1;
+                            total_messages += 1;
                         }
                     }
                     None => warn!("failed to find client by id {client_id}"),
@@ -413,12 +432,10 @@ impl Hub {
 
             info!(
                 "notified {}/{}/{} clients",
-                total,
-                s_channel.get_total_clients(),
-                all_hub_clients.len()
+                total_messages, total_channel_clients, total_hub_clients
             );
 
-            Ok(())
+            Ok(())*/
         } else {
             bail!("could not find a streaming channel")
         }

@@ -1,3 +1,4 @@
+use axum::extract::ws::Message;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
@@ -5,13 +6,15 @@ use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
 
+use crate::hub::client::WebSocketClient;
 use crate::hub::messages::MessageHandler;
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use redis::streams::StreamReadReply;
 use redis::streams::{StreamId, StreamReadOptions};
 use redis::streams::{StreamKey, StreamMaxlen};
 use redis::Commands;
 use redis::RedisResult;
+use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::stream::StreamMessage;
@@ -255,6 +258,66 @@ impl StreamingChannel {
         let raw = lock.read().unwrap();
         let result = raw.get(&category.unwrap_or(String::from("default")));
         result.cloned()
+    }
+
+    pub async fn broadcast(
+        &mut self,
+        message: StreamMessage,
+        clients: Arc<tokio::sync::Mutex<HashMap<String, WebSocketClient>>>,
+    ) -> anyhow::Result<()> {
+        let channel_name = &self.channel.name;
+        trace!("streaming channel found {}", channel_name);
+
+        let category = message.category.clone();
+        let mut client_message = ClientMessage::from(message);
+        if client_message.hub_id.is_none() {
+            client_message.hub_id = Some(self.get_hub_id());
+        }
+
+        let raw = serde_json::to_vec(&client_message)?;
+        self.set_last_client_message(raw.clone(), client_message.category);
+        trace!(
+            "last message cached in streaming channel[name={}]",
+            channel_name
+        );
+
+        let all_stream_channel_clients = self.clients.read().unwrap();
+        let mut all_hub_clients = clients.lock().await;
+
+        let mut total_messages = 0u32;
+        let total_channel_clients = self.get_total_clients();
+        let total_hub_clients = all_hub_clients.len();
+
+        for client_id in all_stream_channel_clients.iter() {
+            match all_hub_clients.get_mut(client_id) {
+                Some(client) => {
+                    if let Some(cat) = client.get_category_for_channel(&channel_name) {
+                        if !category.eq(&Some(cat)) {
+                            warn!(
+                                "skipping message broadcast as the categories do not match: {:?}",
+                                category
+                            );
+                            continue;
+                        }
+                    }
+
+                    if let Err(e) = client.send(Message::Binary(raw.clone())).await {
+                        warn!("failed to sent message: {e}")
+                    } else {
+                        trace!("message sent successfully to client {client_id}");
+                        total_messages += 1;
+                    }
+                }
+                None => warn!("failed to find client by id {client_id}"),
+            }
+        }
+
+        info!(
+            "notified {}/{}/{} clients",
+            total_messages, total_channel_clients, total_hub_clients
+        );
+
+        Ok(())
     }
 }
 
