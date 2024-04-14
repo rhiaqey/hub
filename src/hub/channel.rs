@@ -1,5 +1,7 @@
+use anyhow::bail;
 use axum::extract::ws::Message;
 use std::collections::HashMap;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 use std::task::Context;
@@ -260,6 +262,25 @@ impl StreamingChannel {
         result.cloned()
     }
 
+    async fn send_message_to_client(
+        &self,
+        client: &mut WebSocketClient,
+        category: &Option<String>,
+        channel_name: &String,
+        message: Vec<u8>,
+    ) -> anyhow::Result<()> {
+        if let Some(cat) = client.get_category_for_channel(&channel_name) {
+            if !category.eq(&Some(cat)) {
+                bail!(
+                    "skipping message broadcast as the categories do not match: {:?}",
+                    category
+                )
+            }
+        }
+
+        client.send(Message::Binary(message)).await
+    }
+
     pub async fn broadcast(
         &mut self,
         message: StreamMessage,
@@ -302,21 +323,17 @@ impl StreamingChannel {
         for client_id in all_stream_channel_clients.iter() {
             match all_hub_clients.get_mut(client_id) {
                 Some(client) => {
-                    if let Some(cat) = client.get_category_for_channel(&channel_name) {
-                        if !category.eq(&Some(cat)) {
-                            warn!(
-                                "skipping message broadcast as the categories do not match: {:?}",
-                                category
-                            );
-                            continue;
+                    match self
+                        .send_message_to_client(client, &category, channel_name, raw.clone())
+                        .await
+                    {
+                        Ok(_) => {
+                            trace!("message sent successfully to client {client_id}");
+                            total_sent_messages += 1;
                         }
-                    }
-
-                    if let Err(e) = client.send(Message::Binary(raw.clone())).await {
-                        warn!("failed to sent message: {e}")
-                    } else {
-                        trace!("message sent successfully to client {client_id}");
-                        total_sent_messages += 1;
+                        Err(err) => {
+                            warn!("message was not sent: {}", err);
+                        }
                     }
                 }
                 None => warn!("failed to find client by id {client_id}"),
