@@ -23,6 +23,7 @@ pub struct Params {
     channels: String,
     snapshot: Option<bool>,
     snapshot_size: Option<usize>,
+    user_id: Option<String>,
 }
 
 /// The handler for the HTTP request (this gets called when the HTTP GET lands at the start
@@ -55,12 +56,16 @@ pub async fn ws_handler(
     let snapshot_request = params.snapshot.unwrap_or(false);
     trace!("snapshot request: {}", snapshot_request);
 
+    let user_id = params.user_id;
+    trace!("user id: {:?}", user_id);
+
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| {
         handle_ws_connection(
             socket,
             ip,
+            user_id,
             channels,
             snapshot_request,
             params.snapshot_size,
@@ -73,6 +78,7 @@ pub async fn ws_handler(
 async fn handle_ws_connection(
     socket: WebSocket,
     ip: String,
+    user_id: Option<String>,
     channels: Vec<String>,
     snapshot_request: bool,
     snapshot_size: Option<usize>,
@@ -80,13 +86,22 @@ async fn handle_ws_connection(
 ) {
     info!("connection {ip} established");
     tokio::task::spawn(async move {
-        handle_ws_client(socket, channels, snapshot_request, snapshot_size, state).await
+        handle_ws_client(
+            socket,
+            user_id,
+            channels,
+            snapshot_request,
+            snapshot_size,
+            state,
+        )
+        .await
     });
 }
 
 /// Handle each client here
 async fn handle_ws_client(
     socket: WebSocket,
+    user_id: Option<String>,
     channels: Vec<String>,
     snapshot_request: bool,
     snapshot_size: Option<usize>,
@@ -243,8 +258,12 @@ async fn handle_ws_client(
     let cid = client_id.clone();
     let sx = Arc::new(tokio::sync::Mutex::new(sender));
     let rx = Arc::new(tokio::sync::Mutex::new(receiver));
-    let client =
-        WebSocketClient::create(client_id.clone(), None, sx.clone(), added_channels.clone());
+    let client = WebSocketClient::create(
+        client_id.clone(),
+        user_id,
+        sx.clone(),
+        added_channels.clone(),
+    );
 
     state.clients.lock().await.insert(client_id.clone(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
