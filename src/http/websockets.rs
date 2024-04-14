@@ -241,17 +241,10 @@ async fn handle_ws_client(
     }
 
     let cid = client_id.clone();
-    let user_id = client_id.clone();
-    let groups: Vec<String> = vec![];
     let sx = Arc::new(tokio::sync::Mutex::new(sender));
     let rx = Arc::new(tokio::sync::Mutex::new(receiver));
-    let client = WebSocketClient::create(
-        client_id.clone(),
-        user_id,
-        groups,
-        sx.clone(),
-        added_channels.clone(),
-    );
+    let client =
+        WebSocketClient::create(client_id.clone(), None, sx.clone(), added_channels.clone());
 
     state.clients.lock().await.insert(client_id.clone(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);

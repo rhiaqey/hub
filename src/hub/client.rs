@@ -8,26 +8,22 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct WebSocketClient {
-    /// unused
-    _client_id: String,
-    _user_id: String,
-    _groups: Vec<String>,
+    client_id: String,
+    user_id: Option<String>,
     sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     pub channels: Vec<(Channel, Option<String>)>,
 }
 
 impl WebSocketClient {
     pub fn create(
-        _client_id: String,
-        _user_id: String,
-        _groups: Vec<String>,
+        client_id: String,
+        user_id: Option<String>,
         sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
         channels: Vec<(Channel, Option<String>)>,
     ) -> WebSocketClient {
         WebSocketClient {
-            _client_id,
-            _user_id,
-            _groups,
+            client_id,
+            user_id,
             sender,
             channels,
         }
