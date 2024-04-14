@@ -36,7 +36,8 @@ pub async fn run() {
         Some(("generate-keys", sub_matches)) => {
             println!("generating keys");
 
-            let (private_key, public_key) = generate_keys(None);
+            let (private_key, public_key) =
+                generate_keys(None).expect("failed to generate security keys");
 
             let skip = sub_matches.get_one::<bool>("skip").unwrap_or(&false);
             if *skip {
