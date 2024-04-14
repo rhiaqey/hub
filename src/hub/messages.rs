@@ -191,7 +191,7 @@ impl MessageHandler {
             stream_message.key.clone(),
         );
 
-        let compare_timestamps = self.compare_by_timestamp(&stream_message, &snapshot_topic)?;
+        let compare_timestamps = self.compare_by_timestamp(stream_message, &snapshot_topic)?;
 
         if let MessageProcessResult::Deny(reason) = compare_timestamps {
             warn!("raw message should not be processed further due to: {reason}");
