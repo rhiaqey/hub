@@ -113,6 +113,7 @@ impl StreamingChannel {
             loop {
                 for entry in Self::read_group_records(lock.clone(), &hub_id, &channel, &namespace)
                     .unwrap_or(vec![])
+                    .iter()
                 {
                     match message_handler
                         .lock()

@@ -172,10 +172,11 @@ impl MessageHandler {
     // Handle all raw messages coming unfiltered from all publishers
     pub fn handle_stream_message_from_publishers(
         &mut self,
-        stream_message: StreamMessage,
+        stream_message: &StreamMessage,
     ) -> anyhow::Result<()> {
         debug!("handle raw stream message");
 
+        let tag = stream_message.tag.clone().unwrap_or(String::from(""));
         let channel_size = stream_message.size.unwrap_or(self.channel.size);
         let mut new_message = stream_message.clone();
         new_message.hub_id = Some(self.hub_id.clone());
@@ -243,7 +244,6 @@ impl MessageHandler {
         self.redis_rs.publish(&clean_topic, raw)?;
         trace!("message sent to pubsub {}", &clean_topic);
 
-        let tag = stream_message.tag.unwrap_or(String::from(""));
         let mut items = BTreeMap::new();
         items.insert("raw", raw_message);
         items.insert("tag", tag);
