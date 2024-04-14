@@ -261,6 +261,7 @@ impl StreamingChannel {
         result.cloned()
     }
 
+    #[inline(always)]
     async fn send_message_to_client(
         &self,
         client: &mut WebSocketClient,
