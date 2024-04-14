@@ -12,12 +12,10 @@ use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use anyhow::{bail, Context};
-use axum::extract::ws::Message;
 use futures::stream::select_all;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use redis::Commands;
-use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{
     MetricsMessage, PublisherRegistrationMessage, RPCMessage, RPCMessageData,
@@ -291,7 +289,7 @@ impl Hub {
             }
             RPCMessageData::NotifyClients(stream_message) => {
                 debug!("received notify clients rpc");
-                self.notify_clients(self.get_id(), stream_message)
+                self.notify_clients(stream_message)
                     .await
                     .expect("failed to notify clients");
             }
@@ -362,82 +360,17 @@ impl Hub {
         Ok(())
     }
 
-    async fn notify_clients(&self, hub_id: String, message: StreamMessage) -> anyhow::Result<()> {
-        // get a streaming channel by channel name
-        let category = message.category.clone();
+    async fn notify_clients(&self, message: StreamMessage) -> anyhow::Result<()> {
         let mut all_hub_streams = self.streams.lock().await;
         let streaming_channel = all_hub_streams.get_mut(message.channel.as_str());
 
         if let Some(s_channel) = streaming_channel {
             s_channel.broadcast(message, self.clients.clone()).await
-            /*
-            let channel_name = s_channel.get_channel().name.clone();
-            trace!("streaming channel found {}", channel_name);
-
-            let all_stream_channel_clients = s_channel.clients.read().unwrap();
-
-            let mut all_hub_clients = self.clients.lock().await;
-
-            let mut client_message = ClientMessage::from(message);
-            if client_message.hub_id.is_none() {
-                client_message.hub_id = Some(hub_id.clone());
-            }
-
-            let raw = serde_json::to_vec(&client_message).unwrap();
-            s_channel.set_last_client_message(raw.clone(), client_message.category);
-            trace!(
-                "last message cached in streaming channel[name={}]",
-                channel_name
-            );
-
-            let mut total_messages = 0u32;
-            let total_channel_clients = s_channel.get_total_clients();
-            let total_hub_clients = all_hub_clients.len();
-
-            /*
-            if message.client_ids.is_none() && message.user_ids.is_none() {
-                trace!("broadcasting to all");
-                // TODO: broadcast to all
-            } else if message.client_ids.is_some() && message.user_ids.is_none() {
-                trace!("broadcasting only to client ids");
-                // TODO: Broadcast to client ids only
-            } else if message.client_ids.is_none() && message.user_ids.is_some() {
-                trace!("broadcasting only to user ids");
-                // TODO: broadcast to user ids only
-            } else {
-                trace!("broadcasting only to client ids and user ids");
-                // TODO: Broadcast to client ids and user ids
-            }*/
-
-            for client_id in all_stream_channel_clients.iter() {
-                match all_hub_clients.get_mut(client_id) {
-                    Some(client) => {
-                        if let Some(cat) = client.get_category_for_channel(&channel_name) {
-                            if !category.eq(&Some(cat)) {
-                                warn!("skipping message broadcast as the categories do not match: {:?}", category);
-                                continue;
-                            }
-                        }
-
-                        if let Err(e) = client.send(Message::Binary(raw.clone())).await {
-                            warn!("failed to sent message: {e}")
-                        } else {
-                            trace!("message sent successfully to client {client_id}");
-                            total_messages += 1;
-                        }
-                    }
-                    None => warn!("failed to find client by id {client_id}"),
-                }
-            }
-
-            info!(
-                "notified {}/{}/{} clients",
-                total_messages, total_channel_clients, total_hub_clients
-            );
-
-            Ok(())*/
         } else {
-            bail!("could not find a streaming channel")
+            bail!(
+                "could not find a streaming channel by name: {}",
+                message.channel
+            )
         }
     }
 
