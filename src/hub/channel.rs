@@ -1,7 +1,6 @@
 use anyhow::bail;
 use axum::extract::ws::Message;
 use std::collections::HashMap;
-use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 use std::task::Context;
@@ -289,7 +288,7 @@ impl StreamingChannel {
         let total_channel_clients = self.get_total_clients();
 
         debug!(
-            "broadcast message from channel {} to {} clients",
+            "broadcasting message from channel {} to {} clients",
             self.get_channel().name,
             total_channel_clients
         );
@@ -302,6 +301,9 @@ impl StreamingChannel {
         trace!("streaming channel found {}", channel_name);
 
         let category = message.category.clone();
+        let user_ids = message.user_ids.clone();
+        let client_ids = message.client_ids.clone();
+
         let mut client_message = ClientMessage::from(message);
         if client_message.hub_id.is_none() {
             client_message.hub_id = Some(self.get_hub_id());
@@ -320,9 +322,39 @@ impl StreamingChannel {
 
         let mut total_sent_messages = 0u32;
 
-        for client_id in all_stream_channel_clients.iter() {
+        // If we are not using the user ids and client ids fields
+        for client_id in all_stream_channel_clients.iter().filter(|x| {
+            match &client_ids {
+                None => true, // no client ids are specified, so we do not filter anything
+                Some(clients) => clients.contains(*x),
+            }
+        }) {
             match all_hub_clients.get_mut(client_id) {
                 Some(client) => {
+                    match &user_ids {
+                        None => {} // do nothing, proceed
+                        Some(users) => {
+                            if let Some(user_id) = client.get_user_id() {
+                                if users.contains(user_id) {
+                                    trace!("valid user if found: {}", user_id);
+                                    // do nothing, proceed
+                                } else {
+                                    trace!("user id was not in the whitelisted users");
+                                    continue; // skip
+                                }
+                            } else {
+                                trace!("client does not have a user id to compare;");
+                                continue; // skip
+                            }
+                        }
+                    }
+
+                    trace!(
+                        "sending message to client: {}[user_id={:?}]",
+                        client.client_id,
+                        client.get_user_id()
+                    );
+
                     match self
                         .send_message_to_client(client, &category, channel_name, raw.clone())
                         .await
