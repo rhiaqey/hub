@@ -265,6 +265,18 @@ impl StreamingChannel {
         message: StreamMessage,
         clients: Arc<tokio::sync::Mutex<HashMap<String, WebSocketClient>>>,
     ) -> anyhow::Result<()> {
+        let total_channel_clients = self.get_total_clients();
+
+        debug!(
+            "broadcast message from channel {} to {} clients",
+            self.get_channel().name,
+            total_channel_clients
+        );
+
+        if total_channel_clients == 0 {
+            return Ok(());
+        }
+
         let channel_name = &self.channel.name;
         trace!("streaming channel found {}", channel_name);
 
@@ -283,10 +295,9 @@ impl StreamingChannel {
 
         let all_stream_channel_clients = self.clients.read().unwrap();
         let mut all_hub_clients = clients.lock().await;
-
-        let mut total_messages = 0u32;
-        let total_channel_clients = self.get_total_clients();
         let total_hub_clients = all_hub_clients.len();
+
+        let mut total_sent_messages = 0u32;
 
         for client_id in all_stream_channel_clients.iter() {
             match all_hub_clients.get_mut(client_id) {
@@ -305,7 +316,7 @@ impl StreamingChannel {
                         warn!("failed to sent message: {e}")
                     } else {
                         trace!("message sent successfully to client {client_id}");
-                        total_messages += 1;
+                        total_sent_messages += 1;
                     }
                 }
                 None => warn!("failed to find client by id {client_id}"),
@@ -314,7 +325,7 @@ impl StreamingChannel {
 
         info!(
             "notified {}/{}/{} clients",
-            total_messages, total_channel_clients, total_hub_clients
+            total_sent_messages, total_channel_clients, total_hub_clients
         );
 
         Ok(())
