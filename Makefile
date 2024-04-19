@@ -3,6 +3,8 @@ export REDIS_PASSWORD=welcome
 export REDIS_ADDRESS=0.0.0.0:6379
 export REDIS_SENTINEL_MASTER=mymaster
 export REDIS_SENTINEL_ADDRESSES=localhost:26379,localhost:26380,localhost:26381
+export REDIS_VERSION=7.2.4
+export REDIS_INSIGHT_VERSION=2.48.0
 
 export ID=fc5e1420-cbec-11ed-afa1-0242ac120002
 export NAME=hub
@@ -125,13 +127,13 @@ redis:
 		-e ALLOW_EMPTY_PASSWORD=no \
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
 		--network host \
-		rhiaqey/redis:latest
+		rhiaqey/redis:${REDIS_VERSION}
 
 .PHONY: redisinsight
 redisinsight:
 	docker run -it --rm --name redisinsight -p 5540:5540 \
 		--network host \
-		redis/redisinsight:latest
+		redis/redisinsight:${REDIS_INSIGHT_VERSION}
 
 .PHONY: docker
 docker: docker-build docker-push
