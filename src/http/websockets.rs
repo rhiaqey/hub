@@ -9,10 +9,15 @@ use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
+use redis::Commands;
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
     ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
 };
+use rhiaqey_common::pubsub::{
+    ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
+};
+use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
@@ -110,7 +115,7 @@ async fn handle_ws_client(
     let hub_id = state.get_id();
     let client_id = generate_ulid_string();
 
-    info!("handle client {client_id}");
+    info!("handle client {}", &client_id);
     debug!("{} channels extracted", channels.len());
 
     // With this, we will support channel names that can include categories seperated with a `/`
@@ -144,12 +149,14 @@ async fn handle_ws_client(
         }
     }
 
+    let event_topic = topics::events_pubsub_topic(state.get_namespace());
+
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
         channel: String::from(""),
         key: String::from(""),
         value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
-            client_id: client_id.to_string(),
+            client_id: client_id.clone(),
             hub_id: hub_id.to_string(),
         }),
         tag: None,
@@ -227,10 +234,10 @@ async fn handle_ws_client(
                             trace!(
                                 "channel snapshot message[category={:?}] sent successfully to {}",
                                 channel.1,
-                                client_id
+                                &client_id
                             );
                         } else {
-                            warn!("could not send snapshot message to {client_id}");
+                            warn!("could not send snapshot message to {}", &client_id);
                             break;
                         }
                     }
@@ -241,10 +248,10 @@ async fn handle_ws_client(
                             trace!(
                                 "last channel message[category={:?}] sent successfully to {}",
                                 channel.1,
-                                client_id
+                                &client_id
                             );
                         } else {
-                            warn!("could not send last channel message to {client_id}");
+                            warn!("could not send last channel message to {}", &client_id);
                             break;
                         }
                     }
@@ -259,11 +266,27 @@ async fn handle_ws_client(
     let sx = Arc::new(tokio::sync::Mutex::new(sender));
     let rx = Arc::new(tokio::sync::Mutex::new(receiver));
     let client = WebSocketClient::create(
-        client_id.clone(),
-        user_id,
+        cid.clone(),
+        user_id.clone(),
         sx.clone(),
         added_channels.clone(),
     );
+
+    if let Ok(raw) = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientConnected(ClientConnectedMessage {
+            client_id: cid.clone(),
+            user_id: user_id.clone(),
+            channels: added_channels.clone(),
+        }),
+    }) {
+        let _: () = state
+            .redis_rs
+            .lock()
+            .unwrap()
+            .publish(&event_topic, raw)
+            .expect("failed to publish message");
+        debug!("event sent for client connect to {}", &event_topic);
+    }
 
     state.clients.lock().await.insert(client_id.clone(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
@@ -315,6 +338,22 @@ async fn handle_ws_client(
     }
 
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
+
+    if let Ok(raw) = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
+            client_id: cid.clone(),
+            user_id: user_id.clone(),
+            channels: added_channels.clone(),
+        }),
+    }) {
+        let _: () = state
+            .redis_rs
+            .lock()
+            .unwrap()
+            .publish(&event_topic, raw)
+            .expect("failed to publish message");
+        debug!("event sent for client disconnect to {}", &event_topic);
+    }
 
     debug!("client {cid} was disconnected");
     debug!("total connected clients: {}", TOTAL_CLIENTS.get());
