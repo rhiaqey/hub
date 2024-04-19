@@ -29,7 +29,10 @@
     "protoc",
     "azuretools",
     "azurecr",
-    "jsonschema"
+    "jsonschema",
+    "jungaretti",
+    "devwasm",
+    "anson"
   ],
   "ignoreWords": [],
   "import": []

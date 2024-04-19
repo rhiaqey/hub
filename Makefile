@@ -124,7 +124,14 @@ redis:
 	docker run -it --rm --name redis -p 6379:6379 \
 		-e ALLOW_EMPTY_PASSWORD=no \
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
+		--network host \
 		rhiaqey/redis:latest
+
+.PHONY: redisinsight
+redisinsight:
+	docker run -it --rm --name redisinsight -p 5540:5540 \
+		--network host \
+		redis/redisinsight:latest
 
 .PHONY: docker
 docker: docker-build docker-push
