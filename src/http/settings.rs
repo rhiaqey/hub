@@ -168,9 +168,10 @@ fn update_settings_for_publishers(
 
     info!("publishing to topic {}", pub_topic);
 
-    let rpc_message = serde_json::to_string(&RPCMessage {
+    let rpc_message = RPCMessage {
         data: RPCMessageData::UpdatePublisherSettings(),
-    })
+    }
+    .ser_to_string()
     .context("failed to serialize rpc message")?;
 
     let _ = conn

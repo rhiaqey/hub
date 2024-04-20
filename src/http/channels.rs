@@ -3,6 +3,7 @@ use crate::http::state::{
 };
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
+use anyhow::Context;
 use axum::extract::{Path, Query, State};
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
@@ -167,6 +168,8 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
 }
 
 pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+    info!("[GET] Get hub");
+
     let id = state.get_id();
     let name = state.get_name();
     let namespace = state.get_namespace();
@@ -308,13 +311,16 @@ pub async fn assign_channels(
 
     // notify publishers
 
-    let content = serde_json::to_string(&RPCMessage {
+    let rpc_message = RPCMessage {
         data: RPCMessageData::AssignChannels(valid_channels.clone()),
-    })
+    }
+    .ser_to_string()
+    .context("failed to serialize rpc message")
     .unwrap();
+
     let stream_topic =
         topics::hub_to_publisher_pubsub_topic(state.get_namespace(), channel_name.clone());
-    let _: () = conn.publish(stream_topic, content).unwrap();
+    let _: () = conn.publish(stream_topic, rpc_message).unwrap();
 }
 
 #[derive(Deserialize)]

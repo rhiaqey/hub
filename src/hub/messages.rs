@@ -1,4 +1,4 @@
-use anyhow::bail;
+use anyhow::{bail, Context};
 use log::{debug, trace, warn};
 use redis::streams::{StreamMaxlen, StreamRangeReply};
 use redis::Commands;
@@ -234,14 +234,13 @@ impl MessageHandler {
         };
 
         let clean_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.namespace.clone());
-        let message = RPCMessage {
+        let rpc_message = RPCMessage {
             data: RPCMessageData::NotifyClients(new_message),
-        };
+        }
+        .ser_to_string()
+        .context("failed to serialize rpc message")?;
 
-        // Prepare to broadcast to all hubs that we have clean message
-        let raw = message.ser_to_string()?;
-
-        self.redis_rs.publish(&clean_topic, raw)?;
+        self.redis_rs.publish(&clean_topic, rpc_message)?;
         trace!("message sent to pubsub {}", &clean_topic);
 
         let mut items = BTreeMap::new();
