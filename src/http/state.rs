@@ -1,4 +1,4 @@
-use crate::hub::channel::StreamingChannel;
+use crate::hub::streaming_channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
 use crate::hub::settings::HubSettings;
 use anyhow::Context;
