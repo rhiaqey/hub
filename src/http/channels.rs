@@ -9,7 +9,7 @@ use redis::Commands;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
-use rhiaqey_sdk_rs::channel::ChannelList;
+use rhiaqey_sdk_rs::channel::{ChannelList, SimpleChannels};
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
@@ -328,7 +328,7 @@ pub async fn get_snapshot(
 ) -> impl IntoResponse {
     info!("[GET] Get snapshot");
 
-    let channels: Vec<String> = params.channels.split(",").map(|x| x.to_string()).collect();
+    let channels = SimpleChannels::from(params.channels.split(",").collect::<Vec<_>>());
     trace!("channel from params extracted {:?}", channels);
 
     if channels.is_empty() {
@@ -351,17 +351,7 @@ pub async fn get_snapshot(
     // With this, we will support channel names that can include categories seperated with a `/`
     // Valid examples would be `ticks` but also `ticks/historical`.
     // Any other format would be considered invalid and would be filtered out.
-    let channels: Vec<(String, Option<String>)> = channels
-        .iter()
-        .filter_map(|x| {
-            let parts: Vec<&str> = x.split('/').collect();
-            match parts.len() {
-                1 => Some((parts[0].to_string(), None)),
-                2 => Some((parts[0].to_string(), Some(parts[1].to_string()))),
-                _ => None,
-            }
-        })
-        .collect();
+    let channels: Vec<(String, Option<String>)> = channels.get_channels_with_category();
 
     for channel in channels.iter() {
         let streaming_channel = streaming_channels.get_mut(&channel.0);

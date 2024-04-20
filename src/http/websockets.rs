@@ -18,7 +18,7 @@ use rhiaqey_common::pubsub::{
     ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
 };
 use rhiaqey_common::topics;
-use rhiaqey_sdk_rs::channel::Channel;
+use rhiaqey_sdk_rs::channel::{Channel, SimpleChannels};
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -55,7 +55,7 @@ pub async fn ws_handler(
     let ip = insecure_ip.0.to_string();
     debug!("`{}` at {} connected.", user_agent, ip);
 
-    let channels: Vec<String> = params.channels.split(",").map(|x| x.to_string()).collect();
+    let channels = SimpleChannels::from(params.channels.split(",").collect::<Vec<_>>());
     trace!("channel from params extracted {:?}", channels);
 
     let snapshot_request = params.snapshot.unwrap_or(false);
@@ -84,7 +84,7 @@ async fn handle_ws_connection(
     socket: WebSocket,
     ip: String,
     user_id: Option<String>,
-    channels: Vec<String>,
+    channels: SimpleChannels,
     snapshot_request: bool,
     snapshot_size: Option<usize>,
     state: Arc<SharedState>,
@@ -107,7 +107,7 @@ async fn handle_ws_connection(
 async fn handle_ws_client(
     socket: WebSocket,
     user_id: Option<String>,
-    channels: Vec<String>,
+    channels: SimpleChannels,
     snapshot_request: bool,
     snapshot_size: Option<usize>,
     state: Arc<SharedState>,
@@ -121,17 +121,7 @@ async fn handle_ws_client(
     // With this, we will support channel names that can include categories seperated with a `/`
     // Valid examples would be `ticks` but also `ticks/historical`.
     // Any other format would be considered invalid and would be filtered out.
-    let channels: Vec<(String, Option<String>)> = channels
-        .iter()
-        .filter_map(|x| {
-            let parts: Vec<&str> = x.split('/').collect();
-            match parts.len() {
-                1 => Some((parts[0].to_string(), None)),
-                2 => Some((parts[0].to_string(), Some(parts[1].to_string()))),
-                _ => None,
-            }
-        })
-        .collect();
+    let channels: Vec<(String, Option<String>)> = channels.get_channels_with_category();
 
     let mut added_channels: Vec<(Channel, Option<String>)> = vec![];
 

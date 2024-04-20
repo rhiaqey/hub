@@ -24,7 +24,7 @@ use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::security::SecurityKey;
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::{security, topics};
-use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
+use rhiaqey_sdk_rs::channel::{Channel, ChannelList, SimpleChannels};
 use rhiaqey_sdk_rs::message::MessageValue;
 use sha256::digest;
 use std::collections::HashMap;
@@ -244,17 +244,8 @@ impl Hub {
             RPCMessageData::PurgeChannels(channels) => {
                 debug!("purging {} channels", channels.len());
 
-                let channels: Vec<(String, Option<String>)> = channels
-                    .iter()
-                    .filter_map(|x| {
-                        let parts: Vec<&str> = x.split('/').collect();
-                        match parts.len() {
-                            1 => Some((parts[0].to_string(), None)),
-                            2 => Some((parts[0].to_string(), Some(parts[1].to_string()))),
-                            _ => None,
-                        }
-                    })
-                    .collect();
+                let channels: Vec<(String, Option<String>)> =
+                    SimpleChannels::from(channels).get_channels_with_category();
 
                 for channel in channels.iter() {
                     self.purge_channel(channel.0.clone(), channel.1.clone())
