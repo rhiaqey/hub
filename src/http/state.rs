@@ -1,6 +1,6 @@
-use crate::hub::streaming_channel::StreamingChannel;
 use crate::hub::client::WebSocketClient;
 use crate::hub::settings::HubSettings;
+use crate::hub::streaming_channel::StreamingChannel;
 use anyhow::Context;
 use log::{debug, info};
 use redis::Commands;

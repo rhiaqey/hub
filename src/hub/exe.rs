@@ -1,5 +1,5 @@
-use crate::hub::streaming_channel::StreamingChannel;
 use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
+use crate::hub::streaming_channel::StreamingChannel;
 use crate::hub::Hub;
 use log::{info, warn};
 use rhiaqey_common::env::parse_env;

@@ -2,6 +2,7 @@ use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
 use crate::hub::settings::HubSettings;
+use crate::hub::simple_channel::SimpleChannels;
 use axum::extract::{Path, Query, State};
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
@@ -9,7 +10,7 @@ use redis::Commands;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
-use rhiaqey_sdk_rs::channel::{ChannelList, SimpleChannels};
+use rhiaqey_sdk_rs::channel::ChannelList;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;

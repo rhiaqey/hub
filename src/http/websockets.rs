@@ -2,6 +2,7 @@ use crate::http::state::SharedState;
 use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 
+use crate::hub::simple_channel::SimpleChannels;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -18,7 +19,7 @@ use rhiaqey_common::pubsub::{
     ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
 };
 use rhiaqey_common::topics;
-use rhiaqey_sdk_rs::channel::{Channel, SimpleChannels};
+use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::sync::Arc;
