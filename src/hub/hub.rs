@@ -123,33 +123,46 @@ impl Hub {
     fn load_key(config: &Env, client: &mut redis::Connection) -> anyhow::Result<SecurityKey> {
         let namespace = config.get_namespace();
         let security_key = topics::security_key(namespace);
-        let security_str: String = client.get(security_key.clone()).unwrap_or(String::from(""));
+        let security_str = client.get(security_key.clone()).unwrap_or(String::from(""));
+
         let security = match serde_json::from_str::<SecurityKey>(security_str.as_str()) {
             Ok(mut security) => {
-                debug!("security keys loaded");
+                info!("security keys loaded");
+
                 security.key = config
                     .decrypt(security.key)
                     .context("failed to decrypt security key")?;
+                debug!("security key decrypted");
+
                 security.no_once = config
                     .decrypt(security.no_once)
                     .context("failed to decrypt no once")?;
+                debug!("no_once decrypted");
+
                 security
             }
             Err(_) => {
                 warn!("security keys not found");
                 let mut security = SecurityKey::default();
                 let original = security.clone();
+
                 security.no_once = config
                     .encrypt(security.no_once)
                     .context("failed to encrypt no once")?;
+                debug!("no_once encrypted");
+
                 security.key = config
                     .encrypt(security.key)
                     .context("failed to encrypt security key")?;
+                debug!("security key encrypted");
+
                 let key_result = serde_json::to_string(&security).context("failed to serialize")?;
                 client
                     .set(security_key.clone(), key_result)
                     .context("failed to store security key")?;
-                debug!("new keys generated and saved");
+
+                info!("new keys generated and saved");
+
                 original
             }
         };
@@ -161,6 +174,7 @@ impl Hub {
         let mut redis_rs_connection = redis_rs_client
             .get_connection()
             .context("failed to get connection")?;
+
         let security = Self::load_key(&config, &mut redis_rs_connection)
             .context("failed to load security key")?;
 
