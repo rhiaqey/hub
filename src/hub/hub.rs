@@ -21,6 +21,7 @@ use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use sha256::digest;
+use tokio::signal;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
@@ -227,21 +228,29 @@ impl Hub {
         let pubsub_stream = pubsub.on_message();
         let mut streamz = select_all(vec![Box::pin(pubsub_stream)]);
 
-        while let Some(pubsub_message) = streamz.next().await {
-            trace!("clean message arrived");
+        loop {
+            tokio::select! {
+                Ok(result) = signal::ctrl_c() => {
+                    trace!("signal caught: {:?}", result);
+                    break;
+                },
+                Some(pubsub_message) = streamz.next() => {
+                    trace!("clean message arrived");
 
-            let Ok(msg_str) = pubsub_message.get_payload::<String>() else {
-                warn!("invalid clean message");
-                continue;
-            };
-
-            let data = serde_json::from_str::<RPCMessage>(msg_str.as_str());
-            if data.is_err() {
-                warn!("failed to parse rpc message");
-                continue;
+                    let Ok(msg_str) = pubsub_message.get_payload::<String>() else {
+                        warn!("invalid clean message");
+                        continue;
+                    };
+        
+                    let data = serde_json::from_str::<RPCMessage>(msg_str.as_str());
+                    if data.is_err() {
+                        warn!("failed to parse rpc message");
+                        continue;
+                    }
+        
+                    self.handle_rpc_message(data.unwrap()).await;
+                }
             }
-
-            self.handle_rpc_message(data.unwrap()).await;
         }
 
         Ok(())

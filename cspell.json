@@ -34,7 +34,10 @@
     "devwasm",
     "anson",
     "eitsupi",
-    "btop"
+    "btop",
+    "pkcs",
+    "canonicalize",
+    "streamz"
   ],
   "ignoreWords": [],
   "import": []

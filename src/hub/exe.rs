@@ -7,6 +7,7 @@ use rhiaqey_common::env::parse_env;
 pub async fn run() {
     env_logger::init();
     let env = parse_env();
+
     info!(
         "running hub [id={}, name={}, namespace={}]",
         env.get_id(),
@@ -66,4 +67,6 @@ pub async fn run() {
     if let Err(err) = hub.start().await {
         panic!("error starting hub: {}", err);
     }
+
+    info!("shutting down");
 }
