@@ -89,8 +89,6 @@ pub struct DeleteChannelsRequest {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateSettingsRequest {
-    /// Publisher's id
-    pub id: String,
     /// Publisher's name
     pub name: String,
     /// Publisher's settings
