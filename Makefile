@@ -73,7 +73,7 @@ run-release:
 
 .PHONY: settings
 settings:
-	 cargo run -- load-settings --file=./tmp/settings.json
+	 cargo run -- load-settings --file=./tmp/hub-settings.json --name hub
 
 .PHONY: keys
 keys:

@@ -32,8 +32,13 @@ fn cli() -> Command {
             Command::new("load-settings")
                 .about("Load settings from json")
                 .arg(
-                    arg!(-f - -file <FILE>)
+                    arg!(-f --file <FILE>)
                         .value_parser(clap::value_parser!(std::path::PathBuf))
+                        .required(true),
+                )
+                .arg(
+                    arg!(-n --name <NAME>)
+                        .value_parser(clap::value_parser!(String))
                         .required(true),
                 ),
         )
@@ -61,6 +66,14 @@ pub async fn run() {
 
                 let data = contents.unwrap();
 
+                let empty = String::from("");
+                let name = sub_matches.get_one::<String>("name").unwrap_or(&empty);
+                if name.is_empty() {
+                    panic!("required <NAME> argument")
+                }
+
+                println!("name found: {}", name);
+
                 let hub = hub::exe::create().await;
                 println!("hub ready");
 
@@ -69,7 +82,7 @@ pub async fn run() {
 
                 update_settings_for_hub(
                     UpdateSettingsRequest {
-                        name: String::from("hub"),
+                        name: name.to_string(),
                         settings: MessageValue::Text(data),
                     },
                     _state,
