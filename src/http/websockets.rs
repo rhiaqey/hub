@@ -24,10 +24,39 @@ use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::sync::Arc;
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum SnapshotDirectionParam {
+    ASC,
+    DESC,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum SnapshotParam {
+    Bool(bool),
+    Direction(SnapshotDirectionParam),
+}
+
+impl Default for SnapshotParam {
+    fn default() -> Self {
+        Self::Bool(false)
+    }
+}
+
+impl SnapshotParam {
+    fn allowed(&self) -> bool {
+        match *self {
+            SnapshotParam::Bool(allowed) => allowed,
+            SnapshotParam::Direction(_) => true,
+        }
+    }
+}
+
 #[derive(Deserialize)]
 pub struct Params {
     channels: String,
-    snapshot: Option<bool>,
+    snapshot: Option<SnapshotParam>,
     snapshot_size: Option<usize>,
     user_id: Option<String>,
 }
@@ -59,8 +88,8 @@ pub async fn ws_handler(
     let channels = SimpleChannels::from(params.channels.split(",").collect::<Vec<_>>());
     trace!("channel from params extracted {:?}", channels);
 
-    let snapshot_request = params.snapshot.unwrap_or(false);
-    trace!("snapshot request: {}", snapshot_request);
+    let snapshot_request = params.snapshot.unwrap_or_default();
+    trace!("snapshot request: {:?}", snapshot_request);
 
     let user_id = params.user_id;
     trace!("user id: {:?}", user_id);
@@ -86,7 +115,7 @@ async fn handle_ws_connection(
     ip: String,
     user_id: Option<String>,
     channels: SimpleChannels,
-    snapshot_request: bool,
+    snapshot_request: SnapshotParam,
     snapshot_size: Option<usize>,
     state: Arc<SharedState>,
 ) {
@@ -109,7 +138,7 @@ async fn handle_ws_client(
     socket: WebSocket,
     user_id: Option<String>,
     channels: SimpleChannels,
-    snapshot_request: bool,
+    snapshot_request: SnapshotParam,
     snapshot_size: Option<usize>,
     state: Arc<SharedState>,
 ) {
@@ -199,7 +228,7 @@ async fn handle_ws_client(
             let streaming_channel = lock.get_mut(&*channel_name);
 
             if let Some(chx) = streaming_channel {
-                if snapshot_request {
+                if snapshot_request.allowed() {
                     let snapshot = chx
                         .get_snapshot(channel.1.clone(), snapshot_size)
                         .unwrap_or(vec![]);
