@@ -5,7 +5,7 @@ use clap::ArgMatches;
 use rhiaqey_sdk_rs::message::MessageValue;
 use std::fs;
 
-pub async fn run(sub_matches: &ArgMatches) {
+pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
     if let Some(file) = sub_matches.get_one::<std::path::PathBuf>("file") {
         if !file.is_file() {
             panic!("could not find file: {:?}", file)
@@ -46,4 +46,6 @@ pub async fn run(sub_matches: &ArgMatches) {
     } else {
         panic!("required <FILE> is missing")
     }
+
+    Ok(())
 }

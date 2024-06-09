@@ -3,6 +3,6 @@ pub(crate) mod http;
 pub(crate) mod hub;
 
 #[tokio::main]
-async fn main() {
-    cli::exe::run().await;
+async fn main() -> anyhow::Result<()> {
+    cli::run().await
 }

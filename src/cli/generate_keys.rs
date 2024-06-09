@@ -3,7 +3,7 @@ use rsa::pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use std::fs;
 
-pub fn generate_keys(bits: Option<usize>) -> anyhow::Result<(RsaPrivateKey, RsaPublicKey)> {
+fn generate_keys(bits: Option<usize>) -> anyhow::Result<(RsaPrivateKey, RsaPublicKey)> {
     let mut rng = rand::thread_rng();
     let bits = bits.unwrap_or(2048);
 
@@ -13,7 +13,7 @@ pub fn generate_keys(bits: Option<usize>) -> anyhow::Result<(RsaPrivateKey, RsaP
     Ok((pr, pb))
 }
 
-pub async fn run(sub_matches: &ArgMatches) {
+pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
     println!("generating keys");
 
     let (private_key, public_key) = generate_keys(None).expect("failed to generate security keys");
@@ -63,4 +63,6 @@ pub async fn run(sub_matches: &ArgMatches) {
     } else {
         println!("nothing to write though");
     }
+
+    Ok(())
 }

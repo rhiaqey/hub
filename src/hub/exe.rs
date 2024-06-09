@@ -67,12 +67,7 @@ pub async fn create() -> Hub {
     hub
 }
 
-pub async fn run() {
+pub async fn run() -> anyhow::Result<()> {
     let mut hub = create().await;
-
-    if let Err(err) = hub.start().await {
-        panic!("error starting hub: {}", err);
-    }
-
-    info!("shutting down");
+    hub.start().await
 }
