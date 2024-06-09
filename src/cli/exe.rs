@@ -1,6 +1,9 @@
 use crate::cli::security::generate_keys;
+use crate::http::settings::update_settings_for_hub;
+use crate::http::state::UpdateSettingsRequest;
 use crate::hub;
 use clap::{arg, Command};
+use rhiaqey_sdk_rs::message::MessageValue;
 use rsa::pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey, LineEnding};
 use std::fs;
 
@@ -25,6 +28,15 @@ fn cli() -> Command {
                         .required(false),
                 ),
         )
+        .subcommand(
+            Command::new("load-settings")
+                .about("Load settings from json")
+                .arg(
+                    arg!(-f - -file <FILE>)
+                        .value_parser(clap::value_parser!(std::path::PathBuf))
+                        .required(true),
+                ),
+        )
 }
 
 pub async fn run() {
@@ -32,6 +44,40 @@ pub async fn run() {
     match matches.subcommand() {
         Some(("run", _sub_matches)) => {
             hub::exe::run().await;
+        }
+        Some(("load-settings", sub_matches)) => {
+            if let Some(file) = sub_matches.get_one::<std::path::PathBuf>("file") {
+                if !file.is_file() {
+                    panic!("could not find file: {:?}", file)
+                }
+
+                let path = file.canonicalize().unwrap().display().to_string();
+                println!("load settings from file: {}", path);
+
+                let contents = fs::read_to_string(path);
+                if contents.is_err() {
+                    panic!("error reading from file: {}", contents.unwrap_err());
+                }
+
+                let data = contents.unwrap();
+
+                let hub = hub::exe::create().await;
+                println!("hub ready");
+
+                let _state = hub.create_shared_state();
+                println!("hub state created");
+
+                update_settings_for_hub(
+                    UpdateSettingsRequest {
+                        name: String::from("hub"),
+                        settings: MessageValue::Text(data),
+                    },
+                    _state,
+                )
+                .expect("failed to update settings for hub");
+            } else {
+                panic!("required <FILE> is missing")
+            }
         }
         Some(("generate-keys", sub_matches)) => {
             println!("generating keys");

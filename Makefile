@@ -3,7 +3,7 @@ export REDIS_PASSWORD=welcome
 export REDIS_ADDRESS=0.0.0.0:6379
 export REDIS_SENTINEL_MASTER=mymaster
 export REDIS_SENTINEL_ADDRESSES=localhost:26379,localhost:26380,localhost:26381
-export REDIS_VERSION=7.2.4
+export REDIS_VERSION=7.2.5
 export REDIS_INSIGHT_VERSION=2.48.0
 
 export ID=fc5e1420-cbec-11ed-afa1-0242ac120002
@@ -70,6 +70,10 @@ run:
 run-release:
 	RUST_LOG=rhiaqey_hub=info \
 		cargo run --release -- run
+
+.PHONY: settings
+settings:
+	 cargo run -- load-settings --file=./tmp/settings.json
 
 .PHONY: keys
 keys:

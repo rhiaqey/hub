@@ -21,9 +21,9 @@ use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use sha256::digest;
-use tokio::signal;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use tokio::signal;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
@@ -170,7 +170,7 @@ impl Hub {
         Ok(security)
     }
 
-    pub async fn create(config: Env) -> anyhow::Result<Hub> {
+    pub fn create(config: Env) -> anyhow::Result<Hub> {
         let redis_rs_client = connect_and_ping(&config.redis)?;
         let mut redis_rs_connection = redis_rs_client
             .get_connection()
@@ -189,6 +189,17 @@ impl Hub {
         })
     }
 
+    pub fn create_shared_state(&self) -> Arc<SharedState> {
+        Arc::new(SharedState {
+            env: self.env.clone(),
+            settings: self.settings.clone(),
+            streams: self.streams.clone(),
+            redis_rs: self.redis_rs.clone(),
+            clients: self.clients.clone(),
+            security: self.security.clone(),
+        })
+    }
+
     pub async fn start(&mut self) -> anyhow::Result<()> {
         info!("starting hub");
 
@@ -197,17 +208,8 @@ impl Hub {
         debug!("settings loaded");
 
         let namespace = self.env.get_namespace();
-
-        let shared_state = Arc::new(SharedState {
-            env: self.env.clone(),
-            settings: self.settings.clone(),
-            streams: self.streams.clone(),
-            redis_rs: self.redis_rs.clone(),
-            clients: self.clients.clone(),
-            security: self.security.clone(),
-        });
-
         let private_port = self.get_private_port();
+        let shared_state = self.create_shared_state();
         let private_state = Arc::clone(&shared_state);
 
         tokio::spawn(async move {
@@ -241,17 +243,19 @@ impl Hub {
                         warn!("invalid clean message");
                         continue;
                     };
-        
+
                     let data = serde_json::from_str::<RPCMessage>(msg_str.as_str());
                     if data.is_err() {
                         warn!("failed to parse rpc message");
                         continue;
                     }
-        
+
                     self.handle_rpc_message(data.unwrap()).await;
                 }
             }
         }
+
+        info!("shutting down");
 
         Ok(())
     }

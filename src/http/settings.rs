@@ -56,7 +56,7 @@ fn validate_settings_for_hub(message: &MessageValue, schema: Value) -> bool {
     result
 }
 
-fn update_settings_for_hub(
+pub fn update_settings_for_hub(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
 ) -> anyhow::Result<MessageValue> {

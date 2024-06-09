@@ -1,6 +1,7 @@
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
+use crate::http::websockets::{SnapshotDirectionParam, SnapshotParam};
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
 use anyhow::Context;
@@ -327,6 +328,7 @@ pub async fn assign_channels(
 pub struct SnapshotParams {
     channels: String,
     size: Option<usize>,
+    direction: Option<SnapshotDirectionParam>,
 }
 
 pub async fn get_snapshot(
@@ -360,12 +362,15 @@ pub async fn get_snapshot(
     // Any other format would be considered invalid and would be filtered out.
     let channels: Vec<(String, Option<String>)> = channels.get_channels_with_category();
 
+    // default snapshot direction
+    let direction = SnapshotParam::Direction(params.direction.unwrap_or_default());
+
     for channel in channels.iter() {
         let streaming_channel = streaming_channels.get_mut(&channel.0);
         if let Some(chx) = streaming_channel {
             result.insert(
                 channel.0.clone(),
-                chx.get_snapshot(channel.1.clone(), params.size)
+                chx.get_snapshot(&direction, channel.1.clone(), params.size)
                     .unwrap_or(vec![]),
             );
         }

@@ -31,6 +31,12 @@ pub enum SnapshotDirectionParam {
     DESC,
 }
 
+impl Default for SnapshotDirectionParam {
+    fn default() -> Self {
+        SnapshotDirectionParam::ASC
+    }
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SnapshotParam {
@@ -230,8 +236,9 @@ async fn handle_ws_client(
             if let Some(chx) = streaming_channel {
                 if snapshot_request.allowed() {
                     let snapshot = chx
-                        .get_snapshot(channel.1.clone(), snapshot_size)
+                        .get_snapshot(&snapshot_request, channel.1.clone(), snapshot_size)
                         .unwrap_or(vec![]);
+
                     for stream_message in snapshot.iter() {
                         // case where clients have specified a category for their channel
                         if channel.1.is_some() {

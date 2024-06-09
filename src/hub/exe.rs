@@ -4,7 +4,7 @@ use crate::hub::streaming_channel::StreamingChannel;
 use log::{info, warn};
 use rhiaqey_common::env::parse_env;
 
-pub async fn run() {
+pub async fn create() -> Hub {
     env_logger::init();
     let env = parse_env();
 
@@ -17,7 +17,7 @@ pub async fn run() {
 
     let namespace = env.get_namespace();
 
-    let mut hub = match Hub::create(env).await {
+    let hub = match Hub::create(env) {
         Ok(exec) => exec,
         Err(err) => {
             panic!("failed to setup hub: {}", err);
@@ -63,6 +63,12 @@ pub async fn run() {
     drop(streams);
     TOTAL_CHANNELS.set(total_channels as f64);
     TOTAL_CLIENTS.set(0f64);
+
+    hub
+}
+
+pub async fn run() {
+    let mut hub = create().await;
 
     if let Err(err) = hub.start().await {
         panic!("error starting hub: {}", err);

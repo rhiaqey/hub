@@ -7,6 +7,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
 
+use crate::http::websockets::{SnapshotDirectionParam, SnapshotParam};
 use crate::hub::client::WebSocketClient;
 use crate::hub::messages::MessageHandler;
 use log::{debug, info, trace, warn};
@@ -154,6 +155,7 @@ impl StreamingChannel {
 
     pub fn get_snapshot(
         &mut self,
+        snapshot_param: &SnapshotParam,
         category: Option<String>,
         count: Option<usize>,
     ) -> anyhow::Result<Vec<StreamMessage>> {
@@ -180,7 +182,7 @@ impl StreamingChannel {
         let mut client = lock.lock().unwrap();
         let results: StreamReadReply = client.xread_options(&*keys, &*ids, &options)?;
 
-        let messages: Vec<StreamMessage> = results
+        let mut messages: Vec<StreamMessage> = results
             .keys
             .iter()
             .map(|key| {
@@ -202,6 +204,10 @@ impl StreamingChannel {
             .collect();
 
         debug!("message count {:?}", messages.len());
+
+        if let SnapshotParam::Direction(SnapshotDirectionParam::DESC) = snapshot_param {
+            messages.reverse()
+        }
 
         Ok(messages)
     }
