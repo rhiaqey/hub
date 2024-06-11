@@ -1,6 +1,7 @@
 use crate::http::settings::update_settings_for_hub;
 use crate::http::state::UpdateSettingsRequest;
 use crate::hub;
+use anyhow::Context;
 use clap::ArgMatches;
 use rhiaqey_sdk_rs::message::MessageValue;
 use std::fs;
@@ -42,7 +43,7 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
             },
             _state,
         )
-        .expect("failed to update settings for hub");
+        .context("failed to update settings for hub")?;
     } else {
         panic!("required <FILE> is missing")
     }

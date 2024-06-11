@@ -41,6 +41,24 @@ fn cli() -> Command {
                         .required(true),
                 ),
         )
+        .subcommand(
+            Command::new("create-channels")
+                .about("Create channels from json")
+                .arg(
+                    arg!(-f --file <FILE>)
+                        .value_parser(clap::value_parser!(std::path::PathBuf))
+                        .required(true),
+                ),
+        )
+        .subcommand(
+            Command::new("assign-channels")
+                .about("Assign channels from json")
+                .arg(
+                    arg!(-f --file <FILE>)
+                        .value_parser(clap::value_parser!(std::path::PathBuf))
+                        .required(true),
+                ),
+        )
 }
 
 pub async fn run() -> anyhow::Result<()> {
@@ -49,6 +67,8 @@ pub async fn run() -> anyhow::Result<()> {
         Some(("run", _sub_matches)) => run::run().await,
         Some(("load-settings", sub_matches)) => load_settings::run(sub_matches).await,
         Some(("generate-keys", sub_matches)) => generate_keys::run(sub_matches).await,
+        Some(("create-channels", sub_matches)) => create_channels::run(sub_matches).await,
+        Some(("assign-channels", sub_matches)) => assign_channels::run(sub_matches).await,
         _ => {
             println!("unknown command");
             unreachable!()

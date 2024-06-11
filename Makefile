@@ -73,7 +73,10 @@ run-release:
 
 .PHONY: settings
 settings:
-	 cargo run -- load-settings --file=./tmp/hub-settings.json --name hub
+	 cargo run -- load-settings --file=./data/hub-settings.json --name hub
+	 cargo run -- load-settings --file=./data/ws1-settings.json --name ws1
+	 cargo run -- create-channels --file=./data/create-channels.json
+	 cargo run -- assign-channels --file=./data/assign-channels.json
 
 .PHONY: keys
 keys:

@@ -19,9 +19,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub async fn create_channels(
-    State(state): State<Arc<SharedState>>,
-    Json(payload): Json<CreateChannelsRequest>,
-) -> impl IntoResponse {
+    payload: CreateChannelsRequest,
+    state: Arc<SharedState>,
+) -> anyhow::Result<String> {
     info!("[PUT] Creating channels");
 
     let lock = state.redis_rs.clone();
@@ -31,7 +31,7 @@ pub async fn create_channels(
 
     let hub_channels_key = topics::hub_channels_key(state.get_namespace());
     let content = serde_json::to_string(&payload).unwrap_or(String::from("{}"));
-    let _: () = conn.set(hub_channels_key.clone(), content).unwrap();
+    let _: () = conn.set(hub_channels_key.clone(), content)?;
 
     // create xgroups
 
@@ -59,11 +59,20 @@ pub async fn create_channels(
 
     // notify all hubs to create and start streaming channels
 
-    match state.publish_rpc_message(RPCMessageData::CreateChannels(payload.channels.channels)) {
-        Ok(_) => (
+    state.publish_rpc_message(RPCMessageData::CreateChannels(payload.channels.channels))?;
+
+    Ok(result)
+}
+
+pub async fn create_channels_handler(
+    State(state): State<Arc<SharedState>>,
+    Json(payload): Json<CreateChannelsRequest>,
+) -> impl IntoResponse {
+    match create_channels(payload, state).await {
+        Ok(response) => (
             StatusCode::OK,
             [(hyper::header::CONTENT_TYPE, "application/json")],
-            result,
+            response,
         )
             .into_response(),
         Err(err) => {

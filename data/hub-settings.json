@@ -1,0 +1,62 @@
+{
+  "Security": {
+    "ApiKeys": [
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d582",
+        "Host": "localhost:3333",
+        "IPs": {
+          "Blacklisted": []
+        }
+      },
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d583",
+        "Host": "localhost:3334",
+        "IPs": {
+          "Blacklisted": []
+        }
+      },
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d584",
+        "Host": "localhost:6006",
+        "IPs": {
+          "Blacklisted": []
+        }
+      },
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d585",
+        "Host": "localhost:6007",
+        "IPs": {
+          "Blacklisted": []
+        }
+      },
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d586",
+        "Host": "localhost:8080",
+        "IPs": {
+          "Blacklisted": []
+        }
+      },
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d587",
+        "Host": "localhost:8081",
+        "IPs": {
+          "Blacklisted": []
+        }
+      },
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d588",
+        "Host": "localhost:9090",
+        "IPs": {
+          "Blacklisted": []
+        }
+      },
+      {
+        "ApiKey": "02f0c887-114f-45d7-8084-7d123804d589",
+        "Host": "localhost:9091",
+        "IPs": {
+          "Blacklisted": []
+        }
+      }
+    ]
+  }
+}
