@@ -1,3 +1,6 @@
+use crate::http::channels::assign_channels;
+use crate::http::state::AssignChannelsRequest;
+use crate::hub;
 use anyhow::bail;
 use clap::ArgMatches;
 use std::fs;
@@ -17,11 +20,22 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
         }
 
         let data = contents.unwrap();
+        let request: AssignChannelsRequest = serde_json::from_str(data.as_str())?;
 
-        // TODO
+        let hub = hub::exe::create().await;
+        println!("hub ready");
+
+        let state = hub.create_shared_state();
+        println!("hub state created");
+
+        if let Err(err) = assign_channels(request, state).await {
+            bail!("error assigning channels: {}", err);
+        }
     } else {
         bail!("required <FILE> is missing")
     }
+
+    println!("assigning channels finished successfully");
 
     Ok(())
 }

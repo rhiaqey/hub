@@ -272,12 +272,9 @@ pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> i
 }
 
 pub async fn assign_channels(
-    State(state): State<Arc<SharedState>>,
-    Json(payload): Json<AssignChannelsRequest>,
-) -> impl IntoResponse {
-    info!("[POST] Assign channels");
-    debug!("[POST] Payload {:?}", payload);
-
+    payload: AssignChannelsRequest,
+    state: Arc<SharedState>,
+) -> anyhow::Result<()> {
     // get all channels in the system
     let channel_name = payload.name.clone();
     let mut conn = state.redis_rs.lock().unwrap();
@@ -330,7 +327,20 @@ pub async fn assign_channels(
 
     let stream_topic =
         topics::hub_to_publisher_pubsub_topic(state.get_namespace(), channel_name.clone());
+
     let _: () = conn.publish(stream_topic, rpc_message).unwrap();
+
+    Ok(())
+}
+
+pub async fn assign_channels_handler(
+    State(state): State<Arc<SharedState>>,
+    Json(payload): Json<AssignChannelsRequest>,
+) -> impl IntoResponse {
+    info!("[POST] Assign channels");
+    debug!("[POST] Payload {:?}", payload);
+    assign_channels(payload, state).await.unwrap();
+    (StatusCode::NO_CONTENT,).into_response()
 }
 
 #[derive(Deserialize)]

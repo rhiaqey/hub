@@ -1,6 +1,6 @@
 use crate::http::auth::{get_auth, get_status};
 use crate::http::channels::{
-    assign_channels, create_channels_handler, delete_channels, get_channel_assignments,
+    assign_channels_handler, create_channels_handler, delete_channels, get_channel_assignments,
     get_channels, get_hub, get_publishers, get_snapshot, purge_channel,
 };
 use crate::http::client::get_users;
@@ -53,7 +53,7 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/admin/api/channels", put(create_channels_handler))
         .route("/admin/api/channels", delete(delete_channels))
         .route("/admin/api/publishers", get(get_publishers))
-        .route("/admin/api/channels/assign", post(assign_channels))
+        .route("/admin/api/channels/assign", post(assign_channels_handler))
         .route("/admin/api/channels/assign", get(get_channel_assignments))
         .route("/admin/api/settings", post(update_settings))
         // .layer(CookieManagerLayer::new())

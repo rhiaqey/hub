@@ -65,5 +65,7 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
         println!("nothing to write though");
     }
 
+    println!("generating keys finished successfully");
+
     Ok(())
 }

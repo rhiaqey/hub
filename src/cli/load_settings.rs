@@ -1,7 +1,7 @@
 use crate::http::settings::{update_settings_for_hub, update_settings_for_publishers};
 use crate::http::state::UpdateSettingsRequest;
 use crate::hub;
-use anyhow::{bail, Context};
+use anyhow::bail;
 use clap::ArgMatches;
 use rhiaqey_sdk_rs::message::MessageValue;
 use std::fs;
@@ -56,6 +56,8 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
     } else {
         bail!("required <FILE> is missing")
     }
+
+    println!("loading settings finished successfully");
 
     Ok(())
 }
