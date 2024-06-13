@@ -190,7 +190,7 @@ pub fn update_settings_for_publishers(
     Ok(payload.settings)
 }
 
-pub async fn update_settings(
+pub async fn update_settings_handler(
     State(state): State<Arc<SharedState>>,
     Json(payload): Json<UpdateSettingsRequest>,
 ) -> impl IntoResponse {

@@ -91,7 +91,7 @@ pub async fn create_channels_handler(
     }
 }
 
-pub async fn delete_channels(
+pub async fn delete_channels_handler(
     State(state): State<Arc<SharedState>>,
     Json(payload): Json<DeleteChannelsRequest>,
 ) -> impl IntoResponse {
@@ -140,7 +140,7 @@ pub async fn delete_channels(
     }
 }
 
-pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+pub async fn get_publishers_handler(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get publishers");
 
     let Ok(mut conn) = state.redis_rs.lock() else {
@@ -177,7 +177,7 @@ pub async fn get_publishers(State(state): State<Arc<SharedState>>) -> impl IntoR
     Json(publishers).into_response()
 }
 
-pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+pub async fn get_hub_handler(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get hub");
 
     let id = state.get_id();
@@ -198,7 +198,7 @@ pub async fn get_hub(State(state): State<Arc<SharedState>>) -> impl IntoResponse
     )
 }
 
-pub async fn get_channels(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+pub async fn get_channels_handler(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
     info!("[GET] Get channels");
 
     let lock = state.redis_rs.clone();
@@ -211,7 +211,7 @@ pub async fn get_channels(State(state): State<Arc<SharedState>>) -> impl IntoRes
     Json(channel_list)
 }
 
-pub async fn purge_channel(
+pub async fn purge_channel_handler(
     State(state): State<Arc<SharedState>>,
     Path(channel): Path<String>,
 ) -> impl IntoResponse {
@@ -235,7 +235,9 @@ pub async fn purge_channel(
     }
 }
 
-pub async fn get_channel_assignments(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
+pub async fn get_channel_assignments_handler(
+    State(state): State<Arc<SharedState>>,
+) -> impl IntoResponse {
     info!("[GET] Get channel assignments");
 
     let lock = state.redis_rs.clone();

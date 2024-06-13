@@ -4,7 +4,7 @@ use axum::response::IntoResponse;
 use log::info;
 use serde_json::json;
 
-pub async fn get_users() -> impl IntoResponse {
+pub async fn get_users_handler() -> impl IntoResponse {
     let clients = TOTAL_CLIENTS.get();
     info!("[GET] get total connected users: {}", clients);
 

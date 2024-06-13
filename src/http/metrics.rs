@@ -3,7 +3,7 @@ use axum::response::IntoResponse;
 use log::info;
 use prometheus::{Encoder, TextEncoder};
 
-pub async fn get_metrics() -> impl IntoResponse {
+pub async fn get_metrics_handler() -> impl IntoResponse {
     info!("[GET] Get metrics");
 
     let encoder = TextEncoder::new();

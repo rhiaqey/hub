@@ -227,7 +227,7 @@ pub fn valid_api_host(api_host: String, origin: String) -> bool {
     }
 }
 
-pub async fn get_auth(
+pub async fn get_auth_handler(
     headers: HeaderMap,        // external and internal headers
     user_ip: InsecureClientIp, // external
     // internal: SecureClientIp, // internal
@@ -282,13 +282,13 @@ pub async fn get_auth(
     }
 }
 
-pub async fn get_status(// headers: HeaderMap,            // external and internal headers
-                        // insecure_ip: InsecureClientIp, // external
-                        // secure_ip: SecureClientIp,                               // internal
-                        // Host(hostname): Host,                  // external host
-                        // qs: Query<AuthenticationQueryParams>,  // external query string
-                        // State(state): State<Arc<SharedState>>, // global state
-                        // jar: CookieJar,                        // global
+pub async fn get_status_handler(// headers: HeaderMap,            // external and internal headers
+                                // insecure_ip: InsecureClientIp, // external
+                                // secure_ip: SecureClientIp,                               // internal
+                                // Host(hostname): Host,                  // external host
+                                // qs: Query<AuthenticationQueryParams>,  // external query string
+                                // State(state): State<Arc<SharedState>>, // global state
+                                // jar: CookieJar,                        // global
 ) -> impl IntoResponse {
     (StatusCode::OK, "Everything looks good")
 }
