@@ -1,3 +1,4 @@
+use anyhow::bail;
 use clap::ArgMatches;
 use rsa::pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey, LineEnding};
 use rsa::{RsaPrivateKey, RsaPublicKey};
@@ -27,7 +28,7 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
         if directory.is_dir() {
             println!("directory found");
         } else {
-            panic!("{} is not a valid directory", directory.to_str().unwrap());
+            bail!("{} is not a valid directory", directory.to_str().unwrap());
         }
 
         let dir = directory.canonicalize().unwrap().display().to_string();

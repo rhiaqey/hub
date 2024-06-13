@@ -7,7 +7,7 @@ use axum::Json;
 use hyper::StatusCode;
 use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
-use redis::Commands;
+use redis::{Commands, RedisResult};
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::message::MessageValue;
@@ -118,7 +118,7 @@ fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> bo
     compiled_schema.is_valid(&settings)
 }
 
-fn update_settings_for_publishers(
+pub fn update_settings_for_publishers(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
 ) -> anyhow::Result<MessageValue> {
@@ -131,7 +131,12 @@ fn update_settings_for_publishers(
     let lock = state.redis_rs.clone();
     let mut conn = lock.lock().unwrap();
 
-    let schema_response: String = conn.get(schema_key)?;
+    let schema_redis_response: RedisResult<String> = conn.get(schema_key);
+    if schema_redis_response.is_err() {
+        bail!(format!("No schema found for {name}"))
+    }
+
+    let schema_response: String = schema_redis_response.unwrap();
     if schema_response == "" {
         bail!(format!("No schema found for {name}"))
     }

@@ -1,7 +1,7 @@
-use crate::http::settings::update_settings_for_hub;
+use crate::http::settings::{update_settings_for_hub, update_settings_for_publishers};
 use crate::http::state::UpdateSettingsRequest;
 use crate::hub;
-use anyhow::Context;
+use anyhow::{bail, Context};
 use clap::ArgMatches;
 use rhiaqey_sdk_rs::message::MessageValue;
 use std::fs;
@@ -33,19 +33,28 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
         let hub = hub::exe::create().await;
         println!("hub ready");
 
-        let _state = hub.create_shared_state();
+        let state = hub.create_shared_state();
         println!("hub state created");
 
-        update_settings_for_hub(
-            UpdateSettingsRequest {
-                name: name.to_string(),
-                settings: MessageValue::Text(data),
-            },
-            _state,
-        )
-        .context("failed to update settings for hub")?;
+        if state.get_name() == name.to_string() {
+            update_settings_for_hub(
+                UpdateSettingsRequest {
+                    name: name.to_string(),
+                    settings: MessageValue::Text(data),
+                },
+                state,
+            )?;
+        } else {
+            update_settings_for_publishers(
+                UpdateSettingsRequest {
+                    name: name.to_string(),
+                    settings: MessageValue::Text(data),
+                },
+                state,
+            )?;
+        }
     } else {
-        panic!("required <FILE> is missing")
+        bail!("required <FILE> is missing")
     }
 
     Ok(())
