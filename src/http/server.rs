@@ -2,7 +2,7 @@ use crate::http::auth::{get_auth_handler, get_status_handler};
 use crate::http::channels::{
     assign_channels_handler, create_channels_handler, delete_channels_handler,
     get_channel_assignments_handler, get_channels_handler, get_hub_handler, get_publishers_handler,
-    get_snapshot, purge_channel_handler,
+    get_snapshot_handler, purge_channel_handler,
 };
 use crate::http::client::get_users_handler;
 use crate::http::metrics::get_metrics_handler;
@@ -91,9 +91,9 @@ pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>)
         .allow_origin(Any);
 
     let app = Router::new()
-        .route("/", get(get_home))
+        .route("/", get(get_home_handler))
         .route("/ws", get(ws_handler))
-        .route("/snapshot", get(get_snapshot))
+        .route("/snapshot", get(get_snapshot_handler))
         .layer(cors)
         .with_state(shared_state);
 
@@ -113,7 +113,7 @@ pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>)
     .unwrap();
 }
 
-async fn get_home() -> impl IntoResponse {
+async fn get_home_handler() -> impl IntoResponse {
     info!("[GET] Handle home");
     (StatusCode::OK, "OK")
 }

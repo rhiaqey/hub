@@ -26,35 +26,26 @@ use std::sync::Arc;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
-pub enum SnapshotDirectionParam {
+pub enum SnapshotParam {
     ASC,
     DESC,
-}
-
-impl Default for SnapshotDirectionParam {
-    fn default() -> Self {
-        SnapshotDirectionParam::ASC
-    }
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum SnapshotParam {
-    Bool(bool),
-    Direction(SnapshotDirectionParam),
+    TRUE,
+    FALSE,
 }
 
 impl Default for SnapshotParam {
     fn default() -> Self {
-        Self::Bool(false)
+        Self::FALSE
     }
 }
 
 impl SnapshotParam {
     fn allowed(&self) -> bool {
         match *self {
-            SnapshotParam::Bool(allowed) => allowed,
-            SnapshotParam::Direction(_) => true,
+            SnapshotParam::ASC => true,
+            SnapshotParam::DESC => true,
+            SnapshotParam::TRUE => true,
+            SnapshotParam::FALSE => false,
         }
     }
 }

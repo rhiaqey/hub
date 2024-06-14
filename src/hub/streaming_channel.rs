@@ -7,7 +7,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
 
-use crate::http::websockets::{SnapshotDirectionParam, SnapshotParam};
+use crate::http::websockets::SnapshotParam;
 use crate::hub::client::WebSocketClient;
 use crate::hub::messages::MessageHandler;
 use log::{debug, info, trace, warn};
@@ -205,7 +205,7 @@ impl StreamingChannel {
 
         debug!("message count {:?}", messages.len());
 
-        if let SnapshotParam::Direction(SnapshotDirectionParam::DESC) = snapshot_param {
+        if let SnapshotParam::DESC = snapshot_param {
             messages.reverse()
         }
 
