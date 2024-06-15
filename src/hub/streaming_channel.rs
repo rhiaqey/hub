@@ -176,7 +176,7 @@ impl StreamingChannel {
         }
 
         let options = StreamReadOptions::default().count(count);
-        trace!("stream read options: {:?}", options);
+        debug!("stream read options: {:?}", options);
 
         let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();
