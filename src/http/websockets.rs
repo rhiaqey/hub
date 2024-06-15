@@ -148,9 +148,10 @@ async fn handle_ws_client(
     // With this, we will support channel names that can include categories seperated with a `/`
     // Valid examples would be `ticks` but also `ticks/historical`.
     // Any other format would be considered invalid and would be filtered out.
-    let channels: Vec<(String, Option<String>)> = channels.get_channels_with_category();
+    let channels: Vec<(String, Option<String>, Option<String>)> =
+        channels.get_channels_with_category_and_key();
 
-    let mut added_channels: Vec<(Channel, Option<String>)> = vec![];
+    let mut added_channels: Vec<(Channel, Option<String>, Option<String>)> = vec![];
 
     {
         for channel in channels.iter() {
@@ -158,7 +159,11 @@ async fn handle_ws_client(
             let streaming_channel = lock.get_mut(&channel.0);
             if let Some(chx) = streaming_channel {
                 chx.add_client(client_id.clone());
-                added_channels.push((chx.get_channel().clone(), channel.1.clone()));
+                added_channels.push((
+                    chx.get_channel().clone(),
+                    channel.1.clone(),
+                    channel.2.clone(),
+                ));
                 debug!("client joined channel {}", channel.0);
             } else {
                 warn!("could not find channel {}", channel.0);
@@ -227,7 +232,12 @@ async fn handle_ws_client(
             if let Some(chx) = streaming_channel {
                 if snapshot_request.allowed() {
                     let snapshot = chx
-                        .get_snapshot(&snapshot_request, channel.1.clone(), snapshot_size)
+                        .get_snapshot(
+                            &snapshot_request,
+                            channel.1.clone(),
+                            channel.2.clone(),
+                            snapshot_size,
+                        )
                         .unwrap_or(vec![]);
 
                     for stream_message in snapshot.iter() {

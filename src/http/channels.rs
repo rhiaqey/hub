@@ -381,7 +381,8 @@ pub async fn get_snapshot_handler(
     // With this, we will support channel names that can include categories seperated with a `/`
     // Valid examples would be `ticks` but also `ticks/historical`.
     // Any other format would be considered invalid and would be filtered out.
-    let channels: Vec<(String, Option<String>)> = channels.get_channels_with_category();
+    let channels: Vec<(String, Option<String>, Option<String>)> =
+        channels.get_channels_with_category_and_key();
 
     // default snapshot direction
     let direction = params.snapshot.unwrap_or_default();
@@ -391,8 +392,13 @@ pub async fn get_snapshot_handler(
         if let Some(chx) = streaming_channel {
             result.insert(
                 channel.0.clone(),
-                chx.get_snapshot(&direction, channel.1.clone(), params.snapshot_size)
-                    .unwrap_or(vec![]),
+                chx.get_snapshot(
+                    &direction,
+                    channel.1.clone(),
+                    channel.2.clone(),
+                    params.snapshot_size,
+                )
+                .unwrap_or(vec![]),
             );
         }
     }

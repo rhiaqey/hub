@@ -157,9 +157,10 @@ impl StreamingChannel {
         &mut self,
         snapshot_param: &SnapshotParam,
         category: Option<String>,
+        key: Option<String>,
         count: Option<usize>,
     ) -> anyhow::Result<Vec<StreamMessage>> {
-        let keys = self.get_snapshot_keys(category)?;
+        let keys = self.get_snapshot_keys(category, key)?;
         debug!("keys are here {:?}", keys);
 
         if keys.len() == 0 {
@@ -212,12 +213,16 @@ impl StreamingChannel {
         Ok(messages)
     }
 
-    pub fn get_snapshot_keys(&mut self, category: Option<String>) -> anyhow::Result<Vec<String>> {
+    pub fn get_snapshot_keys(
+        &mut self,
+        category: Option<String>,
+        key: Option<String>,
+    ) -> anyhow::Result<Vec<String>> {
         let snapshot_topic = topics::hub_channel_snapshot_topic(
             self.namespace.clone(),
             self.channel.name.to_string(),
             String::from(category.unwrap_or(String::from("*"))),
-            String::from("*"),
+            key.unwrap_or(String::from("*")),
         );
         trace!("snapshot key topic: {}", snapshot_topic);
 
@@ -229,8 +234,12 @@ impl StreamingChannel {
         Ok(keys)
     }
 
-    pub fn delete_snapshot_keys(&mut self, category: Option<String>) -> anyhow::Result<i32> {
-        let keys = self.get_snapshot_keys(category).unwrap_or(vec![]);
+    pub fn delete_snapshot_keys(
+        &mut self,
+        category: Option<String>,
+        key: Option<String>,
+    ) -> anyhow::Result<i32> {
+        let keys = self.get_snapshot_keys(category, key).unwrap_or(vec![]);
         trace!("{} keys found", keys.len());
 
         let lock = self.redis.clone();
@@ -272,16 +281,26 @@ impl StreamingChannel {
     async fn send_message_to_client(
         &self,
         client: &mut WebSocketClient,
-        category: &Option<String>,
+        message_key: &String,
+        message_category: &Option<String>,
         channel_name: &String,
         message: Vec<u8>,
     ) -> anyhow::Result<()> {
-        if let Some(cat) = client.get_category_for_channel(&channel_name) {
-            if !category.eq(&Some(cat)) {
+        if let Some((cat, client_channel_key)) = client.get_category_for_channel(&channel_name) {
+            if !message_category.eq(cat) {
                 bail!(
                     "skipping message broadcast as the categories do not match: {:?}",
-                    category
+                    message_category
                 )
+            }
+
+            if let Some(channel_key) = client_channel_key {
+                if !channel_key.eq(message_key) {
+                    bail!(
+                        "skipping message broadcast as the keys do not match: {:?}",
+                        message_key
+                    )
+                }
             }
         }
 
@@ -308,6 +327,7 @@ impl StreamingChannel {
         let channel_name = &self.channel.name;
         trace!("streaming channel found {}", channel_name);
 
+        let key = message.key.clone();
         let category = message.category.clone();
         let user_ids = message.user_ids.clone();
         let client_ids = message.client_ids.clone();
@@ -364,7 +384,7 @@ impl StreamingChannel {
                     );
 
                     match self
-                        .send_message_to_client(client, &category, channel_name, raw.clone())
+                        .send_message_to_client(client, &key, &category, channel_name, raw.clone())
                         .await
                     {
                         Ok(_) => {

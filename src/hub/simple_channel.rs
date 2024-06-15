@@ -6,11 +6,16 @@ use std::fmt::{Display, Formatter};
 pub struct SimpleChannel(String);
 
 impl SimpleChannel {
-    pub fn get_channel_with_category(&self) -> (String, Option<String>) {
+    pub fn get_channel_with_category_and_key(&self) -> (String, Option<String>, Option<String>) {
         let parts: Vec<&str> = self.0.split('/').collect();
         match parts.len() {
-            2 => (parts[0].to_string(), Some(parts[1].to_string())),
-            _ => (parts[0].to_string(), None),
+            3 => (
+                parts[0].to_string(),
+                Some(parts[1].to_string()),
+                Some(parts[2].to_string()),
+            ),
+            2 => (parts[0].to_string(), Some(parts[1].to_string()), None),
+            _ => (parts[0].to_string(), None, None),
         }
     }
 }
@@ -40,10 +45,12 @@ impl SimpleChannels {
         self.0.is_empty()
     }
 
-    pub fn get_channels_with_category(&self) -> Vec<(String, Option<String>)> {
+    pub fn get_channels_with_category_and_key(
+        &self,
+    ) -> Vec<(String, Option<String>, Option<String>)> {
         self.0
             .iter()
-            .map(|x| x.get_channel_with_category())
+            .map(|x| x.get_channel_with_category_and_key())
             .collect()
     }
 }

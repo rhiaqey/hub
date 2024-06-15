@@ -265,8 +265,8 @@ impl Hub {
             RPCMessageData::PurgeChannels(channels) => {
                 debug!("purging {} channels", channels.len());
 
-                let channels: Vec<(String, Option<String>)> =
-                    SimpleChannels::from(channels).get_channels_with_category();
+                let channels: Vec<(String, Option<String>, Option<String>)> =
+                    SimpleChannels::from(channels).get_channels_with_category_and_key();
 
                 for channel in channels.iter() {
                     self.purge_channel(channel.0.clone(), channel.1.clone())
@@ -452,7 +452,7 @@ impl Hub {
                 trace!("streaming channel found");
 
                 let keys = streaming_channel
-                    .delete_snapshot_keys(category)
+                    .delete_snapshot_keys(category, None)
                     .unwrap_or(0);
                 trace!("{keys} snapshot keys deleted");
 
