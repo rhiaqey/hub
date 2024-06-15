@@ -174,7 +174,7 @@ impl Hub {
         let redis_rs_client = connect_and_ping(&config.redis)?;
         let mut redis_rs_connection = redis_rs_client
             .get_connection()
-            .context("failed to get connection")?;
+            .context("failed to get redis connection")?;
 
         let security = Self::load_key(&config, &mut redis_rs_connection)
             .context("failed to load security key")?;

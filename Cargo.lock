@@ -1796,7 +1796,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.0"
-source = "git+https://github.com/rhiaqey/common.git#e7da9bed7d3ace1f9b990ea4d6c8275430b5ab7b"
+source = "git+https://github.com/rhiaqey/common.git#8f1681cc9d5e1e4382e14c30f41fcad96b3500a5"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
