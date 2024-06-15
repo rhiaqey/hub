@@ -192,7 +192,6 @@ impl Hub {
     pub fn create_shared_state(&self) -> Arc<SharedState> {
         Arc::new(SharedState {
             env: self.env.clone(),
-            settings: self.settings.clone(),
             streams: self.streams.clone(),
             redis_rs: self.redis_rs.clone(),
             clients: self.clients.clone(),

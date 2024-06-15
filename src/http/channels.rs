@@ -345,18 +345,18 @@ pub async fn assign_channels_handler(
     (StatusCode::NO_CONTENT,).into_response()
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct SnapshotParams {
     channels: String,
-    size: Option<usize>,
-    direction: Option<SnapshotParam>,
+    snapshot_size: Option<usize>,
+    snapshot: Option<SnapshotParam>,
 }
 
 pub async fn get_snapshot_handler(
     State(state): State<Arc<SharedState>>,
     Query(params): Query<SnapshotParams>,
 ) -> impl IntoResponse {
-    info!("[GET] Get snapshot");
+    info!("[GET] Get snapshot: {:?}", params);
 
     let channels = SimpleChannels::from(params.channels.split(",").collect::<Vec<_>>());
     trace!("channel from params extracted {:?}", channels);
@@ -384,14 +384,14 @@ pub async fn get_snapshot_handler(
     let channels: Vec<(String, Option<String>)> = channels.get_channels_with_category();
 
     // default snapshot direction
-    let direction = params.direction.unwrap_or_default();
+    let direction = params.snapshot.unwrap_or_default();
 
     for channel in channels.iter() {
         let streaming_channel = streaming_channels.get_mut(&channel.0);
         if let Some(chx) = streaming_channel {
             result.insert(
                 channel.0.clone(),
-                chx.get_snapshot(&direction, channel.1.clone(), params.size)
+                chx.get_snapshot(&direction, channel.1.clone(), params.snapshot_size)
                     .unwrap_or(vec![]),
             );
         }
