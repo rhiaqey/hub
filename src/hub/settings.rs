@@ -11,8 +11,8 @@ pub enum HubSettingsIPs {
 pub struct HubSettingsApiKey {
     #[serde(alias = "ApiKey")]
     pub api_key: String,
-    #[serde(alias = "Host")]
-    pub host: String,
+    #[serde(alias = "Hosts")]
+    pub hosts: Vec<String>,
     #[serde(alias = "IPs")]
     pub ips: Option<HubSettingsIPs>,
 }
@@ -23,7 +23,7 @@ impl PartialEq for HubSettingsApiKey {
             return false;
         }
 
-        if self.host != other.host {
+        if self.hosts.eq(&other.hosts) {
             return false;
         }
 
@@ -82,9 +82,12 @@ impl HubSettings {
                                         "type": "string",
                                         "examples": [ "strong-api-key" ]
                                     },
-                                    "Host": {
-                                        "type": "string",
-                                        "examples": [ "localhost:3001" ]
+                                    "Hosts": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "examples": [ "http://localhost:3333", "https://192.168.0.1:8080" ]
+                                        }
                                     },
                                     "IPs": {
                                         "type": "object",
@@ -100,7 +103,7 @@ impl HubSettings {
                                         }
                                     }
                                 },
-                                "required": [ "ApiKey", "Host" ],
+                                "required": [ "ApiKey", "Hosts" ],
                                 "additionalProperties": false
                             }
                         }
@@ -123,7 +126,7 @@ mod tests {
     fn can_serialize() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: None,
         };
 
@@ -136,7 +139,7 @@ mod tests {
     fn can_serialize_blacklisted_ips() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.3".to_string()])),
         };
 
@@ -149,12 +152,12 @@ mod tests {
     fn partial_eq_works_with_no_ips() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: None,
         };
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: None,
         };
         assert_eq!(key1, key2);
@@ -164,12 +167,12 @@ mod tests {
     fn partial_eq_works_with_different_api_keys() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: None,
         };
         let key2 = HubSettingsApiKey {
             api_key: "def".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: None,
         };
         assert_ne!(key1, key2);
@@ -179,12 +182,12 @@ mod tests {
     fn partial_eq_works_with_different_hosts() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: None,
         };
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "127.0.0.1".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: None,
         };
         assert_ne!(key1, key2);
@@ -194,12 +197,12 @@ mod tests {
     fn partial_eq_works_with_same_blacklisted_ips() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
         assert_eq!(key1, key2);
@@ -209,12 +212,12 @@ mod tests {
     fn partial_eq_works_with_different_blacklisted_ips() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.2".to_string()])),
         };
         assert_ne!(key1, key2);
@@ -224,12 +227,12 @@ mod tests {
     fn partial_eq_works_with_multiple_different_blacklisted_ips() {
         let key1 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            host: "localhost".to_string(),
+            hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec![
                 "192.168.0.1".to_string(),
                 "192.168.0.2".to_string(),

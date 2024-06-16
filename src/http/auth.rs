@@ -102,10 +102,10 @@ pub fn valid_api_key(
         .security
         .api_keys
         .iter()
-        .find(|key| key.api_key == api_key && key.host == api_host);
+        .find(|key| key.api_key == api_key && key.hosts.contains(&api_host));
 
     let Some(api_key) = security_api_key else {
-        warn!("security api key not found");
+        warn!("security api key not found for host {}", api_host);
         return false;
     };
 
@@ -230,7 +230,7 @@ pub fn valid_api_host(api_host: String, origin: String) -> bool {
 pub async fn get_auth_handler(
     headers: HeaderMap,        // external and internal headers
     user_ip: InsecureClientIp, // external
-    // internal: SecureClientIp, // internal
+    // internal: SecureClientIp,           // internal
     // Host(hostname): Host,               // external host
     qs: Query<AuthenticationQueryParams>, // external query string
     State(state): State<Arc<SharedState>>, // global state
