@@ -75,7 +75,8 @@ impl StreamingChannel {
 
         let topic = topics::publishers_to_hub_stream_topic(namespace, &channel.name.to_string());
 
-        let reply: StreamReadReply = connection.xread_options(&[topic], &[">"], &options)?;
+        let reply: StreamReadReply =
+            connection.xread_options(&[topic.clone()], &[">"], &options)?;
 
         let mut entries: Vec<StreamMessage> = vec![];
 
@@ -97,7 +98,13 @@ impl StreamingChannel {
 
             // acknowledge each stream and message ID once all messages are
             let keys: Vec<&String> = ids.iter().map(|StreamId { id, map: _ }| id).collect();
-            let _: RedisResult<i32> = connection.xack(key, "hub", &keys);
+            debug!("need to ack {} stream keys", keys.len());
+
+            let ack_result: RedisResult<i32> = connection.xack(key, "hub", &keys);
+            match ack_result {
+                Ok(count) => debug!("ack {} records for topic {}", count, topic),
+                Err(err) => warn!("error ack {} keys for topic {}: {}", keys.len(), topic, err),
+            }
         }
 
         Ok(entries)
