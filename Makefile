@@ -95,6 +95,10 @@ hub2:
 .PHONY: dev
 dev: build
 
+.PHONY: test
+test:
+	cargo test --all-features
+
 .PHONY: build
 build:
 	cargo build

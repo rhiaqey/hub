@@ -17,29 +17,36 @@ pub struct HubSettingsApiKey {
     pub ips: Option<HubSettingsIPs>,
 }
 
+impl HubSettingsApiKey {
+    pub fn vecs_match<T: PartialEq>(a: &Vec<T>, b: &Vec<T>) -> bool {
+        let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
+        matching == a.len() && matching == b.len()
+    }
+}
+
 impl PartialEq for HubSettingsApiKey {
     fn eq(&self, other: &Self) -> bool {
-        if self.api_key != other.api_key {
+        if !self.api_key.eq(&other.api_key) {
             return false;
         }
 
-        if self.hosts.eq(&other.hosts) {
+        if !Self::vecs_match(&self.hosts, &other.hosts) {
             return false;
         }
 
         let self_ips = self.ips.clone();
         let other_ips = other.ips.clone();
 
+        if self_ips.is_none() && other_ips.is_none() {
+            return true; // both do not exist
+        }
+
         if self_ips.is_some() && other_ips.is_none() {
-            return false;
+            return false; // one of them exist
         }
 
         if self_ips.is_none() && other_ips.is_some() {
-            return false;
-        }
-
-        if self_ips.is_none() && other_ips.is_none() {
-            return true;
+            return false; // one of them exist
         }
 
         match self_ips.unwrap() {
@@ -155,11 +162,13 @@ mod tests {
             hosts: vec!["localhost".to_string()],
             ips: None,
         };
+
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
             hosts: vec!["localhost".to_string()],
             ips: None,
         };
+
         assert_eq!(key1, key2);
     }
 
@@ -185,26 +194,30 @@ mod tests {
             hosts: vec!["localhost".to_string()],
             ips: None,
         };
+
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
-            hosts: vec!["localhost".to_string()],
+            hosts: vec!["local.host".to_string()],
             ips: None,
         };
+
         assert_ne!(key1, key2);
     }
 
     #[test]
     fn partial_eq_works_with_same_blacklisted_ips() {
-        let key1 = HubSettingsApiKey {
+        let key1: HubSettingsApiKey = HubSettingsApiKey {
             api_key: "abc".to_string(),
             hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
+
         let key2 = HubSettingsApiKey {
             api_key: "abc".to_string(),
             hosts: vec!["localhost".to_string()],
             ips: Some(HubSettingsIPs::Blacklisted(vec!["192.168.0.1".to_string()])),
         };
+
         assert_eq!(key1, key2);
     }
 
