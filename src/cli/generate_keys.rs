@@ -24,7 +24,19 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
         println!("skip flag is set")
     }
 
+    let create_dir = sub_matches.get_one::<bool>("create").unwrap_or(&false);
+    println!("create dir flag set to {}", create_dir);
+
     if let Some(directory) = sub_matches.get_one::<std::path::PathBuf>("write") {
+        if !directory.exists() {
+            if *create_dir {
+                println!("creating directory {}", directory.display());
+                fs::create_dir_all(directory)?
+            } else {
+                bail!("directory {} does not exist", directory.display());
+            }
+        }
+
         if directory.is_dir() {
             println!("directory found");
         } else {

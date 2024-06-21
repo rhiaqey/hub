@@ -25,6 +25,11 @@ fn cli() -> Command {
                     arg!(-s - -skip)
                         .value_parser(clap::value_parser!(bool))
                         .required(false),
+                )
+                .arg(
+                    arg!(-c --create)
+                        .value_parser(clap::value_parser!(bool))
+                        .required(false),
                 ),
         )
         .subcommand(
