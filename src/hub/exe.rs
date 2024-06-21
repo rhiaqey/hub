@@ -20,7 +20,7 @@ pub async fn create() -> Hub {
     let hub = match Hub::create(env) {
         Ok(exec) => exec,
         Err(err) => {
-            panic!("failed to setup hub: {}", err);
+            panic!("failed to create hub: {:?}", err);
         }
     };
 
