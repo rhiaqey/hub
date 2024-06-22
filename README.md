@@ -12,19 +12,19 @@ Early development stage
 
 ```json
 {
-	"Security": {
-     	"ApiKeys": [
-          {
-           	"ApiKey": "some_api_key",
-            "Host": "some_host",
-            "IPs": {
-              "Blacklisted": [
-                "192.168.0.0"
-              ]
-            }
-          }
-        ] 
-    }
+  "Security": {
+    "ApiKeys": [
+      {
+        "ApiKey": "some_api_key",
+        "Host": "some_host",
+        "IPs": {
+          "Blacklisted": [
+            "192.168.0.0"
+          ]
+        }
+      }
+    ]
+  }
 }
 ```
 
@@ -32,5 +32,6 @@ Early development stage
 
 * Move all crud operations to redis_rs
 * Introduce new actions for RPCMessage + RPCMessageData
-* All crud operations will have to publish an action to hub_raw_to_hub_clean_pubsub_topic similar to update_settings_for_hub
+* All crud operations will have to publish an action to hub_raw_to_hub_clean_pubsub_topic similar to
+  update_settings_for_hub
 * Handle each new action in every hub

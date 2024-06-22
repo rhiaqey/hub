@@ -59,10 +59,12 @@ jobs:
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
-
+          tags: |
+            type=semver,pattern={{ steps.verison.outputs.next_version }}
+      
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
       - name: Build and push docker image for hub
