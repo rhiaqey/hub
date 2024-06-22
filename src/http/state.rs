@@ -7,7 +7,7 @@ use redis::Commands;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::security::SecurityKey;
-use rhiaqey_common::topics;
+use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::channel::ChannelList;
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde::{Deserialize, Serialize};
@@ -57,6 +57,24 @@ impl SharedState {
         info!("broadcast message sent");
 
         drop(conn);
+
+        Ok(())
+    }
+
+    pub fn store_settings(&self, topic: String, data: Vec<u8>) -> anyhow::Result<()> {
+        let keys = self.security.read().unwrap();
+        let settings = security::aes_encrypt(
+            keys.no_once.as_slice(),
+            keys.key.as_slice(),
+            data.as_slice(),
+        )?;
+
+        let lock = self.redis_rs.clone();
+        let mut conn = lock.lock().unwrap();
+
+        let _ = conn
+            .set(topic, settings)
+            .context("failed to store settings for publisher")?;
 
         Ok(())
     }

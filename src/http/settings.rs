@@ -9,7 +9,7 @@ use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
 use redis::{Commands, RedisResult};
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
-use rhiaqey_common::{security, topics};
+use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -72,22 +72,11 @@ pub fn update_settings_for_hub(
 
     trace!("encrypt settings for hub");
 
-    let keys = state.security.read().unwrap();
-    let data = payload.settings.to_vec()?;
-    let settings = security::aes_encrypt(
-        keys.no_once.as_slice(),
-        keys.key.as_slice(),
-        data.as_slice(),
-    )?;
-
     let hub_settings_key = topics::hub_settings_key(state.get_namespace());
-    let _ = state
-        .redis_rs
-        .lock()
-        .unwrap()
-        .set(hub_settings_key.clone(), settings)
-        .context("failed to store settings for hub")?;
-    trace!("encrypted settings saved in redis");
+    let data = payload.settings.to_vec()?;
+    state.store_settings(hub_settings_key, data)?;
+
+    trace!("save encrypted in redis");
 
     match state.publish_rpc_message(RPCMessageData::UpdateHubSettings()) {
         Ok(_) => {
@@ -149,23 +138,16 @@ pub fn update_settings_for_publishers(
         warn!("failed payload schema validation");
         bail!("Schema validation failed for payload")
     }
+
+    // 2. store settings
+
     trace!("encrypt settings for publishers");
 
-    let keys = state.security.read().unwrap();
+    let publishers_key = topics::publisher_settings_key(state.get_namespace(), name.clone());
     let data = payload.settings.to_vec()?;
-    let settings = security::aes_encrypt(
-        keys.no_once.as_slice(),
-        keys.key.as_slice(),
-        data.as_slice(),
-    )?;
-    drop(keys);
+    state.store_settings(publishers_key, data)?;
 
     trace!("save encrypted in redis");
-
-    let publishers_key = topics::publisher_settings_key(state.get_namespace(), name.clone());
-    let _ = conn
-        .set(publishers_key.clone(), settings)
-        .context("failed to store settings for publisher")?;
 
     // 3. notify all other publishers
 
