@@ -122,6 +122,10 @@ impl Hub {
     }
 
     fn load_key(config: &Env, client: &mut redis::Connection) -> anyhow::Result<SecurityKey> {
+        if config.xxx_should_skip_security() {
+            return Ok(SecurityKey::default());
+        }
+
         let namespace = config.get_namespace();
         let security_key = topics::security_key(namespace);
         let security_str = client.get(security_key.clone()).unwrap_or(String::from(""));
@@ -172,6 +176,7 @@ impl Hub {
 
     pub fn create(config: Env) -> anyhow::Result<Hub> {
         let redis_rs_client = connect_and_ping(&config.redis)?;
+
         let mut redis_rs_connection = redis_rs_client
             .get_connection()
             .context("failed to get redis connection")?;
