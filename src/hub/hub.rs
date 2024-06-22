@@ -68,9 +68,7 @@ impl Hub {
         Ok(channel_list.channels)
     }
 
-    pub fn read_settings(&self) -> anyhow::Result<HubSettings> {
-        info!("reading hub settings");
-
+    pub fn retrieve_settings(&self) -> anyhow::Result<Vec<u8>> {
         let settings_key = topics::hub_settings_key(self.get_namespace());
         let result: Vec<u8> = self
             .redis_rs
@@ -91,6 +89,14 @@ impl Hub {
         .context("failed to decrypt settings with key")?;
 
         trace!("settings decrypted");
+
+        Ok(data)
+    }
+
+    pub fn read_settings(&self) -> anyhow::Result<HubSettings> {
+        info!("reading hub settings");
+
+        let data = self.retrieve_settings()?;
 
         let settings = MessageValue::Binary(data)
             .decode::<HubSettings>()
