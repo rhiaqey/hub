@@ -296,8 +296,9 @@ impl StreamingChannel {
         if let Some((cat, client_channel_key)) = client.get_category_for_channel(&channel_name) {
             if !message_category.eq(cat) {
                 bail!(
-                    "skipping message broadcast as the categories do not match: {:?}",
-                    message_category
+                    "skipping message broadcast as the categories do not match: {:?} vs {:?}",
+                    message_category,
+                    cat
                 )
             }
 
