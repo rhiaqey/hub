@@ -294,7 +294,10 @@ impl StreamingChannel {
         message: Vec<u8>,
     ) -> anyhow::Result<()> {
         if let Some((cat, client_channel_key)) = client.get_category_for_channel(&channel_name) {
-            if !message_category.eq(cat) {
+            // NOTE:
+            // We want only to compare if the cat (category specified in the channel) has a value.
+            // if it is empty, then we do not care about the category, and we allow all.
+            if cat.is_some() && !message_category.eq(cat) {
                 bail!(
                     "skipping message broadcast as the categories do not match: {:?} vs {:?}",
                     message_category,
