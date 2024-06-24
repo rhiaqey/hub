@@ -379,6 +379,7 @@
 </footer>
 <script>
     let hub_info = null;
+    let users_map = {};
     let channel_list = [];
     let publisher_list = [];
     let channel_assignments = new Map();
@@ -411,9 +412,19 @@
         });
     }
 
+    function sum(arr) {
+        let result = 0, n = arr.length || 0; //may use >>> 0 to ensure length is Uint32
+        while (n--) {
+            result += +arr[n]; // unary operator to ensure ToNumber conversion
+        }
+        return result;
+    }
+
     function fetch_users_impl() {
         fetch(`${temp_api_prefix}/admin/api/users`).then(result => result.json()).then(users => {
-            document.getElementsByClassName('hub_total').item(0).innerHTML = `${users?.Clients || 0} total users`
+            users_map[users.Hub] = users?.Clients || 0;
+            let total_users = sum(Object.values(users_map));
+            document.getElementsByClassName('hub_total').item(0).innerHTML = `${total_users || 0} total users`
         }).catch((err) => {
             console.warn(err);
         });
