@@ -108,6 +108,7 @@ fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> bo
 }
 
 fn retrieve_schema_for_publisher(
+    name: String,
     schema_key: String,
     state: Arc<SharedState>,
 ) -> anyhow::Result<String> {
@@ -139,7 +140,8 @@ pub fn update_settings_for_publishers(
     let schema_key = topics::publisher_schema_key(namespace, name.clone());
     debug!("schema key {schema_key}");
 
-    let schema_response: String = retrieve_schema_for_publisher(schema_key, state.clone())?;
+    let schema_response: String =
+        retrieve_schema_for_publisher(name.clone(), schema_key, state.clone())?;
     debug!("schema retrieved");
 
     let schema: PublisherRegistrationMessage = serde_json::from_str(schema_response.as_str())?;
