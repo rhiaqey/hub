@@ -69,6 +69,8 @@ impl Hub {
     }
 
     pub fn retrieve_settings(&self) -> anyhow::Result<Vec<u8>> {
+        trace!("retrieve settings");
+
         let settings_key = topics::hub_settings_key(self.get_namespace());
         let result: Vec<u8> = self
             .redis_rs
@@ -76,10 +78,6 @@ impl Hub {
             .unwrap()
             .get(settings_key)
             .context("failed to acquire lock")?;
-
-        if self.env.xxx_should_skip_security() {
-            return Ok(result);
-        }
 
         trace!("encrypted settings retrieved");
 
@@ -132,10 +130,6 @@ impl Hub {
     }
 
     fn load_key(config: &Env, client: &mut redis::Connection) -> anyhow::Result<SecurityKey> {
-        if config.xxx_should_skip_security() {
-            return Ok(SecurityKey::default());
-        }
-
         let namespace = config.get_namespace();
         let security_key = topics::security_key(namespace);
         let security_str = client.get(security_key.clone()).unwrap_or(String::from(""));
