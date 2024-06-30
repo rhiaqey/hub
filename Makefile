@@ -83,10 +83,12 @@ docker-run:
 		-e RUST_BACKTRACE=1 \
 		-e RUST_LOG=1 \
 		-e BINARY=rhiaqey-hub \
+		-e XXX_SKIP_SECURITY=${XXX_SKIP_SECURITY} \
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
 		--network host \
 		--name hub \
-		rhiaqey/hub:dev
+		--entrypoint rhiaqey-hub \
+		rhiaqey/hub:dev run
 
 .PHONY: redis
 redis:

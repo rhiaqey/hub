@@ -3,16 +3,18 @@ use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
 use crate::hub::streaming_channel::StreamingChannel;
 use log::{info, warn};
 use rhiaqey_common::env::parse_env;
+use std::env::consts::ARCH;
 
 pub async fn create() -> Hub {
     env_logger::init();
     let env = parse_env();
 
     info!(
-        "running hub [id={}, name={}, namespace={}]",
+        "running hub [id={}, name={}, namespace={}, arch={}]",
         env.get_id(),
         env.get_name(),
-        env.get_namespace()
+        env.get_namespace(),
+        ARCH
     );
 
     let namespace = env.get_namespace();
