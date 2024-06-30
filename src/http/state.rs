@@ -2,7 +2,7 @@ use crate::hub::client::WebSocketClient;
 use crate::hub::settings::HubSettings;
 use crate::hub::streaming_channel::StreamingChannel;
 use anyhow::Context;
-use log::{debug, info};
+use log::{debug, info, trace};
 use redis::Commands;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
@@ -62,6 +62,8 @@ impl SharedState {
     }
 
     pub fn store_settings(&self, topic: String, data: Vec<u8>) -> anyhow::Result<()> {
+        trace!("storing settings to {}", topic);
+
         let keys = self.security.read().unwrap();
         let settings = security::aes_encrypt(
             keys.no_once.as_slice(),
@@ -69,12 +71,18 @@ impl SharedState {
             data.as_slice(),
         )?;
 
+        trace!("settings encrypted");
+
         let lock = self.redis_rs.clone();
         let mut conn = lock.lock().unwrap();
+
+        trace!("redis connection acquired");
 
         let _ = conn
             .set(topic, settings)
             .context("failed to store settings for publisher")?;
+
+        trace!("store setting successful");
 
         Ok(())
     }
