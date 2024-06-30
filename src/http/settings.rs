@@ -107,15 +107,11 @@ fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> bo
     compiled_schema.is_valid(&settings)
 }
 
-pub fn update_settings_for_publishers(
-    payload: UpdateSettingsRequest,
+fn retrieve_schema_for_publisher(
+    schema_key: String,
     state: Arc<SharedState>,
-) -> anyhow::Result<MessageValue> {
-    trace!("find first schema for publisher");
-    let name = payload.name;
-    let namespace = state.get_namespace();
-    let schema_key = topics::publisher_schema_key(namespace, name.clone());
-    debug!("schema key {schema_key}");
+) -> anyhow::Result<String> {
+    debug!("retrieve schema for publisher");
 
     let lock = state.redis_rs.clone();
     let mut conn = lock.lock().unwrap();
@@ -129,6 +125,22 @@ pub fn update_settings_for_publishers(
     if schema_response == "" {
         bail!(format!("No schema found for {name}"))
     }
+
+    Ok(schema_response)
+}
+
+pub fn update_settings_for_publishers(
+    payload: UpdateSettingsRequest,
+    state: Arc<SharedState>,
+) -> anyhow::Result<MessageValue> {
+    trace!("find first schema for publisher");
+    let name = payload.name;
+    let namespace = state.get_namespace();
+    let schema_key = topics::publisher_schema_key(namespace, name.clone());
+    debug!("schema key {schema_key}");
+
+    let schema_response: String = retrieve_schema_for_publisher(schema_key, state.clone())?;
+    debug!("schema retrieved");
 
     let schema: PublisherRegistrationMessage = serde_json::from_str(schema_response.as_str())?;
     let valid = validate_settings_for_publishers(&payload.settings, schema.schema);
@@ -160,6 +172,11 @@ pub fn update_settings_for_publishers(
     }
     .ser_to_string()
     .context("failed to serialize rpc message")?;
+
+    let lock = state.redis_rs.clone();
+    let mut conn = lock.lock().unwrap();
+
+    trace!("redis connection acquired");
 
     let _ = conn
         .publish(pub_topic, rpc_message)

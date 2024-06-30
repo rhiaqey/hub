@@ -74,7 +74,7 @@ impl SharedState {
         trace!("settings encrypted");
 
         let lock = self.redis_rs.clone();
-        let mut conn = lock.lock().unwrap();
+        let mut conn = lock.lock().unwrap(); // blocking
 
         trace!("redis connection acquired");
 
