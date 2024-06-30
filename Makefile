@@ -86,7 +86,7 @@ docker-run:
 		-e REDIS_PASSWORD=${REDIS_PASSWORD} \
 		--network host \
 		--name hub \
-		hub:latest
+		rhiaqey/hub:dev
 
 .PHONY: redis
 redis:
