@@ -15,7 +15,6 @@ COPY . .
 RUN case "${TARGETPLATFORM}" in \
       "linux/amd64") rust_target="x86_64-unknown-linux-gnu" ;; \
       "linux/arm64") rust_target="aarch64-unknown-linux-gnu" ;; \
-      "linux/arm64/v8") rust_target="aarch64-unknown-linux-gnu" ;; \
       *) echo "Unsupported platform: ${TARGETPLATFORM}" ; exit 1 ;; \
     esac \
     && rustup target add ${rust_target} \
