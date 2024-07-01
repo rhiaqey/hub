@@ -195,6 +195,8 @@ async fn handle_ws_client(
         warn!("Could not send binary data due to {}", e);
     }
 
+    sender.flush().await.expect("failed to flush messages");
+
     {
         for channel in added_channels.iter() {
             let channel_name = channel.0.name.clone();
@@ -316,6 +318,8 @@ async fn handle_ws_client(
         debug!("event sent for client connect to {}", &event_topic);
     }
 
+    client.flush().await.expect("failed to flush messages");
+
     state.clients.lock().await.insert(client_id.clone(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
@@ -328,21 +332,57 @@ async fn handle_ws_client(
             match msg {
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
-                Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
+                Message::Close(e) => {
                     let id = client_id.clone();
 
-                    if let Message::Close(_) = msg {
-                        trace!("close request received from {id}");
-                    } else {
-                        trace!("data received from {id}");
+                    trace!("close message received for {id}");
+                    if e.is_some() {
+                        trace!("close frame also received for {id}");
                     }
 
-                    warn!("must close connection for client {id}");
                     if let Err(err) = sx.lock().await.close().await {
                         warn!("error closing connection for {id}: {err}");
                     }
+                }
+                Message::Text(data) => {
+                    let id = client_id.clone();
 
-                    break;
+                    match serde_json::from_str::<ClientMessage>(data.as_str()) {
+                        Ok(e) => {
+                            trace!("binary client message received for {id}: {:?}", e);
+                            if e.data_type == ClientMessageDataType::Ping as u8 {
+                                trace!("we have received a ping request from {id}");
+                                continue;
+                            }
+                        }
+                        Err(e) => {
+                            trace!("corrupt text client message received: {e}");
+                        }
+                    }
+
+                    if let Err(err) = sx.lock().await.close().await {
+                        warn!("error closing connection for {id}: {err}");
+                    }
+                }
+                Message::Binary(data) => {
+                    let id = client_id.clone();
+
+                    match serde_json::from_slice::<ClientMessage>(data.as_slice()) {
+                        Ok(e) => {
+                            trace!("binary client message received for {id}: {:?}", e);
+                            if e.data_type == ClientMessageDataType::Ping as u8 {
+                                trace!("we have received a ping request from {id}");
+                                continue;
+                            }
+                        }
+                        Err(e) => {
+                            trace!("corrupt binary client message received: {e}");
+                        }
+                    }
+
+                    if let Err(err) = sx.lock().await.close().await {
+                        warn!("error closing connection for {id}: {err}");
+                    }
                 }
             }
         }

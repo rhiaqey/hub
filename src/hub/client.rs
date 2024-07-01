@@ -40,6 +40,13 @@ impl WebSocketClient {
         }
     }
 
+    pub async fn flush(&self) -> anyhow::Result<()> {
+        match self.sender.lock().await.flush().await {
+            Ok(_) => Ok(()),
+            Err(err) => bail!(err.to_string()),
+        }
+    }
+
     pub fn get_category_for_channel(
         &self,
         name: &String,

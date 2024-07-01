@@ -194,7 +194,7 @@ impl MessageHandler {
         let compare_timestamps = self.compare_by_timestamp(stream_message, &snapshot_topic)?;
 
         if let MessageProcessResult::Deny(reason) = compare_timestamps {
-            warn!("raw message should not be processed further due to: {reason}");
+            trace!("raw message should not be processed further due to: {reason}");
             return Ok(());
         }
 
@@ -204,7 +204,7 @@ impl MessageHandler {
             let compare_against_all = self.compare_against_all(&new_message, &snapshot_topic)?;
 
             if let MessageProcessResult::Deny(reason) = compare_against_all {
-                warn!("raw message should not be processed further due to: {reason}");
+                trace!("raw message should not be processed further due to: {reason}");
                 return Ok(());
             }
 
@@ -217,7 +217,7 @@ impl MessageHandler {
             let compare_tags = Self::compare_by_tags(&new_message, old_message);
 
             if let MessageProcessResult::Deny(reason) = compare_tags {
-                warn!("raw message should not be processed further due to: {reason}");
+                trace!("raw message should not be processed further due to: {reason}");
                 return Ok(());
             }
 

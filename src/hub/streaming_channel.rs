@@ -10,7 +10,7 @@ use std::time::Duration;
 use crate::http::websockets::SnapshotParam;
 use crate::hub::client::WebSocketClient;
 use crate::hub::messages::MessageHandler;
-use log::{debug, info, trace, warn};
+use log::{debug, trace, warn};
 use redis::streams::StreamReadReply;
 use redis::streams::{StreamId, StreamReadOptions};
 use redis::streams::{StreamKey, StreamMaxlen};
@@ -411,7 +411,7 @@ impl StreamingChannel {
             }
         }
 
-        info!(
+        debug!(
             "notified {}/{}/{} clients",
             total_sent_messages, total_channel_clients, total_hub_clients
         );
