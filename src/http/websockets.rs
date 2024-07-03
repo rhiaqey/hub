@@ -387,9 +387,8 @@ async fn handle_ws_client(
     let channels = prepare_channels(&client_id, channels, state.streams.clone()).await;
     debug!("{} channels extracted", channels.len());
 
-    let (sender, receiver) = socket.split();
+    let (sender, mut receiver) = socket.split();
     let sx = Arc::new(Mutex::new(sender));
-    let rx = Arc::new(Mutex::new(receiver));
     let mut client = WebSocketClient::create(
         client_id.clone(),
         user_id.clone(),
@@ -453,7 +452,7 @@ async fn handle_ws_client(
 
     let handler = tokio::spawn(async move {
         let client_id = client_id.clone();
-        while let Some(Ok(msg)) = rx.lock().await.next().await {
+        while let Some(Ok(msg)) = receiver.next().await {
             match msg {
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
