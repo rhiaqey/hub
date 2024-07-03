@@ -189,7 +189,7 @@ fn prepare_client_connection_message(
         publisher_id: None,
     };
 
-    match rmp_serde::to_vec(&client_message) {
+    match rmp_serde::to_vec_named(&client_message) {
         Ok(data) => Ok(data),
         Err(err) => bail!(err),
     }
@@ -226,7 +226,7 @@ fn prepare_client_channel_subscription_messages(
             },
         );
 
-        match rmp_serde::to_vec(&data) {
+        match rmp_serde::to_vec_named(&data) {
             Ok(raw) => result.push(raw),
             Err(err) => warn!("failed to serialize to vec: {err}"),
         }
@@ -279,7 +279,7 @@ async fn send_snapshot_to_client(
                         client_message.hub_id = Some(client.get_hub_id().to_string());
                     }
 
-                    let raw = rmp_serde::to_vec(&client_message).unwrap();
+                    let raw = rmp_serde::to_vec_named(&client_message).unwrap();
                     if let Ok(_) = client.send(Message::Binary(raw)).await {
                         trace!(
                             "channel snapshot message[category={:?}] sent successfully to {}",
