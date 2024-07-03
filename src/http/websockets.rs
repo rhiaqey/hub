@@ -174,7 +174,7 @@ async fn prepare_channels(
 fn prepare_client_connection_message(
     client_id: &String,
     hub_id: &String,
-) -> anyhow::Result<Message> {
+) -> anyhow::Result<Vec<u8>> {
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
         channel: String::from(""),
@@ -190,7 +190,7 @@ fn prepare_client_connection_message(
     };
 
     match rmp_serde::to_vec(&client_message) {
-        Ok(data) => Ok(Message::Binary(data)),
+        Ok(data) => Ok(data),
         Err(err) => bail!(err),
     }
 }
@@ -199,7 +199,7 @@ fn prepare_client_connection_message(
 fn prepare_client_channel_subscription_messages(
     hub_id: &String,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
-) -> anyhow::Result<Vec<Message>> {
+) -> anyhow::Result<Vec<Vec<u8>>> {
     let mut result = vec![];
 
     let mut data = ClientMessage {
@@ -227,7 +227,7 @@ fn prepare_client_channel_subscription_messages(
         );
 
         match rmp_serde::to_vec(&data) {
-            Ok(raw) => result.push(Message::Binary(raw)),
+            Ok(raw) => result.push(raw),
             Err(err) => warn!("failed to serialize to vec: {err}"),
         }
     }
@@ -397,7 +397,7 @@ async fn handle_ws_client(
     );
 
     match prepare_client_connection_message(client.get_client_id(), &hub_id) {
-        Ok(message) => match client.send(message).await {
+        Ok(message) => match client.send(Message::Binary(message)).await {
             Ok(_) => debug!("client connection message sent successfully"),
             Err(err) => warn!("failed to send client message: {}", err),
         },
@@ -407,7 +407,7 @@ async fn handle_ws_client(
     match prepare_client_channel_subscription_messages(&hub_id, &channels) {
         Ok(messages) => {
             for message in messages {
-                match client.send(message).await {
+                match client.send(Message::Binary(message)).await {
                     Ok(_) => debug!("client channel subscription message sent successfully"),
                     Err(err) => warn!("failed to send client message: {}", err),
                 }
