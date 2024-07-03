@@ -1,8 +1,10 @@
 use crate::http::state::SharedState;
 use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
+use std::collections::HashMap;
 
 use crate::hub::simple_channel::SimpleChannels;
+use crate::hub::streaming_channel::StreamingChannel;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -23,6 +25,7 @@ use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -130,6 +133,41 @@ async fn handle_ws_connection(
     });
 }
 
+#[inline(always)]
+async fn prepare_channels(
+    client_id: &String,
+    channels: SimpleChannels,
+    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+) -> Vec<(Channel, Option<String>, Option<String>)> {
+    // With this, we will support channel names that can include categories seperated with a `/`
+    // Valid examples would be `ticks` but also `ticks/historical`.
+    // Any other format would be considered invalid and would be filtered out.
+    let channels: Vec<(String, Option<String>, Option<String>)> =
+        channels.get_channels_with_category_and_key();
+
+    let mut added_channels: Vec<(Channel, Option<String>, Option<String>)> = vec![];
+
+    {
+        for channel in channels.iter() {
+            let mut lock = streams.lock().await;
+            let streaming_channel = lock.get_mut(&channel.0);
+            if let Some(chx) = streaming_channel {
+                chx.add_client(client_id.clone());
+                added_channels.push((
+                    chx.get_channel().clone(),
+                    channel.1.clone(),
+                    channel.2.clone(),
+                ));
+                debug!("client joined channel {}", channel.0);
+            } else {
+                warn!("could not find channel {}", channel.0);
+            }
+        }
+    }
+
+    added_channels
+}
+
 /// Handle each client here
 async fn handle_ws_client(
     socket: WebSocket,
@@ -145,31 +183,7 @@ async fn handle_ws_client(
     info!("handle client {}", &client_id);
     debug!("{} channels extracted", channels.len());
 
-    // With this, we will support channel names that can include categories seperated with a `/`
-    // Valid examples would be `ticks` but also `ticks/historical`.
-    // Any other format would be considered invalid and would be filtered out.
-    let channels: Vec<(String, Option<String>, Option<String>)> =
-        channels.get_channels_with_category_and_key();
-
-    let mut added_channels: Vec<(Channel, Option<String>, Option<String>)> = vec![];
-
-    {
-        for channel in channels.iter() {
-            let mut lock = state.streams.lock().await;
-            let streaming_channel = lock.get_mut(&channel.0);
-            if let Some(chx) = streaming_channel {
-                chx.add_client(client_id.clone());
-                added_channels.push((
-                    chx.get_channel().clone(),
-                    channel.1.clone(),
-                    channel.2.clone(),
-                ));
-                debug!("client joined channel {}", channel.0);
-            } else {
-                warn!("could not find channel {}", channel.0);
-            }
-        }
-    }
+    let channels = prepare_channels(&client_id, channels, state.streams.clone()).await;
 
     let event_topic = topics::events_pubsub_topic(state.get_namespace());
 
@@ -198,7 +212,7 @@ async fn handle_ws_client(
     sender.flush().await.expect("failed to flush messages");
 
     {
-        for channel in added_channels.iter() {
+        for channel in channels.iter() {
             let channel_name = channel.0.name.clone();
             let mut data = client_message.clone();
             trace!("iterating channel {}", channel_name);
@@ -295,18 +309,14 @@ async fn handle_ws_client(
     let cid = client_id.clone();
     let sx = Arc::new(tokio::sync::Mutex::new(sender));
     let rx = Arc::new(tokio::sync::Mutex::new(receiver));
-    let client = WebSocketClient::create(
-        cid.clone(),
-        user_id.clone(),
-        sx.clone(),
-        added_channels.clone(),
-    );
+    let client =
+        WebSocketClient::create(cid.clone(), user_id.clone(), sx.clone(), channels.clone());
 
     if let Ok(raw) = serde_json::to_vec(&RPCMessage {
         data: RPCMessageData::ClientConnected(ClientConnectedMessage {
             client_id: cid.clone(),
             user_id: user_id.clone(),
-            channels: added_channels.clone(),
+            channels: channels.clone(),
         }),
     }) {
         let _: () = state
@@ -411,7 +421,7 @@ async fn handle_ws_client(
         data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
             client_id: cid.clone(),
             user_id: user_id.clone(),
-            channels: added_channels.clone(),
+            channels: channels.clone(),
         }),
     }) {
         let _: () = state
