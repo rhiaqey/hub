@@ -178,12 +178,12 @@ async fn handle_ws_client(
     state: Arc<SharedState>,
 ) {
     let hub_id = state.get_id();
-    let client_id = generate_ulid_string();
 
-    info!("handle client {}", &client_id);
-    debug!("{} channels extracted", channels.len());
+    let client_id = generate_ulid_string();
+    info!("handle ws client {}", &client_id);
 
     let channels = prepare_channels(&client_id, channels, state.streams.clone()).await;
+    debug!("{} channels extracted", channels.len());
 
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
