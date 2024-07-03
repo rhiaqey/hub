@@ -348,7 +348,7 @@ impl StreamingChannel {
             client_message.hub_id = Some(self.get_hub_id());
         }
 
-        let raw = serde_json::to_vec(&client_message)?;
+        let raw = rmp_serde::to_vec(&client_message)?;
         self.set_last_client_message(raw.clone(), client_message.category);
         trace!(
             "last message cached in streaming channel[name={}]",
