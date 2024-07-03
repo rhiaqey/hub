@@ -185,8 +185,6 @@ async fn handle_ws_client(
 
     let channels = prepare_channels(&client_id, channels, state.streams.clone()).await;
 
-    let event_topic = topics::events_pubsub_topic(state.get_namespace());
-
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
         channel: String::from(""),
@@ -311,6 +309,8 @@ async fn handle_ws_client(
     let rx = Arc::new(tokio::sync::Mutex::new(receiver));
     let client =
         WebSocketClient::create(cid.clone(), user_id.clone(), sx.clone(), channels.clone());
+
+    let event_topic = topics::events_pubsub_topic(state.get_namespace());
 
     if let Ok(raw) = serde_json::to_vec(&RPCMessage {
         data: RPCMessageData::ClientConnected(ClientConnectedMessage {
