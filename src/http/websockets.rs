@@ -237,7 +237,6 @@ fn prepare_client_channel_subscription_messages(
 
 #[inline(always)]
 async fn send_snapshot_to_client(
-    hub_id: &String,
     client: &mut WebSocketClient,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
@@ -277,7 +276,7 @@ async fn send_snapshot_to_client(
 
                     let mut client_message = ClientMessage::from(stream_message);
                     if client_message.hub_id.is_none() {
-                        client_message.hub_id = Some(hub_id.clone());
+                        client_message.hub_id = Some(client.get_hub_id().to_string());
                     }
 
                     let raw = rmp_serde::to_vec(&client_message).unwrap();
@@ -379,8 +378,6 @@ async fn handle_ws_client(
     snapshot_size: Option<usize>,
     state: Arc<SharedState>,
 ) {
-    let hub_id = state.get_id();
-
     let client_id = generate_ulid_string();
     info!("handle ws client {}", &client_id);
 
@@ -390,13 +387,14 @@ async fn handle_ws_client(
     let (sender, mut receiver) = socket.split();
     let sx = Arc::new(Mutex::new(sender));
     let mut client = WebSocketClient::create(
+        state.get_id(),
         client_id.clone(),
         user_id.clone(),
         sx.clone(),
         channels.clone(),
     );
 
-    match prepare_client_connection_message(client.get_client_id(), &hub_id) {
+    match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
         Ok(message) => match client.send(Message::Binary(message)).await {
             Ok(_) => debug!("client connection message sent successfully"),
             Err(err) => warn!("failed to send client message: {}", err),
@@ -404,7 +402,7 @@ async fn handle_ws_client(
         Err(err) => warn!("failed to prepare connection message: {}", err),
     }
 
-    match prepare_client_channel_subscription_messages(&hub_id, &channels) {
+    match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
         Ok(messages) => {
             for message in messages {
                 match client.send(Message::Binary(message)).await {
@@ -417,7 +415,6 @@ async fn handle_ws_client(
     }
 
     match send_snapshot_to_client(
-        &hub_id,
         &mut client,
         &channels,
         state.streams.clone(),
