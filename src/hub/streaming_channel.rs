@@ -236,7 +236,7 @@ impl StreamingChannel {
         let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();
         let keys: Vec<String> = client.scan_match(&snapshot_topic)?.collect();
-        debug!("found {} keys", keys.len());
+        debug!("found {} scan keys", keys.len());
 
         Ok(keys)
     }

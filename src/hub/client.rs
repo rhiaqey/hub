@@ -29,6 +29,10 @@ impl WebSocketClient {
         }
     }
 
+    pub fn get_client_id(&self) -> &String {
+        &self.client_id
+    }
+
     pub fn get_user_id(&self) -> &Option<String> {
         &self.user_id
     }

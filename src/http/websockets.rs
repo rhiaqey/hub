@@ -314,6 +314,62 @@ async fn send_snapshot_to_client(
     Ok(())
 }
 
+#[inline(always)]
+fn notify_system_for_client_connect(
+    client: &WebSocketClient,
+    namespace: String,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    redis: Arc<std::sync::Mutex<redis::Connection>>,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientConnected(ClientConnectedMessage {
+            client_id: client.get_client_id().clone(),
+            user_id: client.get_user_id().clone(),
+            channels: channels.clone(),
+        }),
+    })?;
+
+    let event_topic = topics::events_pubsub_topic(namespace);
+
+    let _: () = redis
+        .lock()
+        .unwrap()
+        .publish(&event_topic, raw)
+        .expect("failed to publish message");
+
+    debug!("event sent for client connect to {}", &event_topic);
+
+    Ok(())
+}
+
+#[inline(always)]
+fn notify_system_for_client_disconnect(
+    client: &WebSocketClient,
+    namespace: String,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    redis: Arc<std::sync::Mutex<redis::Connection>>,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
+            client_id: client.get_client_id().clone(),
+            user_id: client.get_user_id().clone(),
+            channels: channels.clone(),
+        }),
+    })?;
+
+    let event_topic = topics::events_pubsub_topic(namespace);
+
+    let _: () = redis
+        .lock()
+        .unwrap()
+        .publish(&event_topic, raw)
+        .expect("failed to publish message");
+
+    debug!("event sent for client disconnect to {}", &event_topic);
+
+    Ok(())
+}
+
 /// Handle each client here
 async fn handle_ws_client(
     socket: WebSocket,
@@ -341,7 +397,7 @@ async fn handle_ws_client(
         channels.clone(),
     );
 
-    match prepare_client_connection_message(&client_id, &hub_id) {
+    match prepare_client_connection_message(client.get_client_id(), &hub_id) {
         Ok(message) => match client.send(message).await {
             Ok(_) => debug!("client connection message sent successfully"),
             Err(err) => warn!("failed to send client message: {}", err),
@@ -375,26 +431,20 @@ async fn handle_ws_client(
         Err(err) => warn!("failed to send channel snapshot to client: {}", err),
     }
 
-    let cid = client_id.clone();
-
-    let event_topic = topics::events_pubsub_topic(state.get_namespace());
-
-    if let Ok(raw) = serde_json::to_vec(&RPCMessage {
-        data: RPCMessageData::ClientConnected(ClientConnectedMessage {
-            client_id: cid.clone(),
-            user_id: user_id.clone(),
-            channels: channels.clone(),
-        }),
-    }) {
-        let _: () = state
-            .redis_rs
-            .lock()
-            .unwrap()
-            .publish(&event_topic, raw)
-            .expect("failed to publish message");
-        debug!("event sent for client connect to {}", &event_topic);
+    match notify_system_for_client_connect(
+        &mut client,
+        state.get_namespace(),
+        &channels,
+        state.redis_rs.clone(),
+    ) {
+        Ok(_) => debug!("system notified successfully for client connected event"),
+        Err(err) => warn!(
+            "failed to notify system for client connected event: {}",
+            err
+        ),
     }
 
+    let cid = client.get_client_id().clone();
     state.clients.lock().await.insert(client_id.clone(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
@@ -407,57 +457,14 @@ async fn handle_ws_client(
             match msg {
                 Message::Ping(_) => {}
                 Message::Pong(_) => {}
-                Message::Close(e) => {
-                    let id = client_id.clone();
-
-                    trace!("close message received for {id}");
-                    if e.is_some() {
-                        trace!("close frame also received for {id}");
-                    }
+                Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
+                    warn!("message received from connected client {}", &client_id);
 
                     if let Err(err) = sx.lock().await.close().await {
-                        warn!("error closing connection for {id}: {err}");
-                    }
-                }
-                Message::Text(data) => {
-                    let id = client_id.clone();
-
-                    match serde_json::from_str::<ClientMessage>(data.as_str()) {
-                        Ok(e) => {
-                            trace!("binary client message received for {id}: {:?}", e);
-                            if e.data_type == ClientMessageDataType::Ping as u8 {
-                                trace!("we have received a ping request from {id}");
-                                continue;
-                            }
-                        }
-                        Err(e) => {
-                            trace!("corrupt text client message received: {e}");
-                        }
+                        warn!("error closing connection for {}: {err}", &client_id);
                     }
 
-                    if let Err(err) = sx.lock().await.close().await {
-                        warn!("error closing connection for {id}: {err}");
-                    }
-                }
-                Message::Binary(data) => {
-                    let id = client_id.clone();
-
-                    match serde_json::from_slice::<ClientMessage>(data.as_slice()) {
-                        Ok(e) => {
-                            trace!("binary client message received for {id}: {:?}", e);
-                            if e.data_type == ClientMessageDataType::Ping as u8 {
-                                trace!("we have received a ping request from {id}");
-                                continue;
-                            }
-                        }
-                        Err(e) => {
-                            trace!("corrupt binary client message received: {e}");
-                        }
-                    }
-
-                    if let Err(err) = sx.lock().await.close().await {
-                        warn!("error closing connection for {id}: {err}");
-                    }
+                    break;
                 }
             }
         }
@@ -466,7 +473,8 @@ async fn handle_ws_client(
     handler.await.expect("failed to listen client");
 
     if let Some(client) = state.clients.lock().await.remove(&cid) {
-        trace!("client was removed from all clients");
+        trace!("client was removed from all hub clients");
+
         for channel in client.channels.iter() {
             trace!("removing client from {} channel as well", channel.0.name);
             if let Some(sc) = state
@@ -480,24 +488,22 @@ async fn handle_ws_client(
         }
     }
 
-    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
-
-    if let Ok(raw) = serde_json::to_vec(&RPCMessage {
-        data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
-            client_id: cid.clone(),
-            user_id: user_id.clone(),
-            channels: channels.clone(),
-        }),
-    }) {
-        let _: () = state
-            .redis_rs
-            .lock()
-            .unwrap()
-            .publish(&event_topic, raw)
-            .expect("failed to publish message");
-        debug!("event sent for client disconnect to {}", &event_topic);
+    if let Some(mut client) = state.clients.lock().await.remove(&cid) {
+        match notify_system_for_client_disconnect(
+            &mut client,
+            state.get_namespace(),
+            &channels,
+            state.redis_rs.clone(),
+        ) {
+            Ok(_) => debug!("system notified successfully for client disconnected event"),
+            Err(err) => warn!(
+                "failed to notify system for client disconnected event: {}",
+                err
+            ),
+        }
     }
 
-    debug!("client {cid} was disconnected");
+    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
+
     debug!("total connected clients: {}", TOTAL_CLIENTS.get());
 }
