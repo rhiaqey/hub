@@ -330,8 +330,6 @@ async fn handle_ws_client(
         debug!("event sent for client connect to {}", &event_topic);
     }
 
-    client.flush().await.expect("failed to flush messages");
-
     state.clients.lock().await.insert(client_id.clone(), client);
     TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
 
