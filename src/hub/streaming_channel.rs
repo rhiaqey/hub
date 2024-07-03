@@ -390,7 +390,7 @@ impl StreamingChannel {
 
                     trace!(
                         "sending message to client: {}[user_id={:?}]",
-                        client.client_id,
+                        client.get_client_id(),
                         client.get_user_id()
                     );
 

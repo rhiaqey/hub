@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 
 pub struct WebSocketClient {
     hub_id: String,
-    pub client_id: String,
+    client_id: String,
     user_id: Option<String>,
     sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     pub channels: Vec<(Channel, Option<String>, Option<String>)>,

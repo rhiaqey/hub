@@ -243,7 +243,7 @@ async fn send_snapshot_to_client(
     snapshot_request: &SnapshotParam,
     snapshot_size: Option<usize>,
 ) -> anyhow::Result<()> {
-    let client_id = client.client_id.clone();
+    let client_id = client.get_client_id().clone();
     let mut lock = streams.lock().await;
 
     for channel in channels.iter() {
