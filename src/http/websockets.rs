@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
+use anyhow::bail;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -22,6 +23,7 @@ use rhiaqey_common::pubsub::{
 };
 use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
+use rhiaqey_sdk_rs::message::MessageValue;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -168,6 +170,150 @@ async fn prepare_channels(
     added_channels
 }
 
+#[inline(always)]
+fn prepare_client_connection_message(
+    client_id: &String,
+    hub_id: &String,
+) -> anyhow::Result<Message> {
+    let client_message = ClientMessage {
+        data_type: ClientMessageDataType::ClientConnection as u8,
+        channel: String::from(""),
+        key: String::from(""),
+        value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
+            client_id: client_id.to_string(),
+            hub_id: hub_id.to_string(),
+        }),
+        tag: None,
+        category: None,
+        hub_id: Some(hub_id.clone()),
+        publisher_id: None,
+    };
+
+    match serde_json::to_vec(&client_message) {
+        Ok(data) => Ok(Message::Binary(data)),
+        Err(err) => bail!(err),
+    }
+}
+
+#[inline(always)]
+fn prepare_client_channel_subscription_messages(
+    hub_id: &String,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+) -> anyhow::Result<Vec<Message>> {
+    let mut result = vec![];
+
+    let mut data = ClientMessage {
+        data_type: ClientMessageDataType::ClientChannelSubscription as u8,
+        channel: "".to_string(),
+        key: "".to_string(),
+        value: ClientMessageValue::Data(MessageValue::Text(String::from(""))),
+        tag: None,
+        category: None,
+        hub_id: Some(hub_id.to_string()),
+        publisher_id: None,
+    };
+
+    for channel in channels {
+        data.channel = channel.0.name.to_string();
+        data.key = channel.0.name.to_string();
+        data.category = channel.1.clone();
+        data.value = ClientMessageValue::ClientChannelSubscription(
+            ClientMessageValueClientChannelSubscription {
+                channel: Channel {
+                    name: channel.0.name.clone(),
+                    size: channel.0.size,
+                },
+            },
+        );
+
+        match serde_json::to_vec(&data) {
+            Ok(raw) => result.push(Message::Binary(raw)),
+            Err(err) => warn!("failed to serialize to vec: {err}"),
+        }
+    }
+
+    Ok(result)
+}
+
+#[inline(always)]
+async fn send_snapshot_to_client(
+    hub_id: &String,
+    client: &mut WebSocketClient,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    snapshot_request: &SnapshotParam,
+    snapshot_size: Option<usize>,
+) -> anyhow::Result<()> {
+    let client_id = client.client_id.clone();
+    let mut lock = streams.lock().await;
+
+    for channel in channels.iter() {
+        let channel_name = channel.0.name.clone();
+        let streaming_channel = lock.get_mut(&*channel_name);
+        if let Some(chx) = streaming_channel {
+            if snapshot_request.allowed() {
+                // send snapshot
+
+                let snapshot = chx
+                    .get_snapshot(
+                        snapshot_request,
+                        channel.1.clone(),
+                        channel.2.clone(),
+                        snapshot_size,
+                    )
+                    .unwrap_or(vec![]);
+
+                for stream_message in snapshot.iter() {
+                    // case where clients have specified a category for their channel
+                    if channel.1.is_some() {
+                        if !stream_message.category.eq(&channel.1) {
+                            warn!(
+                                "snapshot category {:?} does not match with specified {:?}",
+                                stream_message.category, channel.1
+                            );
+                            continue;
+                        }
+                    }
+
+                    let mut client_message = ClientMessage::from(stream_message);
+                    if client_message.hub_id.is_none() {
+                        client_message.hub_id = Some(hub_id.clone());
+                    }
+
+                    let raw = serde_json::to_vec(&client_message).unwrap();
+                    if let Ok(_) = client.send(Message::Binary(raw)).await {
+                        trace!(
+                            "channel snapshot message[category={:?}] sent successfully to {}",
+                            channel.1,
+                            &client_id
+                        );
+                    } else {
+                        warn!("could not send snapshot message to {}", &client_id);
+                        continue;
+                    }
+                }
+            } else {
+                // send only the latest message
+                if let Some(raw) = chx.get_last_client_message(channel.1.clone()) {
+                    trace!("sending last channel message instead");
+                    if let Ok(_) = client.send(Message::Binary(raw)).await {
+                        trace!(
+                            "last channel message[category={:?}] sent successfully to {}",
+                            channel.1,
+                            &client_id
+                        );
+                    } else {
+                        warn!("could not send last channel message to {}", &client_id);
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Handle each client here
 async fn handle_ws_client(
     socket: WebSocket,
@@ -195,119 +341,38 @@ async fn handle_ws_client(
         channels.clone(),
     );
 
-    let client_message = ClientMessage {
-        data_type: ClientMessageDataType::ClientConnection as u8,
-        channel: String::from(""),
-        key: String::from(""),
-        value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
-            client_id: client_id.clone(),
-            hub_id: hub_id.to_string(),
-        }),
-        tag: None,
-        category: None,
-        hub_id: Some(hub_id.clone()),
-        publisher_id: None,
-    };
-
-    let raw = serde_json::to_vec(&client_message).unwrap();
-
-    if let Err(e) = client.send(Message::Binary(raw)).await {
-        warn!("Could not send binary data due to {}", e);
+    match prepare_client_connection_message(&client_id, &hub_id) {
+        Ok(message) => match client.send(message).await {
+            Ok(_) => debug!("client connection message sent successfully"),
+            Err(err) => warn!("failed to send client message: {}", err),
+        },
+        Err(err) => warn!("failed to prepare connection message: {}", err),
     }
 
-    {
-        for channel in channels.iter() {
-            let channel_name = channel.0.name.clone();
-            let mut data = client_message.clone();
-            trace!("iterating channel {}", channel_name);
-
-            data.data_type = ClientMessageDataType::ClientChannelSubscription as u8;
-            data.channel = channel.0.name.to_string();
-            data.key = channel.0.name.to_string();
-            data.category = channel.1.clone();
-            data.value = ClientMessageValue::ClientChannelSubscription(
-                ClientMessageValueClientChannelSubscription {
-                    channel: Channel {
-                        name: channel.0.name.clone(),
-                        size: channel.0.size,
-                    },
-                },
-            );
-
-            let Ok(raw) = serde_json::to_vec(&data) else {
-                warn!("failed to serialize to vec");
-                continue;
-            };
-
-            if let Ok(_) = client.send(Message::Binary(raw)).await {
-                trace!("channel subscription message sent successfully");
-            } else {
-                warn!("could not send subscription message");
-            }
-
-            debug!("sending snapshot to client");
-            let mut lock = state.streams.lock().await;
-            let streaming_channel = lock.get_mut(&*channel_name);
-
-            if let Some(chx) = streaming_channel {
-                if snapshot_request.allowed() {
-                    let snapshot = chx
-                        .get_snapshot(
-                            &snapshot_request,
-                            channel.1.clone(),
-                            channel.2.clone(),
-                            snapshot_size,
-                        )
-                        .unwrap_or(vec![]);
-
-                    for stream_message in snapshot.iter() {
-                        // case where clients have specified a category for their channel
-                        if channel.1.is_some() {
-                            if !stream_message.category.eq(&channel.1) {
-                                warn!(
-                                    "snapshot category {:?} does not match with specified {:?}",
-                                    stream_message.category, channel.1
-                                );
-                                continue;
-                            }
-                        }
-
-                        let mut client_message = ClientMessage::from(stream_message);
-                        if client_message.hub_id.is_none() {
-                            client_message.hub_id = Some(hub_id.clone());
-                        }
-
-                        let raw = serde_json::to_vec(&client_message).unwrap();
-                        if let Ok(_) = client.send(Message::Binary(raw)).await {
-                            trace!(
-                                "channel snapshot message[category={:?}] sent successfully to {}",
-                                channel.1,
-                                &client_id
-                            );
-                        } else {
-                            warn!("could not send snapshot message to {}", &client_id);
-                            break;
-                        }
-                    }
-                } else {
-                    if let Some(raw) = chx.get_last_client_message(channel.1.clone()) {
-                        trace!("sending last channel message instead");
-                        if let Ok(_) = client.send(Message::Binary(raw)).await {
-                            trace!(
-                                "last channel message[category={:?}] sent successfully to {}",
-                                channel.1,
-                                &client_id
-                            );
-                        } else {
-                            warn!("could not send last channel message to {}", &client_id);
-                            break;
-                        }
-                    }
+    match prepare_client_channel_subscription_messages(&hub_id, &channels) {
+        Ok(messages) => {
+            for message in messages {
+                match client.send(message).await {
+                    Ok(_) => debug!("client channel subscription message sent successfully"),
+                    Err(err) => warn!("failed to send client message: {}", err),
                 }
             }
-
-            drop(lock);
         }
+        Err(err) => warn!("failed to prepare channel subscription messages: {}", err),
+    }
+
+    match send_snapshot_to_client(
+        &hub_id,
+        &mut client,
+        &channels,
+        state.streams.clone(),
+        &snapshot_request,
+        snapshot_size,
+    )
+    .await
+    {
+        Ok(_) => debug!("client channel subscription message sent successfully"),
+        Err(err) => warn!("failed to send channel snapshot to client: {}", err),
     }
 
     let cid = client_id.clone();
