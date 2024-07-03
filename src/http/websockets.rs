@@ -450,26 +450,21 @@ async fn handle_ws_client(
     debug!("client {client_id} was connected");
     debug!("total connected clients: {}", TOTAL_CLIENTS.get());
 
-    let handler = tokio::spawn(async move {
-        let client_id = client_id.clone();
-        while let Some(Ok(msg)) = receiver.next().await {
-            match msg {
-                Message::Ping(_) => {}
-                Message::Pong(_) => {}
-                Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
-                    warn!("message received from connected client {}", &client_id);
+    while let Some(Ok(msg)) = receiver.next().await {
+        match msg {
+            Message::Ping(_) => {}
+            Message::Pong(_) => {}
+            Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
+                warn!("message received from connected client {}", &client_id);
 
-                    if let Err(err) = sx.lock().await.close().await {
-                        warn!("error closing connection for {}: {err}", &client_id);
-                    }
-
-                    break;
+                if let Err(err) = sx.lock().await.close().await {
+                    warn!("error closing connection for {}: {err}", &client_id);
                 }
+
+                break;
             }
         }
-    });
-
-    handler.await.expect("failed to listen client");
+    }
 
     if let Some(client) = state.clients.lock().await.remove(&cid) {
         trace!("client was removed from all hub clients");
