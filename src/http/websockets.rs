@@ -185,6 +185,16 @@ async fn handle_ws_client(
     let channels = prepare_channels(&client_id, channels, state.streams.clone()).await;
     debug!("{} channels extracted", channels.len());
 
+    let (sender, receiver) = socket.split();
+    let sx = Arc::new(Mutex::new(sender));
+    let rx = Arc::new(Mutex::new(receiver));
+    let mut client = WebSocketClient::create(
+        client_id.clone(),
+        user_id.clone(),
+        sx.clone(),
+        channels.clone(),
+    );
+
     let client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
         channel: String::from(""),
@@ -201,13 +211,9 @@ async fn handle_ws_client(
 
     let raw = serde_json::to_vec(&client_message).unwrap();
 
-    let (mut sender, receiver) = socket.split();
-
-    if let Err(e) = sender.send(Message::Binary(raw)).await {
+    if let Err(e) = client.send(Message::Binary(raw)).await {
         warn!("Could not send binary data due to {}", e);
     }
-
-    sender.flush().await.expect("failed to flush messages");
 
     {
         for channel in channels.iter() {
@@ -233,7 +239,7 @@ async fn handle_ws_client(
                 continue;
             };
 
-            if let Ok(_) = sender.send(Message::Binary(raw)).await {
+            if let Ok(_) = client.send(Message::Binary(raw)).await {
                 trace!("channel subscription message sent successfully");
             } else {
                 warn!("could not send subscription message");
@@ -272,7 +278,7 @@ async fn handle_ws_client(
                         }
 
                         let raw = serde_json::to_vec(&client_message).unwrap();
-                        if let Ok(_) = sender.send(Message::Binary(raw)).await {
+                        if let Ok(_) = client.send(Message::Binary(raw)).await {
                             trace!(
                                 "channel snapshot message[category={:?}] sent successfully to {}",
                                 channel.1,
@@ -286,7 +292,7 @@ async fn handle_ws_client(
                 } else {
                     if let Some(raw) = chx.get_last_client_message(channel.1.clone()) {
                         trace!("sending last channel message instead");
-                        if let Ok(_) = sender.send(Message::Binary(raw)).await {
+                        if let Ok(_) = client.send(Message::Binary(raw)).await {
                             trace!(
                                 "last channel message[category={:?}] sent successfully to {}",
                                 channel.1,
@@ -305,10 +311,6 @@ async fn handle_ws_client(
     }
 
     let cid = client_id.clone();
-    let sx = Arc::new(tokio::sync::Mutex::new(sender));
-    let rx = Arc::new(tokio::sync::Mutex::new(receiver));
-    let client =
-        WebSocketClient::create(cid.clone(), user_id.clone(), sx.clone(), channels.clone());
 
     let event_topic = topics::events_pubsub_topic(state.get_namespace());
 
