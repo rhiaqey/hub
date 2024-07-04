@@ -453,15 +453,20 @@ async fn handle_ws_client(
             Message::Pong(_) => {}
             Message::Close(_) | Message::Text(_) | Message::Binary(_) => {
                 warn!("message received from connected client {}", &client_id);
+                debug!("received message {:?}", msg);
 
                 if let Err(err) = sx.lock().await.close().await {
                     warn!("error closing connection for {}: {err}", &client_id);
+                } else {
+                    debug!("client {} connection closed", &client_id)
                 }
 
                 break;
             }
         }
     }
+
+    debug!("removing client connection");
 
     if let Some(client) = state.clients.lock().await.remove(&cid) {
         trace!("client was removed from all hub clients");
