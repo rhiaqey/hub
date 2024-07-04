@@ -390,16 +390,22 @@ pub async fn get_snapshot_handler(
     for channel in channels.iter() {
         let streaming_channel = streaming_channels.get_mut(&channel.0);
         if let Some(chx) = streaming_channel {
-            result.insert(
-                channel.0.clone(),
-                chx.get_snapshot(
+            let snapshot = chx
+                .get_snapshot(
                     &direction,
                     channel.1.clone(),
                     channel.2.clone(),
                     params.snapshot_size,
                 )
-                .unwrap_or(vec![]),
+                .unwrap_or(vec![]);
+
+            debug!(
+                "found {} snapshot entries for {} channel",
+                snapshot.len(),
+                chx.get_channel().name
             );
+
+            result.insert(channel.0.clone(), snapshot);
         }
     }
 
