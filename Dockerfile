@@ -20,7 +20,7 @@ RUN case "${TARGETPLATFORM}" in \
     && rustup target add ${rust_target} \
     && cargo install --target ${rust_target} --path .
 
-FROM rhiaqey/run:1.0.6
+FROM rhiaqey/run:1.0.7
 
 ARG BINARY=rhiaqey-hub
 ARG USER=1000
