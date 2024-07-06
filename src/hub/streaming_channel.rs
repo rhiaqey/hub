@@ -320,7 +320,7 @@ impl StreamingChannel {
 
     pub async fn broadcast(
         &mut self,
-        message: StreamMessage,
+        stream_message: StreamMessage,
         clients: Arc<tokio::sync::Mutex<HashMap<String, WebSocketClient>>>,
     ) -> anyhow::Result<()> {
         let total_channel_clients = self.get_total_clients();
@@ -338,14 +338,20 @@ impl StreamingChannel {
         let channel_name = &self.channel.name;
         trace!("streaming channel found {}", channel_name);
 
-        let key = message.key.clone();
-        let category = message.category.clone();
-        let user_ids = message.user_ids.clone();
-        let client_ids = message.client_ids.clone();
+        let key = stream_message.key.clone();
+        let category = stream_message.category.clone();
+        let user_ids = stream_message.user_ids.clone();
+        let client_ids = stream_message.client_ids.clone();
 
-        let mut client_message = ClientMessage::from(message);
-        if client_message.hub_id.is_none() {
-            client_message.hub_id = Some(self.get_hub_id());
+        let mut client_message = ClientMessage::from(stream_message);
+
+        if cfg!(debug_assertions) {
+            if client_message.hub_id.is_none() {
+                client_message.hub_id = Some(self.get_hub_id());
+            }
+        } else {
+            client_message.hub_id = None;
+            client_message.publisher_id = None;
         }
 
         let raw = rmp_serde::to_vec_named(&client_message)?;

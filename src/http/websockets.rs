@@ -175,7 +175,7 @@ fn prepare_client_connection_message(
     client_id: &String,
     hub_id: &String,
 ) -> anyhow::Result<Vec<u8>> {
-    let client_message = ClientMessage {
+    let mut client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientConnection as u8,
         channel: String::from(""),
         key: String::from(""),
@@ -185,9 +185,13 @@ fn prepare_client_connection_message(
         }),
         tag: None,
         category: None,
-        hub_id: Some(hub_id.clone()),
+        hub_id: None,
         publisher_id: None,
     };
+
+    if cfg!(debug_assertions) {
+        client_message.hub_id = Some(hub_id.clone());
+    }
 
     match rmp_serde::to_vec_named(&client_message) {
         Ok(data) => Ok(data),
@@ -202,22 +206,26 @@ fn prepare_client_channel_subscription_messages(
 ) -> anyhow::Result<Vec<Vec<u8>>> {
     let mut result = vec![];
 
-    let mut data = ClientMessage {
+    let mut client_message = ClientMessage {
         data_type: ClientMessageDataType::ClientChannelSubscription as u8,
         channel: "".to_string(),
         key: "".to_string(),
         value: ClientMessageValue::Data(MessageValue::Text(String::from(""))),
         tag: None,
         category: None,
-        hub_id: Some(hub_id.to_string()),
+        hub_id: None,
         publisher_id: None,
     };
 
+    if cfg!(debug_assertions) {
+        client_message.hub_id = Some(hub_id.clone());
+    }
+
     for channel in channels {
-        data.channel = channel.0.name.to_string();
-        data.key = channel.0.name.to_string();
-        data.category = channel.1.clone();
-        data.value = ClientMessageValue::ClientChannelSubscription(
+        client_message.channel = channel.0.name.to_string();
+        client_message.key = channel.0.name.to_string();
+        client_message.category = channel.1.clone();
+        client_message.value = ClientMessageValue::ClientChannelSubscription(
             ClientMessageValueClientChannelSubscription {
                 channel: Channel {
                     name: channel.0.name.clone(),
@@ -226,7 +234,7 @@ fn prepare_client_channel_subscription_messages(
             },
         );
 
-        match rmp_serde::to_vec_named(&data) {
+        match rmp_serde::to_vec_named(&client_message) {
             Ok(raw) => result.push(raw),
             Err(err) => warn!("failed to serialize to vec: {err}"),
         }
@@ -275,8 +283,14 @@ async fn send_snapshot_to_client(
                     }
 
                     let mut client_message = ClientMessage::from(stream_message);
-                    if client_message.hub_id.is_none() {
-                        client_message.hub_id = Some(client.get_hub_id().to_string());
+
+                    if cfg!(debug_assertions) {
+                        if client_message.hub_id.is_none() {
+                            client_message.hub_id = Some(client.get_hub_id().to_string());
+                        }
+                    } else {
+                        client_message.hub_id = None;
+                        client_message.publisher_id = None;
                     }
 
                     let raw = rmp_serde::to_vec_named(&client_message).unwrap();
