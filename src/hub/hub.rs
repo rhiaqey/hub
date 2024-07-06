@@ -201,6 +201,7 @@ impl Hub {
     pub fn create_shared_state(&self) -> Arc<SharedState> {
         Arc::new(SharedState {
             env: self.env.clone(),
+            #[cfg(not(debug_assertions))]
             settings: self.settings.clone(),
             streams: self.streams.clone(),
             redis_rs: self.redis_rs.clone(),
