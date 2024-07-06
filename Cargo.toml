@@ -21,7 +21,7 @@ rhiaqey-sdk-rs = { git = "https://github.com/rhiaqey/sdk-rs.git" }
 rhiaqey-common = { git = "https://github.com/rhiaqey/common.git" }
 env_logger = "0.11"
 log = "0.4"
-lazy_static = { version = "1.4" }
+lazy_static = { version = "1.5" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 async-trait = "0.1"
@@ -31,7 +31,7 @@ redis = { version = "0.25", features = ["tokio-comp", "sentinel"] }
 tokio = { version = "1.38", features = ["full"] }
 axum = { version = "0.7", features = ["http2", "json", "macros",
     "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
-hyper = { version = "1.3", features = ["full"] }
+hyper = { version = "1.4", features = ["full"] }
 sha256 = "1.5"
 url = "2.5"
 rsa = { version = "0.9", features = ["pem"] }

@@ -1659,7 +1659,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.0"
-source = "git+https://github.com/rhiaqey/common.git#265dd1eb1c2d314f6b92712dc41f662d833ffcdd"
+source = "git+https://github.com/rhiaqey/common.git#d0b14d6d20de1f6802a95f8c781259c1c94d6afd"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -1717,7 +1717,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.1"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#5ce3f4141738e4c95b175f6901aba6c15ae5529b"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#97af87a0bdf5b695d562844fb50298ccc591472a"
 dependencies = [
  "serde",
  "serde_bytes",
@@ -2094,9 +2094,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.6.1"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c55115c6fbe2d2bef26eb09ad74bde02d8255476fc0c7b515ef09fbb35742d82"
+checksum = "ce6b6a2fb3a985e99cebfaefa9faa3024743da73304ca1c683a36429613d3d22"
 dependencies = [
  "tinyvec_macros",
 ]
