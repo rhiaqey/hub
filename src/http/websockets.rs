@@ -1,8 +1,6 @@
 use crate::http::state::SharedState;
 use crate::hub::client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
-use std::collections::HashMap;
-
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
 use anyhow::bail;
@@ -26,6 +24,7 @@ use rhiaqey_sdk_rs::channel::Channel;
 use rhiaqey_sdk_rs::message::MessageValue;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -456,10 +455,11 @@ async fn handle_ws_client(
 
     let cid = client.get_client_id().clone();
     state.clients.lock().await.insert(client_id.clone(), client);
-    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
+    let total = state.clients.lock().await.len() as f64;
+    TOTAL_CLIENTS.get().unwrap().set(total);
 
     debug!("client {client_id} was connected");
-    debug!("total connected clients: {}", TOTAL_CLIENTS.get());
+    debug!("total connected clients: {}", total);
 
     while let Some(Ok(msg)) = receiver.next().await {
         match msg {
@@ -513,7 +513,7 @@ async fn handle_ws_client(
         }
     }
 
-    TOTAL_CLIENTS.set(state.clients.lock().await.len() as f64);
-
-    debug!("total connected clients: {}", TOTAL_CLIENTS.get());
+    let total_clients = state.clients.lock().await.len() as f64;
+    TOTAL_CLIENTS.get().unwrap().set(total_clients);
+    debug!("total connected clients: {}", total_clients);
 }

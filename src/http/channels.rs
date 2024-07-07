@@ -109,6 +109,13 @@ pub async fn delete_channels_handler(
 
     // remove channels
 
+    let tobedeleted: Vec<_> = channel_list
+        .channels
+        .iter()
+        .filter(|f| payload.channels.contains(&f.name))
+        .map(|f| f.clone())
+        .collect();
+
     channel_list.channels.retain_mut(|list_channel| {
         let index = payload
             .channels
@@ -119,10 +126,11 @@ pub async fn delete_channels_handler(
     });
     let content = serde_json::to_string(&channel_list).unwrap_or(String::from("{}"));
     let _: () = conn.set(hub_channels_key.clone(), content).unwrap();
+    drop(conn);
 
     // notify all hubs to stop and drop streaming channels
 
-    match state.publish_rpc_message(RPCMessageData::DeleteChannels(channel_list.channels)) {
+    match state.publish_rpc_message(RPCMessageData::DeleteChannels(tobedeleted)) {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(err) => {
             warn!("error publishing delete channels: {err}");

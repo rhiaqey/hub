@@ -40,7 +40,7 @@ impl SharedState {
     }
 
     pub fn publish_rpc_message(&self, data: RPCMessageData) -> anyhow::Result<()> {
-        info!("broadcasting to all hubs");
+        info!("broadcasting to all hubs for message {}", data);
 
         let lock = self.redis_rs.clone();
         let mut conn = lock.lock().unwrap();

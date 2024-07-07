@@ -362,9 +362,12 @@ impl Hub {
             total_channels += 1;
         }
 
-        drop(streams);
         info!("added {} streams", total_channels);
-        TOTAL_CHANNELS.set(total_channels as f64);
+        drop(streams);
+
+        let channels_len = self.get_channels().unwrap_or_default().len();
+        info!("total channels {}", channels_len);
+        TOTAL_CHANNELS.get().unwrap().set(channels_len as f64);
 
         Ok(())
     }
@@ -378,6 +381,10 @@ impl Hub {
         }
 
         debug!("{} channels deleted", total_channels);
+
+        let channels_len = self.get_channels().unwrap_or_default().len();
+        info!("total channels {}", channels_len);
+        TOTAL_CHANNELS.get().unwrap().set(channels_len as f64);
 
         Ok(())
     }

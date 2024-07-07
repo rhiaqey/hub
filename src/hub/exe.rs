@@ -1,5 +1,5 @@
 use crate::hub::hub::Hub;
-use crate::hub::metrics::{TOTAL_CHANNELS, TOTAL_CLIENTS};
+use crate::hub::metrics::{init_metrics, TOTAL_CHANNELS, TOTAL_CLIENTS};
 use crate::hub::streaming_channel::StreamingChannel;
 use log::{info, warn};
 use rhiaqey_common::env::parse_env;
@@ -8,6 +8,10 @@ use std::env::consts::ARCH;
 pub async fn create() -> Hub {
     env_logger::init();
     let env = parse_env();
+
+    init_metrics(&env)
+        .await
+        .expect("failed to initialize metrics");
 
     info!(
         "running hub [id={}, name={}, namespace={}, arch={}]",
@@ -63,8 +67,8 @@ pub async fn create() -> Hub {
     info!("added {} streams", total_channels);
 
     drop(streams);
-    TOTAL_CHANNELS.set(total_channels as f64);
-    TOTAL_CLIENTS.set(0f64);
+    TOTAL_CHANNELS.get().unwrap().set(total_channels as f64);
+    TOTAL_CLIENTS.get().unwrap().set(0f64);
 
     hub
 }
