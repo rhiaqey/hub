@@ -1,3 +1,4 @@
+use log::info;
 use prometheus::{labels, opts, register_gauge, Gauge};
 use rhiaqey_common::env::Env;
 use tokio::sync::OnceCell;
@@ -6,12 +7,11 @@ pub static TOTAL_CHANNELS: OnceCell<Gauge> = OnceCell::const_new();
 
 pub static TOTAL_CLIENTS: OnceCell<Gauge> = OnceCell::const_new();
 
-pub async fn init_metrics(env: &Env) -> anyhow::Result<()> {
+pub async fn init_metrics(env: &Env) {
     let id = env.get_id();
     let name = env.get_name();
     let namespace = env.get_namespace();
-    let values =
-        labels! {"name" => name.as_str(), "id" => id.as_str(), "namespace" => namespace.as_str()};
+    let values = labels! {"name" => name.as_str(), "id" => id.as_str(), "kind" => "hub", "namespace" => namespace.as_str()};
 
     TOTAL_CHANNELS
         .get_or_init(|| async {
@@ -35,5 +35,5 @@ pub async fn init_metrics(env: &Env) -> anyhow::Result<()> {
         })
         .await;
 
-    Ok(())
+    info!("system metrics are ready")
 }

@@ -9,9 +9,7 @@ pub async fn create() -> Hub {
     env_logger::init();
     let env = parse_env();
 
-    init_metrics(&env)
-        .await
-        .expect("failed to initialize metrics");
+    init_metrics(&env).await;
 
     info!(
         "running hub [id={}, name={}, namespace={}, arch={}]",
