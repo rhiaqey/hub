@@ -35,5 +35,5 @@ pub async fn init_metrics(env: &Env) {
         })
         .await;
 
-    info!("system metrics are ready")
+    info!("system metrics are ready");
 }
