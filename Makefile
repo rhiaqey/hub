@@ -9,6 +9,7 @@ export REDIS_INSIGHT_VERSION=2.48.0
 export ID=fc5e1420-cbec-11ed-afa1-0242ac120002
 export NAME=hub
 export NAMESPACE=rhiaqey
+export ORGANIZATION=rhiaqey
 export RUST_BACKTRACE=full
 export RUST_LOG=rhiaqey=trace
 export PRIVATE_PORT=3001

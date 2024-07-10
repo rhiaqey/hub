@@ -11,7 +11,14 @@ pub async fn init_metrics(env: &Env) {
     let id = env.get_id();
     let name = env.get_name();
     let namespace = env.get_namespace();
-    let values = labels! {"name" => name.as_str(), "id" => id.as_str(), "kind" => "hub", "namespace" => namespace.as_str()};
+    let organization = env.get_organization();
+    let values = labels! {
+        "name" => name.as_str(),
+        "id" => id.as_str(),
+        "kind" => "hub",
+        "namespace" => namespace.as_str(),
+        "org" => organization
+    };
 
     TOTAL_CHANNELS
         .get_or_init(|| async {
