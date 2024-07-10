@@ -11,9 +11,7 @@ use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::env::Env;
-use rhiaqey_common::pubsub::{
-    MetricsMessage, PublisherRegistrationMessage, RPCMessage, RPCMessageData,
-};
+use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis_rs::connect_and_ping;
 use rhiaqey_common::security::SecurityKey;
 use rhiaqey_common::stream::StreamMessage;
@@ -315,12 +313,6 @@ impl Hub {
                     .await
                     .expect("failed to notify clients");
             }
-            RPCMessageData::Metrics(metrics) => {
-                debug!("metrics rpc received");
-                self.update_publisher_metrics(metrics)
-                    .await
-                    .expect("failed to handle metrics");
-            }
             other => {
                 warn!("handler for rpc message missing: {:?}", other);
             }
@@ -401,26 +393,6 @@ impl Hub {
                 message.channel
             )
         }
-    }
-
-    async fn update_publisher_metrics(&self, data: MetricsMessage) -> anyhow::Result<()> {
-        let metrics_key = topics::publisher_metrics_key(
-            data.namespace.clone(),
-            data.name.clone(),
-            data.id.clone(),
-        );
-        let encoded = serde_json::to_string(&data)?;
-        let lock = self.redis_rs.clone();
-        lock.lock()
-            .unwrap()
-            .set(metrics_key, encoded)
-            .context("failed to store metrics")?;
-        debug!(
-            "metrics updated for {}[id={}]",
-            data.name.clone(),
-            data.id.clone()
-        );
-        Ok(())
     }
 
     fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> anyhow::Result<()> {
