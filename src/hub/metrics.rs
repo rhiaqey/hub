@@ -12,6 +12,7 @@ pub async fn init_metrics(env: &Env) {
     let name = env.get_name();
     let namespace = env.get_namespace();
     let organization = env.get_organization();
+
     let values = labels! {
         "name" => name.as_str(),
         "id" => id.as_str(),
