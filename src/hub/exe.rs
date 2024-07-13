@@ -65,8 +65,8 @@ pub async fn create() -> Hub {
     info!("added {} streams", total_channels);
 
     drop(streams);
-    TOTAL_CHANNELS.get().unwrap().set(total_channels as f64);
-    TOTAL_CLIENTS.get().unwrap().set(0f64);
+    TOTAL_CHANNELS.get().unwrap().set(total_channels as i64);
+    TOTAL_CLIENTS.get().unwrap().set(0i64);
 
     hub
 }

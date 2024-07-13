@@ -238,7 +238,7 @@ impl Hub {
         let pubsub_stream = pubsub.on_message();
         let mut streamz = select_all(vec![Box::pin(pubsub_stream)]);
 
-        UP_INDICATOR.get().unwrap().set(1.0);
+        UP_INDICATOR.get().unwrap().set(1);
 
         loop {
             tokio::select! {
@@ -361,7 +361,7 @@ impl Hub {
 
         let channels_len = self.get_channels().unwrap_or_default().len();
         info!("total channels {}", channels_len);
-        TOTAL_CHANNELS.get().unwrap().set(channels_len as f64);
+        TOTAL_CHANNELS.get().unwrap().set(channels_len as i64);
 
         Ok(())
     }
@@ -378,7 +378,7 @@ impl Hub {
 
         let channels_len = self.get_channels().unwrap_or_default().len();
         info!("total channels {}", channels_len);
-        TOTAL_CHANNELS.get().unwrap().set(channels_len as f64);
+        TOTAL_CHANNELS.get().unwrap().set(channels_len as i64);
 
         Ok(())
     }
