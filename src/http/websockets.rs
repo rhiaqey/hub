@@ -456,7 +456,7 @@ async fn handle_ws_client(
     let cid = client.get_client_id().clone();
     state.clients.lock().await.insert(client_id.clone(), client);
     let total = state.clients.lock().await.len() as i64;
-    TOTAL_CLIENTS.get().unwrap().set(total);
+    TOTAL_CLIENTS.set(total);
 
     debug!("client {client_id} was connected");
     debug!("total connected clients: {}", total);
@@ -514,6 +514,6 @@ async fn handle_ws_client(
     }
 
     let total_clients = state.clients.lock().await.len() as i64;
-    TOTAL_CLIENTS.get().unwrap().set(total_clients);
+    TOTAL_CLIENTS.set(total_clients);
     debug!("total connected clients: {}", total_clients);
 }

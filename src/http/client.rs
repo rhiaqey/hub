@@ -7,10 +7,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 pub async fn get_users_handler(State(state): State<Arc<SharedState>>) -> impl IntoResponse {
-    let clients = match TOTAL_CLIENTS.get() {
-        None => 0i64,
-        Some(g) => g.get(),
-    };
+    let clients = TOTAL_CLIENTS.get();
 
     (
         StatusCode::OK,

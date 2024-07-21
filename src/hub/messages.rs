@@ -1,5 +1,5 @@
 use anyhow::{bail, Context};
-use log::{debug, trace, warn};
+use log::{trace, warn};
 use redis::streams::{StreamMaxlen, StreamRangeReply};
 use redis::Commands;
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};

@@ -1695,6 +1695,7 @@ dependencies = [
  "futures",
  "hyper",
  "jsonschema",
+ "lazy_static",
  "log",
  "openssl",
  "prometheus",

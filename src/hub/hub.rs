@@ -1,7 +1,7 @@
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
 use crate::hub::client::WebSocketClient;
-use crate::hub::metrics::{TOTAL_CHANNELS, UP_INDICATOR};
+use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
@@ -238,8 +238,6 @@ impl Hub {
         let pubsub_stream = pubsub.on_message();
         let mut streamz = select_all(vec![Box::pin(pubsub_stream)]);
 
-        UP_INDICATOR.get().unwrap().set(1);
-
         loop {
             tokio::select! {
                 Ok(result) = signal::ctrl_c() => {
@@ -361,7 +359,7 @@ impl Hub {
 
         let channels_len = self.get_channels().unwrap_or_default().len();
         info!("total channels {}", channels_len);
-        TOTAL_CHANNELS.get().unwrap().set(channels_len as i64);
+        TOTAL_CHANNELS.set(channels_len as i64);
 
         Ok(())
     }
@@ -378,7 +376,7 @@ impl Hub {
 
         let channels_len = self.get_channels().unwrap_or_default().len();
         info!("total channels {}", channels_len);
-        TOTAL_CHANNELS.get().unwrap().set(channels_len as i64);
+        TOTAL_CHANNELS.set(channels_len as i64);
 
         Ok(())
     }
