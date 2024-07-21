@@ -72,11 +72,11 @@ impl MessageHandler {
                 .xrevrange_count(topic, "+", "-", self.channel.size)?;
 
         if results.ids.len() == 0 {
-            // allow it since we have not stored data to compare against
+            trace!("allow it unprocessed since we have not stored data to compare against");
             return Ok(MessageProcessResult::AllowUnprocessed);
         }
 
-        trace!("found {}", results.ids.len());
+        trace!("found {} result ids", results.ids.len());
 
         // Checking all results
         for entry in results.ids.iter() {
@@ -84,7 +84,7 @@ impl MessageHandler {
                 if let redis::Value::Data(bytes) = stored_tag {
                     if let Ok(old_tag) = String::from_utf8(bytes.clone()) {
                         if new_tag == old_tag {
-                            warn!("tag \"{new_tag}\" already found stored");
+                            trace!("tag \"{new_tag}\" already found stored");
                             return Ok(MessageProcessResult::Deny(String::from(
                                 "tag already found",
                             )));
@@ -109,7 +109,7 @@ impl MessageHandler {
         //    Let it pass through.
         let new_timestamp = new_message.timestamp.unwrap_or(0);
         if new_timestamp == 0 {
-            debug!("new message has timestamp = 0");
+            trace!("new message has timestamp = 0");
             // allow it without checking
             return Ok(MessageProcessResult::AllowUnprocessed);
         }
@@ -127,7 +127,7 @@ impl MessageHandler {
         let last_entry = results.ids.iter().next().unwrap();
 
         let Some(last_message) = last_entry.map.get("raw") else {
-            warn!("last message in raw not found");
+            trace!("last message in raw not found");
             // allow it as the stored one did not have a correct format
             return Ok(MessageProcessResult::AllowUnprocessed);
         };
@@ -174,7 +174,7 @@ impl MessageHandler {
         &mut self,
         stream_message: &StreamMessage,
     ) -> anyhow::Result<()> {
-        debug!("handle raw stream message");
+        trace!("handle raw stream message");
 
         let tag = stream_message.tag.clone().unwrap_or(String::from(""));
         let channel_size = stream_message.size.unwrap_or(self.channel.size);
@@ -253,6 +253,7 @@ impl MessageHandler {
             "*",
             items,
         )?;
+
         trace!("message sent to clean xstream {}: {:?}", &clean_topic, id);
 
         Ok(())
