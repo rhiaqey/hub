@@ -137,7 +137,7 @@ pub fn update_settings_for_publishers(
     trace!("find first schema for publisher");
     let name = payload.name;
     let namespace = state.get_namespace();
-    let schema_key = topics::publisher_schema_key(namespace, name.clone());
+    let schema_key = topics::publisher_schema_key(namespace, name.as_ref());
     debug!("schema key {schema_key}");
 
     let schema_response: String =
@@ -157,7 +157,7 @@ pub fn update_settings_for_publishers(
 
     trace!("encrypt settings for publishers");
 
-    let publishers_key = topics::publisher_settings_key(state.get_namespace(), name.clone());
+    let publishers_key = topics::publisher_settings_key(state.get_namespace(), name.as_ref());
     let data = payload.settings.to_vec()?;
     state.store_settings(publishers_key, data)?;
 
@@ -165,7 +165,7 @@ pub fn update_settings_for_publishers(
 
     // 3. notify all other publishers
 
-    let pub_topic = topics::hub_to_publisher_pubsub_topic(state.get_namespace(), name);
+    let pub_topic = topics::hub_to_publisher_pubsub_topic(state.get_namespace(), name.as_ref());
 
     info!("publishing to topic {}", pub_topic);
 

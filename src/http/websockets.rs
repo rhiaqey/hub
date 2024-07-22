@@ -329,7 +329,7 @@ async fn send_snapshot_to_client(
 #[inline(always)]
 fn notify_system_for_client_connect(
     client: &WebSocketClient,
-    namespace: String,
+    namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
 ) -> anyhow::Result<()> {
@@ -357,7 +357,7 @@ fn notify_system_for_client_connect(
 #[inline(always)]
 fn notify_system_for_client_disconnect(
     client: &WebSocketClient,
-    namespace: String,
+    namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
 ) -> anyhow::Result<()> {
@@ -400,7 +400,7 @@ async fn handle_ws_client(
     let (sender, mut receiver) = socket.split();
     let sx = Arc::new(Mutex::new(sender));
     let mut client = WebSocketClient::create(
-        state.get_id(),
+        state.get_id().to_string(),
         client_id.clone(),
         user_id.clone(),
         sx.clone(),

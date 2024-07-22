@@ -18,7 +18,7 @@ pub async fn create() -> Hub {
         ARCH
     );
 
-    let namespace = env.get_namespace();
+    let namespace = env.get_namespace().to_string();
 
     let hub = match Hub::create(env) {
         Ok(exec) => exec,
@@ -45,7 +45,7 @@ pub async fn create() -> Hub {
         }
 
         let Ok(mut streaming_channel) = StreamingChannel::create(
-            hub.get_id(),
+            hub.get_id().to_string(),
             namespace.clone(),
             channel.clone(),
             hub.env.redis.clone(),

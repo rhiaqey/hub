@@ -27,15 +27,18 @@ pub struct SharedState {
 }
 
 impl SharedState {
-    pub fn get_id(&self) -> String {
+    #[inline]
+    pub fn get_id(&self) -> &str {
         self.env.get_id()
     }
 
-    pub fn get_name(&self) -> String {
+    #[inline]
+    pub fn get_name(&self) -> &str {
         self.env.get_name()
     }
 
-    pub fn get_namespace(&self) -> String {
+    #[inline]
+    pub fn get_namespace(&self) -> &str {
         self.env.get_namespace()
     }
 

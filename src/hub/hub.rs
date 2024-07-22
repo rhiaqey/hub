@@ -35,24 +35,29 @@ pub struct Hub {
 }
 
 impl Hub {
-    pub fn get_id(&self) -> String {
+    #[inline]
+    pub fn get_id(&self) -> &str {
         self.env.get_id()
     }
 
-    pub fn get_name(&self) -> String {
+    #[inline]
+    pub fn get_name(&self) -> &str {
         self.env.get_name()
     }
 
+    #[inline]
+    pub fn get_namespace(&self) -> &str {
+        self.env.get_namespace()
+    }
+
+    #[inline]
     pub fn get_private_port(&self) -> u16 {
         self.env.get_private_port()
     }
 
+    #[inline]
     pub fn get_public_port(&self) -> u16 {
         self.env.get_public_port()
-    }
-
-    pub fn get_namespace(&self) -> String {
-        self.env.get_namespace()
     }
 
     pub fn get_channels(&self) -> anyhow::Result<Vec<Channel>> {
@@ -284,7 +289,7 @@ impl Hub {
             }
             RPCMessageData::CreateChannels(channels) => {
                 debug!("creating channels {:?}", channels);
-                self.create_channels(self.get_id(), channels)
+                self.create_channels(channels)
                     .await
                     .expect("failed to create channels")
             }
@@ -319,7 +324,7 @@ impl Hub {
         };
     }
 
-    async fn create_channels(&self, hub_id: String, channels: Vec<Channel>) -> anyhow::Result<()> {
+    async fn create_channels(&self, channels: Vec<Channel>) -> anyhow::Result<()> {
         let mut total_channels = 0;
         let namespace = self.get_namespace();
         let mut streams = self.streams.lock().await;
@@ -332,8 +337,8 @@ impl Hub {
             }
 
             let Ok(mut streaming_channel) = StreamingChannel::create(
-                hub_id.clone(),
-                namespace.clone(),
+                self.get_id().to_string(),
+                namespace.to_string(),
                 channel.clone(),
                 self.env.redis.clone(),
             ) else {
@@ -396,7 +401,8 @@ impl Hub {
     }
 
     fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> anyhow::Result<()> {
-        let schema_key = topics::publisher_schema_key(data.namespace.clone(), data.name.clone());
+        let schema_key: String =
+            topics::publisher_schema_key(data.namespace.as_str(), data.name.as_str());
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
         lock.lock()

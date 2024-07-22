@@ -42,7 +42,7 @@ pub async fn create_channels(
             .xgroup_create_mkstream(
                 topics::publishers_to_hub_stream_topic(
                     state.get_namespace(),
-                    channel.name.to_string(),
+                    channel.name.as_ref(),
                 ),
                 "hub",
                 "$",
@@ -157,7 +157,7 @@ pub async fn get_publishers_handler(State(state): State<Arc<SharedState>>) -> im
 
     // find assigned publisher keys
 
-    let schema_key = topics::publisher_schema_key(state.get_namespace(), "*".to_string());
+    let schema_key = topics::publisher_schema_key(state.get_namespace(), "*");
     debug!("schema key {}", schema_key);
 
     let keys: Vec<String> = conn.keys(schema_key).unwrap_or(vec![]);
@@ -253,7 +253,7 @@ pub async fn get_channel_assignments_handler(
 
     // find assigned channel keys
 
-    let publishers_key = topics::publisher_channels_key(state.get_namespace(), "*".to_string());
+    let publishers_key = topics::publisher_channels_key(state.get_namespace(), "*");
     debug!("publishers key {publishers_key}");
 
     let keys: Vec<String> = conn.keys(publishers_key).unwrap_or(vec![]);
@@ -323,7 +323,7 @@ pub async fn assign_channels(
     // store locally
 
     let publishers_key =
-        topics::publisher_channels_key(state.get_namespace(), channel_name.clone());
+        topics::publisher_channels_key(state.get_namespace(), channel_name.as_ref());
     let _: () = conn.set(publishers_key, content).unwrap();
 
     // notify publishers
@@ -336,7 +336,7 @@ pub async fn assign_channels(
     .unwrap();
 
     let stream_topic =
-        topics::hub_to_publisher_pubsub_topic(state.get_namespace(), channel_name.clone());
+        topics::hub_to_publisher_pubsub_topic(state.get_namespace(), channel_name.as_ref());
 
     let _: () = conn.publish(stream_topic, rpc_message).unwrap();
 
