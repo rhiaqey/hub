@@ -108,7 +108,7 @@ build:
 
 .PHONY: prod
 prod:
-	cargo build --release
+	cargo build --release --all-features
 	ls -lah target/release/rhiaqey-hub
 
 .PHONY: docker-build
