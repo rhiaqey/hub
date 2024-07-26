@@ -83,8 +83,8 @@ impl StreamingChannel {
         for StreamKey { key, ids } in reply.keys {
             for StreamId { id: _, map } in &ids {
                 if let Some(raw) = map.get("raw") {
-                    if let redis::Value::Data(ref data) = raw {
-                        if let Ok(entry) = serde_json::from_slice::<StreamMessage>(data) {
+                    if let redis::Value::SimpleString(ref data) = raw {
+                        if let Ok(entry) = serde_json::from_str::<StreamMessage>(data) {
                             trace!(
                                 "found entry key={}, timestamp={:?}",
                                 entry.key,
@@ -200,13 +200,13 @@ impl StreamingChannel {
                     .filter(|x| x.is_some())
                     .map(|x| x.unwrap())
                     .filter_map(|x| {
-                        return if let redis::Value::Data(ref data) = x {
+                        return if let redis::Value::SimpleString(ref data) = x {
                             Some(data)
                         } else {
                             None
                         };
                     })
-                    .filter_map(|x| serde_json::from_slice::<StreamMessage>(x).ok())
+                    .filter_map(|x| serde_json::from_str::<StreamMessage>(x).ok())
             })
             .flatten()
             .collect();

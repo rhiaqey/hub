@@ -81,14 +81,12 @@ impl MessageHandler {
         // Checking all results
         for entry in results.ids.iter() {
             if let Some(stored_tag) = entry.map.get("tag") {
-                if let redis::Value::Data(bytes) = stored_tag {
-                    if let Ok(old_tag) = String::from_utf8(bytes.clone()) {
-                        if new_tag == old_tag {
-                            trace!("tag \"{new_tag}\" already found stored");
-                            return Ok(MessageProcessResult::Deny(String::from(
-                                "tag already found",
-                            )));
-                        }
+                if let redis::Value::SimpleString(old_tag) = stored_tag {
+                    if new_tag.eq(old_tag) {
+                        trace!("tag \"{new_tag}\" already found stored");
+                        return Ok(MessageProcessResult::Deny(String::from(
+                            "tag already found",
+                        )));
                     }
                 }
             }
@@ -132,11 +130,10 @@ impl MessageHandler {
             return Ok(MessageProcessResult::AllowUnprocessed);
         };
 
-        let redis::Value::Data(bytes) = last_message else {
+        let redis::Value::SimpleString(msg) = last_message else {
             bail!("could not extract bytes from last message")
         };
 
-        let msg = String::from_utf8(bytes.clone())?;
         let decoded = StreamMessage::der_from_string(msg.as_str())?;
 
         // =========================================================================================
