@@ -86,7 +86,7 @@ impl StreamingChannel {
                     if let redis::Value::BulkString(data) = raw {
                         if let Ok(entry) = serde_json::from_slice::<StreamMessage>(data) {
                             trace!(
-                                "found entry key={}, timestamp={:?}",
+                                "found bulk string entry key={}, timestamp={:?}",
                                 entry.key,
                                 entry.timestamp
                             );
@@ -200,13 +200,13 @@ impl StreamingChannel {
                     .filter(|x| x.is_some())
                     .map(|x| x.unwrap())
                     .filter_map(|x| {
-                        return if let redis::Value::SimpleString(ref data) = x {
+                        return if let redis::Value::BulkString(data) = x {
                             Some(data)
                         } else {
                             None
                         };
                     })
-                    .filter_map(|x| serde_json::from_str::<StreamMessage>(x).ok())
+                    .filter_map(|x| serde_json::from_slice::<StreamMessage>(x.as_slice()).ok())
             })
             .flatten()
             .collect();

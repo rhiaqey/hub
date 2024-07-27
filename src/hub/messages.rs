@@ -81,22 +81,16 @@ impl MessageHandler {
         // Checking all results
         for entry in results.ids.iter() {
             if let Some(stored_tag) = entry.map.get("tag") {
-                if let redis::Value::BulkString(m) = stored_tag {
-                    trace!("tag is bulk string {:?}", m);
-                }
-
-                if let redis::Value::SimpleString(old_tag) = stored_tag {
-                    if new_tag.eq(old_tag) {
-                        trace!("tag \"{new_tag}\" already found stored");
-                        return Ok(MessageProcessResult::Deny(String::from(
-                            "tag already found",
-                        )));
+                if let redis::Value::BulkString(old_tag) = stored_tag {
+                    if let Ok(old_tag_str) = String::from_utf8(old_tag.clone()) {
+                        if new_tag.eq(&old_tag_str) {
+                            trace!("tag \"{new_tag}\" already found stored");
+                            return Ok(MessageProcessResult::Deny(String::from(
+                                "tag already found",
+                            )));
+                        }
                     }
-                } else {
-                    trace!("tag is not a simple string")
                 }
-            } else {
-                trace!("tag not found in stream entry");
             }
         }
 
@@ -138,11 +132,12 @@ impl MessageHandler {
             return Ok(MessageProcessResult::AllowUnprocessed);
         };
 
-        let redis::Value::SimpleString(msg) = last_message else {
+        let redis::Value::BulkString(msg) = last_message else {
             bail!("could not extract bytes from last message")
         };
 
-        let decoded = StreamMessage::der_from_string(msg.as_str())?;
+        let x = String::from_utf8(msg.clone())?;
+        let decoded = StreamMessage::der_from_string(x.as_str())?;
 
         // =========================================================================================
 
