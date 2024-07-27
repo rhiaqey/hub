@@ -85,6 +85,10 @@ impl StreamingChannel {
                 if let Some(raw) = map.get("raw") {
                     if let redis::Value::BulkString(m) = raw {
                         trace!("raw is bulk string {:?}", m);
+                        trace!(
+                            "raw json dump {:?}",
+                            serde_json::from_slice::<StreamMessage>(m.as_slice()).unwrap()
+                        );
                     }
 
                     if let redis::Value::SimpleString(ref data) = raw {
