@@ -81,6 +81,10 @@ impl MessageHandler {
         // Checking all results
         for entry in results.ids.iter() {
             if let Some(stored_tag) = entry.map.get("tag") {
+                if let redis::Value::BulkString(m) = stored_tag {
+                    trace!("tag is bulk string {:?}", m);
+                }
+
                 if let redis::Value::SimpleString(old_tag) = stored_tag {
                     if new_tag.eq(old_tag) {
                         trace!("tag \"{new_tag}\" already found stored");

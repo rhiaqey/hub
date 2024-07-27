@@ -83,6 +83,10 @@ impl StreamingChannel {
         for StreamKey { key, ids } in reply.keys {
             for StreamId { id: _, map } in &ids {
                 if let Some(raw) = map.get("raw") {
+                    if let redis::Value::BulkString(m) = raw {
+                        trace!("raw is bulk string {:?}", m);
+                    }
+
                     if let redis::Value::SimpleString(ref data) = raw {
                         if let Ok(entry) = serde_json::from_str::<StreamMessage>(data) {
                             trace!(
@@ -93,10 +97,10 @@ impl StreamingChannel {
                             entries.push(entry);
                         }
                     } else {
-                        trace!("tag is not a simple string")
+                        trace!("raw is not a simple string")
                     }
                 } else {
-                    trace!("tag not found in stream entry");
+                    trace!("raw not found in stream entry");
                 }
             }
 
