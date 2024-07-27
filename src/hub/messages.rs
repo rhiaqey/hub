@@ -88,7 +88,11 @@ impl MessageHandler {
                             "tag already found",
                         )));
                     }
+                } else {
+                    trace!("tag is not a simple string")
                 }
+            } else {
+                trace!("tag not found in stream entry");
             }
         }
 
