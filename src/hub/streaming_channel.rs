@@ -71,6 +71,7 @@ impl StreamingChannel {
 
         let options = StreamReadOptions::default()
             .count(channel.size)
+            .block(100)
             .group("hub", hub_id);
 
         let topic = topics::publishers_to_hub_stream_topic(namespace, &channel.name.to_string());
@@ -437,7 +438,6 @@ impl futures::stream::Stream for StreamingChannel {
             &self.namespace,
         )
         .unwrap_or(vec![]);
-        std::thread::sleep(Duration::from_millis(100));
         return Poll::Ready(Some(items));
     }
 }
