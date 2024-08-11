@@ -1,4 +1,4 @@
-use crate::hub::client::WebSocketClient;
+use crate::hub::websocket_client::WebSocketClient;
 #[cfg(not(debug_assertions))]
 use crate::hub::settings::HubSettings;
 use crate::hub::streaming_channel::StreamingChannel;
