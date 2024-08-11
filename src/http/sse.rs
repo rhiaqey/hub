@@ -129,7 +129,12 @@ pub async fn sse_handler(
     let user_id = params.user_id;
     trace!("user id: {:?}", user_id); 
 
-    let stream = handle_sse_client(ip, user_id, channels, snapshot_request, params.snapshot_size, state).await;
-
-    Sse::new(stream).keep_alive(KeepAlive::default())
+    Sse::new(handle_sse_client(
+        ip,
+        user_id,
+        channels,
+        snapshot_request,
+        params.snapshot_size,
+        state
+    ).await).keep_alive(KeepAlive::default())
 }

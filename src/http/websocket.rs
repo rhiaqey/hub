@@ -156,7 +156,7 @@ async fn send_snapshot_to_client(
                         client_message.publisher_id = None;
                     }
 
-                    let raw = rmp_serde::to_vec_named(&client_message).unwrap();
+                    let raw = client_message.ser_to_binary().unwrap();
                     if let Ok(_) = client.send(Message::Binary(raw)).await {
                         trace!(
                             "channel snapshot message[category={:?}] sent successfully to {}",
