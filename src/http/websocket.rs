@@ -133,8 +133,8 @@ async fn send_snapshot_to_client(
         trace!("processing snapshot for channel {}", channel.0);
 
         match channel.1 {
-            ChannelSnapshotResult::Messages(mut messages) => {
-                for client_message in messages.iter_mut() {
+            ChannelSnapshotResult::Messages(messages) => {
+                for client_message in messages.iter() {
                     let raw = client_message.ser_to_binary().unwrap();
                     if let Ok(_) = client.send(Message::Binary(raw)).await {
                         trace!(
