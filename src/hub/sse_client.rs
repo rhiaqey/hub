@@ -1,13 +1,13 @@
 use anyhow::bail;
 use rhiaqey_sdk_rs::channel::Channel;
 use std::sync::Arc;
-use tokio::sync::{mpsc::UnboundedSender, Mutex};
+use tokio::sync::Mutex;
 
 pub struct SSEClient {
     hub_id: String,
     client_id: String,
     user_id: Option<String>,
-    sender: Arc<Mutex<UnboundedSender<String>>>,
+    sender: Arc<Mutex<tokio::sync::broadcast::Sender<String>>>,
     pub channels: Vec<(Channel, Option<String>, Option<String>)>,
 }
 
@@ -16,16 +16,16 @@ impl SSEClient {
         hub_id: String,
         client_id: String,
         user_id: Option<String>,
-        sender: Arc<Mutex<UnboundedSender<String>>>,
+        sender: Arc<Mutex<tokio::sync::broadcast::Sender<String>>>,
         channels: Vec<(Channel, Option<String>, Option<String>)>,
-    ) -> Self {
-        Self {
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
             hub_id,
             client_id,
             user_id,
             sender,
             channels,
-        }
+        })
     }
 
     pub fn get_hub_id(&self) -> &String {

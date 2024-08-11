@@ -1,9 +1,9 @@
+use crate::http::common::{prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message};
 use crate::http::state::SharedState;
 use crate::hub::websocket_client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
-use anyhow::bail;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -12,16 +12,12 @@ use axum_extra::{headers, TypedHeader};
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use redis::Commands;
-use rhiaqey_common::client::{
-    ClientMessage, ClientMessageDataType, ClientMessageValue,
-    ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
-};
+use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::pubsub::{
     ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
 };
 use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
-use rhiaqey_sdk_rs::message::MessageValue;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -56,10 +52,10 @@ impl SnapshotParam {
 
 #[derive(Deserialize)]
 pub struct Params {
-    channels: String,
-    snapshot: Option<SnapshotParam>,
-    snapshot_size: Option<usize>,
-    user_id: Option<String>,
+    pub(crate) channels: String,
+    pub(crate) snapshot: Option<SnapshotParam>,
+    pub(crate) snapshot_size: Option<usize>,
+    pub(crate) user_id: Option<String>,
 }
 
 /// The handler for the HTTP request (this gets called when the HTTP GET lands at the start
@@ -132,114 +128,6 @@ async fn handle_ws_connection(
         )
         .await
     });
-}
-
-#[inline(always)]
-async fn prepare_channels(
-    client_id: &String,
-    channels: SimpleChannels,
-    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-) -> Vec<(Channel, Option<String>, Option<String>)> {
-    // With this, we will support channel names that can include categories seperated with a `/`
-    // Valid examples would be `ticks` but also `ticks/historical`.
-    // Any other format would be considered invalid and would be filtered out.
-    let channels: Vec<(String, Option<String>, Option<String>)> =
-        channels.get_channels_with_category_and_key();
-
-    let mut added_channels: Vec<(Channel, Option<String>, Option<String>)> = vec![];
-
-    {
-        for channel in channels.iter() {
-            let mut lock = streams.lock().await;
-            let streaming_channel = lock.get_mut(&channel.0);
-            if let Some(chx) = streaming_channel {
-                chx.add_client(client_id.clone());
-                added_channels.push((
-                    chx.get_channel().clone(),
-                    channel.1.clone(),
-                    channel.2.clone(),
-                ));
-                debug!("client joined channel {}", channel.0);
-            } else {
-                warn!("could not find channel {}", channel.0);
-            }
-        }
-    }
-
-    added_channels
-}
-
-#[inline(always)]
-fn prepare_client_connection_message(
-    client_id: &String,
-    hub_id: &String,
-) -> anyhow::Result<Vec<u8>> {
-    let mut client_message = ClientMessage {
-        data_type: ClientMessageDataType::ClientConnection as u8,
-        channel: String::from(""),
-        key: String::from(""),
-        value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
-            client_id: client_id.to_string(),
-            hub_id: hub_id.to_string(),
-        }),
-        tag: None,
-        category: None,
-        hub_id: None,
-        publisher_id: None,
-    };
-
-    if cfg!(debug_assertions) {
-        client_message.hub_id = Some(hub_id.clone());
-    }
-
-    match rmp_serde::to_vec_named(&client_message) {
-        Ok(data) => Ok(data),
-        Err(err) => bail!(err),
-    }
-}
-
-#[inline(always)]
-fn prepare_client_channel_subscription_messages(
-    hub_id: &String,
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-) -> anyhow::Result<Vec<Vec<u8>>> {
-    let mut result = vec![];
-
-    let mut client_message = ClientMessage {
-        data_type: ClientMessageDataType::ClientChannelSubscription as u8,
-        channel: "".to_string(),
-        key: "".to_string(),
-        value: ClientMessageValue::Data(MessageValue::Text(String::from(""))),
-        tag: None,
-        category: None,
-        hub_id: None,
-        publisher_id: None,
-    };
-
-    if cfg!(debug_assertions) {
-        client_message.hub_id = Some(hub_id.clone());
-    }
-
-    for channel in channels {
-        client_message.channel = channel.0.name.to_string();
-        client_message.key = channel.0.name.to_string();
-        client_message.category = channel.1.clone();
-        client_message.value = ClientMessageValue::ClientChannelSubscription(
-            ClientMessageValueClientChannelSubscription {
-                channel: Channel {
-                    name: channel.0.name.clone(),
-                    size: channel.0.size,
-                },
-            },
-        );
-
-        match rmp_serde::to_vec_named(&client_message) {
-            Ok(raw) => result.push(raw),
-            Err(err) => warn!("failed to serialize to vec: {err}"),
-        }
-    }
-
-    Ok(result)
 }
 
 #[inline(always)]
@@ -405,12 +293,15 @@ async fn handle_ws_client(
         user_id.clone(),
         sx.clone(),
         channels.clone(),
-    ).unwrap();
+    ).unwrap();    
 
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
-        Ok(message) => match client.send(Message::Binary(message)).await {
-            Ok(_) => debug!("client connection message sent successfully"),
-            Err(err) => warn!("failed to send client message: {}", err),
+        Ok(message) => match message.ser_to_binary() {
+            Ok(data) => match client.send(Message::Binary(data)).await {
+                Ok(_) => debug!("client connection message sent successfully"),
+                Err(err) => warn!("failed to send client message: {}", err),
+            },
+            Err(err) => warn!("failed to serialize connection message to binary: {}", err),
         },
         Err(err) => warn!("failed to prepare connection message: {}", err),
     }
@@ -418,9 +309,12 @@ async fn handle_ws_client(
     match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
         Ok(messages) => {
             for message in messages {
-                match client.send(Message::Binary(message)).await {
-                    Ok(_) => debug!("client channel subscription message sent successfully"),
-                    Err(err) => warn!("failed to send client message: {}", err),
+                match message.ser_to_binary() {
+                    Ok(data) => match client.send(Message::Binary(data)).await {
+                        Ok(_) => debug!("client channel subscription message sent successfully"),
+                        Err(err) => warn!("failed to send client message: {}", err),
+                    },
+                    Err(err) => warn!("failed to serialize client channel subscription message to binary: {}", err),
                 }
             }
         }
