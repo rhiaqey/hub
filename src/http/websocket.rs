@@ -1,7 +1,5 @@
 use crate::http::common::{
-    get_channel_snapshot_for_client, prepare_channels,
-    prepare_client_channel_subscription_messages, prepare_client_connection_message,
-    ChannelSnapshotResult,
+    get_channel_snapshot_for_client, notify_system_for_client_connect, notify_system_for_client_disconnect, prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message, ChannelSnapshotResult
 };
 use crate::http::state::SharedState;
 use crate::hub::metrics::TOTAL_CLIENTS;
@@ -171,64 +169,6 @@ async fn send_snapshot_to_client(
             }
         }
     }
-
-    Ok(())
-}
-
-#[inline(always)]
-fn notify_system_for_client_connect(
-    client_id: &String,
-    user_id: &Option<String>,
-    namespace: &str,
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-    redis: Arc<std::sync::Mutex<redis::Connection>>,
-) -> anyhow::Result<()> {
-    let raw = serde_json::to_vec(&RPCMessage {
-        data: RPCMessageData::ClientConnected(ClientConnectedMessage {
-            client_id: client_id.clone(),
-            user_id: user_id.clone(),
-            channels: channels.clone(),
-        }),
-    })?;
-
-    let event_topic = topics::events_pubsub_topic(namespace);
-
-    let _: () = redis
-        .lock()
-        .unwrap()
-        .publish(&event_topic, raw)
-        .expect("failed to publish message");
-
-    debug!("event sent for client connect to {}", &event_topic);
-
-    Ok(())
-}
-
-#[inline(always)]
-fn notify_system_for_client_disconnect(
-    client_id: &String,
-    user_id: &Option<String>,
-    namespace: &str,
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-    redis: Arc<std::sync::Mutex<redis::Connection>>,
-) -> anyhow::Result<()> {
-    let raw = serde_json::to_vec(&RPCMessage {
-        data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
-            client_id: client_id.clone(),
-            user_id: user_id.clone(),
-            channels: channels.clone(),
-        }),
-    })?;
-
-    let event_topic = topics::events_pubsub_topic(namespace);
-
-    let _: () = redis
-        .lock()
-        .unwrap()
-        .publish(&event_topic, raw)
-        .expect("failed to publish message");
-
-    debug!("event sent for client disconnect to {}", &event_topic);
 
     Ok(())
 }

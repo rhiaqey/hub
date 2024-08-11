@@ -1,5 +1,8 @@
 use log::{debug, warn};
+use redis::Commands;
 use rhiaqey_common::client::{ClientMessage, ClientMessageDataType, ClientMessageValue, ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection};
+use rhiaqey_common::pubsub::{ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData};
+use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde::Deserialize;
@@ -211,4 +214,62 @@ pub async fn get_channel_snapshot_for_client(
     }
 
     messages
+}
+
+#[inline(always)]
+pub fn notify_system_for_client_connect(
+    client_id: &String,
+    user_id: &Option<String>,
+    namespace: &str,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    redis: Arc<std::sync::Mutex<redis::Connection>>,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientConnected(ClientConnectedMessage {
+            client_id: client_id.clone(),
+            user_id: user_id.clone(),
+            channels: channels.clone(),
+        }),
+    })?;
+
+    let event_topic = topics::events_pubsub_topic(namespace);
+
+    let _: () = redis
+        .lock()
+        .unwrap()
+        .publish(&event_topic, raw)
+        .expect("failed to publish message");
+
+    debug!("event sent for client connect to {}", &event_topic);
+
+    Ok(())
+}
+
+#[inline(always)]
+pub fn notify_system_for_client_disconnect(
+    client_id: &String,
+    user_id: &Option<String>,
+    namespace: &str,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    redis: Arc<std::sync::Mutex<redis::Connection>>,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
+            client_id: client_id.clone(),
+            user_id: user_id.clone(),
+            channels: channels.clone(),
+        }),
+    })?;
+
+    let event_topic = topics::events_pubsub_topic(namespace);
+
+    let _: () = redis
+        .lock()
+        .unwrap()
+        .publish(&event_topic, raw)
+        .expect("failed to publish message");
+
+    debug!("event sent for client disconnect to {}", &event_topic);
+
+    Ok(())
 }

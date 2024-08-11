@@ -26,9 +26,7 @@ use tokio_stream::StreamExt as _;
 
 use crate::{
     http::common::{
-        get_channel_snapshot_for_client, prepare_channels,
-        prepare_client_channel_subscription_messages, prepare_client_connection_message,
-        ChannelSnapshotResult,
+        get_channel_snapshot_for_client, notify_system_for_client_connect, prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message, ChannelSnapshotResult
     },
     hub::{simple_channel::SimpleChannels, sse_client::SSEClient},
 };
@@ -146,6 +144,20 @@ async fn handle_sse_client(
                     }
                 }
             }
+        }
+
+        match notify_system_for_client_connect(
+            client.get_client_id(),
+            client.get_user_id(),
+            state.get_namespace(),
+            &channels,
+            state.redis_rs.clone(),
+        ) {
+            Ok(_) => debug!("system notified successfully for client connected event"),
+            Err(err) => warn!(
+                "failed to notify system for client connected event: {}",
+                err
+            ),
         }
 
         loop {
