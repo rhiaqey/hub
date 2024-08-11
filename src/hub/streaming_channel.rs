@@ -7,7 +7,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
 
-use crate::http::websocket::SnapshotParam;
+use crate::http::common::SnapshotParam;
 use crate::hub::sse_client::SSEClient;
 use crate::hub::websocket_client::WebSocketClient;
 use crate::hub::messages::MessageHandler;

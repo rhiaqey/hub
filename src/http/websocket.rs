@@ -24,31 +24,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum SnapshotParam {
-    ASC,
-    DESC,
-    TRUE,
-    FALSE,
-}
-
-impl Default for SnapshotParam {
-    fn default() -> Self {
-        Self::FALSE
-    }
-}
-
-impl SnapshotParam {
-    fn allowed(&self) -> bool {
-        match *self {
-            SnapshotParam::ASC => true,
-            SnapshotParam::DESC => true,
-            SnapshotParam::TRUE => true,
-            SnapshotParam::FALSE => false,
-        }
-    }
-}
+use crate::http::common::SnapshotParam;
 
 #[derive(Deserialize)]
 pub struct Params {
