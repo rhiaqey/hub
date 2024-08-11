@@ -14,6 +14,7 @@ use rhiaqey_sdk_rs::channel::ChannelList;
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tokio::sync::broadcast::{Receiver, Sender};
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
 
@@ -23,6 +24,8 @@ pub struct SharedState {
     pub security: Arc<RwLock<SecurityKey>>,
     #[cfg(not(debug_assertions))]
     pub settings: Arc<RwLock<HubSettings>>,
+    pub sse_sender: Arc<Mutex<Sender<String>>>,
+    pub sse_receiver: Arc<Mutex<Receiver<String>>>,
     pub sse_clients: Arc<Mutex<HashMap<String, SSEClient>>>,
     pub websocket_clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,

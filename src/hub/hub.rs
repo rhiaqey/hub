@@ -20,17 +20,19 @@ use rhiaqey_common::{security, topics};
 use rhiaqey_sdk_rs::channel::{Channel, ChannelList};
 use rhiaqey_sdk_rs::message::MessageValue;
 use sha256::digest;
+use tokio::sync::broadcast::{Receiver, Sender};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::signal;
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, Mutex};
 
-#[derive(Clone)]
 pub struct Hub {
     pub(crate) env: Arc<Env>,
     redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
     security: Arc<RwLock<SecurityKey>>,
     settings: Arc<RwLock<HubSettings>>,
+    sse_sender: Arc<Mutex<Sender<String>>>,
+    sse_receiver: Arc<Mutex<Receiver<String>>>,
     sse_clients: Arc<Mutex<HashMap<String, SSEClient>>>,
     websocket_clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub(crate) streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
@@ -193,11 +195,15 @@ impl Hub {
         let security = Self::load_key(&config, &mut redis_rs_connection)
             .context("failed to load security key")?;
 
+        let (tx, rx) = broadcast::channel::<String>(1);
+
         Ok(Self {
             env: Arc::from(config),
             settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis_rs: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
+            sse_sender: Arc::new(Mutex::new(tx)),
+            sse_receiver: Arc::new(Mutex::new(rx)),
             sse_clients: Arc::new(Mutex::new(HashMap::new())),
             websocket_clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(RwLock::new(security)),
@@ -211,6 +217,8 @@ impl Hub {
             settings: self.settings.clone(),
             streams: self.streams.clone(),
             redis_rs: self.redis_rs.clone(),
+            sse_sender: self.sse_sender.clone(),
+            sse_receiver: self.sse_receiver.clone(),
             sse_clients: self.sse_clients.clone(),
             websocket_clients: self.websocket_clients.clone(),
             security: self.security.clone(),
