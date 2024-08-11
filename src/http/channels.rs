@@ -1,7 +1,7 @@
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
-use crate::http::websockets::SnapshotParam;
+use crate::http::websocket::SnapshotParam;
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
 use anyhow::Context;
