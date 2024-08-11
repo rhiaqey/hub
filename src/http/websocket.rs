@@ -170,15 +170,31 @@ async fn send_snapshot_to_client(
                 }
             } else {
                 // send only the latest message
-                if let Some(raw) = chx.get_last_client_message(channel.1.clone()) {
-                    trace!("sending last channel message instead");
-                    if let Ok(_) = client.send(Message::Binary(raw)).await {
-                        trace!(
-                            "last channel message[category={:?}] sent successfully to {}",
-                            channel.1,
-                            &client_id
-                        );
-                    } else {
+
+                trace!("sending last channel message instead");
+                match chx.get_last_client_message(channel.1.clone()) {
+                    Some(message) => {
+                        trace!("last client message found: {:?}", message);
+                        match message.ser_to_binary() {
+                            Ok(raw) => {
+                                if let Ok(_) = client.send(Message::Binary(raw)).await {
+                                    trace!(
+                                        "last channel message[category={:?}] sent successfully to {}",
+                                        channel.1,
+                                        &client_id
+                                    );
+                                } else {
+                                    warn!("could not send last channel message to {}", &client_id);
+                                    continue;
+                                }
+                            },
+                            Err(err) => {
+                                warn!("failed to serialize to binary: {}", err);
+                                continue;
+                            }
+                        }
+                    },
+                    None => {
                         warn!("could not send last channel message to {}", &client_id);
                         continue;
                     }
