@@ -391,7 +391,7 @@ impl Hub {
         let streaming_channel = all_hub_streams.get_mut(message.channel.as_str());
 
         if let Some(s_channel) = streaming_channel {
-            s_channel.broadcast(message, self.websocket_clients.clone()).await
+            s_channel.broadcast_to_websocket_clients(message, self.websocket_clients.clone()).await
         } else {
             bail!(
                 "could not find a streaming channel by name: {}",

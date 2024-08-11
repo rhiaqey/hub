@@ -319,7 +319,7 @@ impl StreamingChannel {
         client.send(Message::Binary(message)).await
     }
 
-    pub async fn broadcast(
+    pub async fn broadcast_to_websocket_clients(
         &mut self,
         stream_message: StreamMessage,
         clients: Arc<tokio::sync::Mutex<HashMap<String, WebSocketClient>>>,
