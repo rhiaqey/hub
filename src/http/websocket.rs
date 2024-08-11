@@ -177,15 +177,16 @@ async fn send_snapshot_to_client(
 
 #[inline(always)]
 fn notify_system_for_client_connect(
-    client: &WebSocketClient,
+    client_id: &String,
+    user_id: &Option<String>,
     namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_vec(&RPCMessage {
         data: RPCMessageData::ClientConnected(ClientConnectedMessage {
-            client_id: client.get_client_id().clone(),
-            user_id: client.get_user_id().clone(),
+            client_id: client_id.clone(),
+            user_id: user_id.clone(),
             channels: channels.clone(),
         }),
     })?;
@@ -205,15 +206,16 @@ fn notify_system_for_client_connect(
 
 #[inline(always)]
 fn notify_system_for_client_disconnect(
-    client: &WebSocketClient,
+    client_id: &String,
+    user_id: &Option<String>,
     namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_vec(&RPCMessage {
         data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
-            client_id: client.get_client_id().clone(),
-            user_id: client.get_user_id().clone(),
+            client_id: client_id.clone(),
+            user_id: user_id.clone(),
             channels: channels.clone(),
         }),
     })?;
@@ -300,7 +302,8 @@ async fn handle_ws_client(
     }
 
     match notify_system_for_client_connect(
-        &mut client,
+        client.get_client_id(),
+        client.get_user_id(),
         state.get_namespace(),
         &channels,
         state.redis_rs.clone(),
@@ -361,9 +364,10 @@ async fn handle_ws_client(
         }
     }
 
-    if let Some(mut client) = state.websocket_clients.lock().await.remove(&cid) {
+    if let Some(client) = state.websocket_clients.lock().await.remove(&cid) {
         match notify_system_for_client_disconnect(
-            &mut client,
+            client.get_client_id(),
+            client.get_user_id(),
             state.get_namespace(),
             &channels,
             state.redis_rs.clone(),
