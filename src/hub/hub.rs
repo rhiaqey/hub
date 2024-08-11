@@ -30,7 +30,7 @@ pub struct Hub {
     redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
     security: Arc<RwLock<SecurityKey>>,
     settings: Arc<RwLock<HubSettings>>,
-    clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    websocket_clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub(crate) streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 
@@ -196,7 +196,7 @@ impl Hub {
             settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis_rs: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
-            clients: Arc::new(Mutex::new(HashMap::new())),
+            websocket_clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(RwLock::new(security)),
         })
     }
@@ -208,7 +208,7 @@ impl Hub {
             settings: self.settings.clone(),
             streams: self.streams.clone(),
             redis_rs: self.redis_rs.clone(),
-            clients: self.clients.clone(),
+            clients: self.websocket_clients.clone(),
             security: self.security.clone(),
         })
     }
@@ -391,7 +391,7 @@ impl Hub {
         let streaming_channel = all_hub_streams.get_mut(message.channel.as_str());
 
         if let Some(s_channel) = streaming_channel {
-            s_channel.broadcast(message, self.clients.clone()).await
+            s_channel.broadcast(message, self.websocket_clients.clone()).await
         } else {
             bail!(
                 "could not find a streaming channel by name: {}",
