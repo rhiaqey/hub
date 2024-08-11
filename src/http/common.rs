@@ -2,11 +2,38 @@ use log::{debug, warn};
 use rhiaqey_common::client::{ClientMessage, ClientMessageDataType, ClientMessageValue, ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection};
 use rhiaqey_sdk_rs::channel::Channel;
 use rhiaqey_sdk_rs::message::MessageValue;
+use serde::Deserialize;
 
 use crate::hub::{simple_channel::SimpleChannels, streaming_channel::StreamingChannel};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum SnapshotParam {
+    ASC,
+    DESC,
+    TRUE,
+    FALSE,
+}
+
+impl Default for SnapshotParam {
+    fn default() -> Self {
+        Self::FALSE
+    }
+}
+
+impl SnapshotParam {
+    pub fn allowed(&self) -> bool {
+        match *self {
+            SnapshotParam::ASC => true,
+            SnapshotParam::DESC => true,
+            SnapshotParam::TRUE => true,
+            SnapshotParam::FALSE => false,
+        }
+    }
+}
 
 #[inline(always)]
 pub async fn prepare_channels(

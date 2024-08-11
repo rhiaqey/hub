@@ -15,10 +15,11 @@ use tokio_stream::StreamExt as _ ;
 use futures_util::stream::{self};
 
 
-use crate::{http::common::prepare_channels, hub::{simple_channel::SimpleChannels, sse_client::SSEClient}};
+use crate::{http::common::{prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message}, hub::{simple_channel::SimpleChannels, sse_client::SSEClient}};
 
-use super::{state::SharedState, websocket::{Params, SnapshotParam}};
+use super::{common::SnapshotParam, state::SharedState, websocket::Params};
 
+/// Handle each client here
 async fn handle_sse_client(
     ip: String,
     user_id: Option<String>,
@@ -41,8 +42,8 @@ async fn handle_sse_client(
         user_id.clone(),
         sx.clone(),
         channels.clone(),
-    ).unwrap();
-    
+    ).unwrap();   
+
     struct Guard {
         // whatever state you need here
     }
@@ -53,15 +54,39 @@ async fn handle_sse_client(
         }
     }
 
-    let mut rx = state.sse_receiver.lock().await.resubscribe(); 
+    let mut rx = state.sse_receiver.lock().await.resubscribe();
 
-    let ping = async_stream::stream! {
+    let stream = async_stream::stream! {
         let _guard = Guard{};
+
+        match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
+            Ok(message) => match message.ser_to_string() {
+                Ok(data) => {
+                    yield Ok(Event::default().data(data));
+                },
+                Err(err) => warn!("failed to serialize connection message to binary: {}", err),
+            },
+            Err(err) => warn!("failed to prepare connection message: {}", err),
+        }
+
+        match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
+            Ok(messages) => {
+                for message in messages {
+                    match message.ser_to_string() {
+                        Ok(data) => {
+                            yield Ok(Event::default().data(data));
+                        },
+                        Err(err) => warn!("failed to serialize client channel subscription message to binary: {}", err),
+                    }
+                }
+            }
+            Err(err) => warn!("failed to prepare channel subscription messages: {}", err),
+        }
 
         loop {
             match rx.recv().await {
-                Ok(msg) => {
-                    yield Ok(Event::default().data(msg));
+                Ok(data) => {
+                    yield Ok(Event::default().data(data));
                 }
                 Err(err) => {
                     warn!("error received {:?}", err);
@@ -74,7 +99,7 @@ async fn handle_sse_client(
         // `_guard` is dropped
     };
 
-    ping
+    stream
 }
 
 pub async fn sse_handler(
