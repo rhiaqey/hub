@@ -1,8 +1,11 @@
 use crate::http::common::{
-    get_channel_snapshot_for_client, notify_system_for_client_connect, notify_system_for_client_disconnect, prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message, ChannelSnapshotResult
+    get_channel_snapshot_for_client, notify_system_for_client_connect,
+    notify_system_for_client_disconnect, prepare_channels,
+    prepare_client_channel_subscription_messages, prepare_client_connection_message,
+    ChannelSnapshotResult,
 };
 use crate::http::state::SharedState;
-use crate::hub::metrics::TOTAL_CLIENTS;
+use crate::hub::metrics::WS_TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
 use crate::hub::websocket_client::WebSocketClient;
@@ -11,13 +14,8 @@ use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
-use futures::{stream, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
-use redis::Commands;
-use rhiaqey_common::pubsub::{
-    ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
-};
-use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
 use serde::Deserialize;
@@ -262,7 +260,7 @@ async fn handle_ws_client(
         .await
         .insert(client_id.clone(), client);
     let total = state.websocket_clients.lock().await.len() as i64;
-    TOTAL_CLIENTS.set(total);
+    WS_TOTAL_CLIENTS.set(total);
 
     debug!("client {client_id} was connected");
     debug!("total connected clients: {}", total);
@@ -286,7 +284,7 @@ async fn handle_ws_client(
         }
     }
 
-    debug!("removing client connection");
+    debug!("removing websocket client connection");
 
     if let Some(client) = state.websocket_clients.lock().await.remove(&cid) {
         trace!("client was removed from all hub clients");
@@ -302,9 +300,7 @@ async fn handle_ws_client(
                 sc.remove_client(cid.clone());
             }
         }
-    }
 
-    if let Some(client) = state.websocket_clients.lock().await.remove(&cid) {
         match notify_system_for_client_disconnect(
             client.get_client_id(),
             client.get_user_id(),
@@ -321,6 +317,6 @@ async fn handle_ws_client(
     }
 
     let total_clients = state.websocket_clients.lock().await.len() as i64;
-    TOTAL_CLIENTS.set(total_clients);
-    debug!("total connected clients: {}", total_clients);
+    WS_TOTAL_CLIENTS.set(total_clients);
+    debug!("total websocket connected clients: {}", total_clients);
 }

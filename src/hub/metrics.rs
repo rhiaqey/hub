@@ -7,6 +7,11 @@ lazy_static! {
 }
 
 lazy_static! {
-    pub(crate) static ref TOTAL_CLIENTS: IntGauge =
-        register_int_gauge!("total_clients", "Total number of connected clients.").unwrap();
+    pub(crate) static ref WS_TOTAL_CLIENTS: IntGauge =
+        register_int_gauge!("ws_total_clients", "Total number of connected websocket clients.").unwrap();
+}
+
+lazy_static! {
+    pub(crate) static ref SSE_TOTAL_CLIENTS: IntGauge =
+        register_int_gauge!("sse_total_clients", "Total number of connected sse clients.").unwrap();
 }

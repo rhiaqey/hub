@@ -7,31 +7,78 @@ use axum::{
 };
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
-use futures::{pin_mut, Stream, TryStreamExt};
+use futures::Stream;
 use log::{debug, info, trace, warn};
+use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
-use std::{
-    convert::Infallible,
-    pin::{self, Pin},
-    sync::Arc,
-    time::Duration,
-};
-use tokio::sync::Mutex;
-// use tokio_stream::{wrappers::BroadcastStream, Stream, StreamExt};
-use async_stream::stream;
-use futures::future::join_all;
-use futures::stream::repeat_with;
-use futures_util::stream::{self};
-use tokio_stream::StreamExt as _;
+use std::{convert::Infallible, sync::Arc};
+use tokio::{sync::Mutex, task::yield_now};
 
 use crate::{
     http::common::{
-        get_channel_snapshot_for_client, notify_system_for_client_connect, prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message, ChannelSnapshotResult
+        get_channel_snapshot_for_client, notify_system_for_client_connect,
+        notify_system_for_client_disconnect, prepare_channels,
+        prepare_client_channel_subscription_messages, prepare_client_connection_message,
+        ChannelSnapshotResult,
     },
-    hub::{simple_channel::SimpleChannels, sse_client::SSEClient},
+    hub::{metrics::SSE_TOTAL_CLIENTS, simple_channel::SimpleChannels, sse_client::SSEClient},
 };
 
 use super::{common::SnapshotParam, state::SharedState, websocket::Params};
+
+struct Guard {
+    client_id: String,
+    state: Arc<SharedState>,
+    channels: Vec<(Channel, Option<String>, Option<String>)>,
+}
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        debug!("removing client connection");
+
+        let cid = self.client_id.clone();
+        let namespace = self.state.get_namespace().to_owned();
+        let streams = self.state.streams.clone();
+        let sse_clients = self.state.sse_clients.clone();
+        let redis_rs = self.state.redis_rs.clone();
+        let channels = self.channels.clone();
+
+        tokio::spawn(async move {
+            if let Some(client) = sse_clients.lock().await.remove(&cid) {
+                trace!("client was removed from all hub clients");
+
+                for channel in client.channels.iter() {
+                    trace!("removing client from {} channel as well", channel.0.name);
+                    if let Some(sc) = streams.lock().await.get_mut(&channel.0.name.to_string()) {
+                        sc.remove_client(cid.clone());
+                    }
+                }
+
+                match notify_system_for_client_disconnect(
+                    client.get_client_id(),
+                    client.get_user_id(),
+                    namespace.as_str(),
+                    &channels,
+                    redis_rs,
+                ) {
+                    Ok(_) => debug!("system notified successfully for client disconnected event"),
+                    Err(err) => warn!(
+                        "failed to notify system for client disconnected event: {}",
+                        err
+                    ),
+                }
+            }
+
+            let total = sse_clients.lock().await.len() as i64;
+            SSE_TOTAL_CLIENTS.set(total);
+
+            debug!("sse client {} was connected", &cid);
+            debug!("total sse connected clients: {}", total);
+
+            yield_now().await;
+        });
+    }
+}
 
 /// Handle each client here
 async fn handle_sse_client(
@@ -42,6 +89,8 @@ async fn handle_sse_client(
     snapshot_size: Option<usize>,
     state: Arc<SharedState>,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
+    info!("connection {ip} established");
+
     let client_id = generate_ulid_string();
     info!("handle ws client {}", &client_id);
 
@@ -50,7 +99,7 @@ async fn handle_sse_client(
 
     let sender = state.sse_sender.lock().await.clone();
     let sx = Arc::new(Mutex::new(sender));
-    let mut client = SSEClient::create(
+    let client = SSEClient::create(
         state.get_id().to_string(),
         client_id.clone(),
         user_id.clone(),
@@ -59,20 +108,14 @@ async fn handle_sse_client(
     )
     .unwrap();
 
-    struct Guard {
-        // whatever state you need here
-    }
-
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            warn!("stream closed");
-        }
-    }
-
     let mut rx = state.sse_receiver.lock().await.resubscribe();
 
     let stream = async_stream::stream! {
-        let _guard = Guard{};
+        let _guard = Guard{
+            client_id: client.get_client_id().clone(),
+            state: state.clone(),
+            channels: channels.clone(),
+        };
 
         match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
             Ok(message) => match message.ser_to_string() {
@@ -160,6 +203,17 @@ async fn handle_sse_client(
             ),
         }
 
+        state
+            .sse_clients
+            .lock()
+            .await
+            .insert(client_id.clone(), client);
+        let total = state.sse_clients.lock().await.len() as i64;
+        SSE_TOTAL_CLIENTS.set(total);
+
+        debug!("sse client {client_id} was connected");
+        debug!("total sse connected clients: {}", total);
+
         loop {
             match rx.recv().await {
                 Ok(data) => {
@@ -174,6 +228,7 @@ async fn handle_sse_client(
         }
 
         // `_guard` is dropped
+        // disconnect is moved to _guard
     };
 
     stream
