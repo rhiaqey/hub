@@ -1,3 +1,4 @@
+pub(crate) mod sse_client;
 pub(crate) mod websocket_client;
 pub(crate) mod exe;
 pub(crate) mod hub;

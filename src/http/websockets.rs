@@ -405,7 +405,7 @@ async fn handle_ws_client(
         user_id.clone(),
         sx.clone(),
         channels.clone(),
-    );
+    ).unwrap();
 
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
         Ok(message) => match client.send(Message::Binary(message)).await {
@@ -454,8 +454,8 @@ async fn handle_ws_client(
     }
 
     let cid = client.get_client_id().clone();
-    state.clients.lock().await.insert(client_id.clone(), client);
-    let total = state.clients.lock().await.len() as i64;
+    state.websocket_clients.lock().await.insert(client_id.clone(), client);
+    let total = state.websocket_clients.lock().await.len() as i64;
     TOTAL_CLIENTS.set(total);
 
     debug!("client {client_id} was connected");
@@ -482,7 +482,7 @@ async fn handle_ws_client(
 
     debug!("removing client connection");
 
-    if let Some(client) = state.clients.lock().await.remove(&cid) {
+    if let Some(client) = state.websocket_clients.lock().await.remove(&cid) {
         trace!("client was removed from all hub clients");
 
         for channel in client.channels.iter() {
@@ -498,7 +498,7 @@ async fn handle_ws_client(
         }
     }
 
-    if let Some(mut client) = state.clients.lock().await.remove(&cid) {
+    if let Some(mut client) = state.websocket_clients.lock().await.remove(&cid) {
         match notify_system_for_client_disconnect(
             &mut client,
             state.get_namespace(),
@@ -513,7 +513,7 @@ async fn handle_ws_client(
         }
     }
 
-    let total_clients = state.clients.lock().await.len() as i64;
+    let total_clients = state.websocket_clients.lock().await.len() as i64;
     TOTAL_CLIENTS.set(total_clients);
     debug!("total connected clients: {}", total_clients);
 }

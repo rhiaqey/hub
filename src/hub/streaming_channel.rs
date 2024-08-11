@@ -8,6 +8,7 @@ use std::task::Poll;
 use std::time::Duration;
 
 use crate::http::websockets::SnapshotParam;
+use crate::hub::sse_client::SSEClient;
 use crate::hub::websocket_client::WebSocketClient;
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
@@ -39,13 +40,13 @@ impl StreamingChannel {
         namespace: String,
         channel: Channel,
         config: RedisSettings,
-    ) -> anyhow::Result<StreamingChannel> {
+    ) -> anyhow::Result<Self> {
         let redis_rs_client = connect_and_ping(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let redis_ms_connection = redis_rs_client.get_connection()?;
         let rx = Arc::new(Mutex::new(redis_rs_connection));
 
-        Ok(StreamingChannel {
+        Ok(Self {
             hub_id: hub_id.clone(),
             channel: channel.clone(),
             namespace: namespace.clone(),
@@ -55,7 +56,7 @@ impl StreamingChannel {
                 channel.clone(),
                 namespace.clone(),
                 redis_ms_connection,
-            ))),
+            )?)),
             clients: Arc::new(RwLock::new(vec![])),
             last_message: Arc::new(RwLock::new(HashMap::new())),
         })
@@ -319,6 +320,31 @@ impl StreamingChannel {
         client.send(Message::Binary(message)).await
     }
 
+    pub async fn broadcast_to_sse_clients(
+        &mut self,
+        _stream_message: StreamMessage,
+        _clients: Arc<tokio::sync::Mutex<HashMap<String, SSEClient>>>,
+    ) -> anyhow::Result<()> {
+        let total_channel_clients = self.get_total_clients();
+
+        debug!(
+            "broadcasting message from channel {} to {} sse clients",
+            self.get_channel().name,
+            total_channel_clients
+        );
+
+        if total_channel_clients == 0 {
+            return Ok(());
+        }
+
+        let channel_name = &self.channel.name;
+        trace!("streaming channel found {}", channel_name);
+
+        // TODO
+
+        Ok(())
+    }
+
     pub async fn broadcast_to_websocket_clients(
         &mut self,
         stream_message: StreamMessage,
@@ -327,7 +353,7 @@ impl StreamingChannel {
         let total_channel_clients = self.get_total_clients();
 
         debug!(
-            "broadcasting message from channel {} to {} clients",
+            "broadcasting message from channel {} to {} websocket clients",
             self.get_channel().name,
             total_channel_clients
         );

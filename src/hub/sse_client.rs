@@ -1,35 +1,31 @@
-use axum::extract::ws::{Message, WebSocket};
-
 use anyhow::bail;
-use futures::stream::SplitSink;
-use futures::SinkExt;
 use rhiaqey_sdk_rs::channel::Channel;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc::UnboundedSender, Mutex};
 
-pub struct WebSocketClient {
+pub struct SSEClient {
     hub_id: String,
     client_id: String,
     user_id: Option<String>,
-    sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    sender: Arc<Mutex<UnboundedSender<String>>>,
     pub channels: Vec<(Channel, Option<String>, Option<String>)>,
 }
 
-impl WebSocketClient {
+impl SSEClient {
     pub fn create(
         hub_id: String,
         client_id: String,
         user_id: Option<String>,
-        sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+        sender: Arc<Mutex<UnboundedSender<String>>>,
         channels: Vec<(Channel, Option<String>, Option<String>)>,
-    ) -> anyhow::Result<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             hub_id,
             client_id,
             user_id,
             sender,
             channels,
-        })
+        }
     }
 
     pub fn get_hub_id(&self) -> &String {
@@ -44,8 +40,8 @@ impl WebSocketClient {
         &self.user_id
     }
 
-    pub async fn send(&mut self, message: Message) -> anyhow::Result<()> {
-        match self.sender.lock().await.send(message).await {
+    pub async fn send(&mut self, message: String) -> anyhow::Result<()> {
+        match self.sender.lock().await.send(message) {
             Ok(_) => Ok(()),
             Err(err) => bail!(err.to_string()),
         }

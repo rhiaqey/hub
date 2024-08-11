@@ -1,5 +1,6 @@
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
+use crate::hub::sse_client::SSEClient;
 use crate::hub::websocket_client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
@@ -30,6 +31,7 @@ pub struct Hub {
     redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
     security: Arc<RwLock<SecurityKey>>,
     settings: Arc<RwLock<HubSettings>>,
+    sse_clients: Arc<Mutex<HashMap<String, SSEClient>>>,
     websocket_clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub(crate) streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
@@ -181,7 +183,7 @@ impl Hub {
         Ok(security)
     }
 
-    pub fn create(config: Env) -> anyhow::Result<Hub> {
+    pub fn create(config: Env) -> anyhow::Result<Self> {
         let redis_rs_client = connect_and_ping(&config.redis)?;
 
         let mut redis_rs_connection = redis_rs_client
@@ -191,11 +193,12 @@ impl Hub {
         let security = Self::load_key(&config, &mut redis_rs_connection)
             .context("failed to load security key")?;
 
-        Ok(Hub {
+        Ok(Self {
             env: Arc::from(config),
             settings: Arc::from(RwLock::new(HubSettings::default())),
             streams: Arc::new(Mutex::new(HashMap::new())),
             redis_rs: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
+            sse_clients: Arc::new(Mutex::new(HashMap::new())),
             websocket_clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(RwLock::new(security)),
         })
@@ -208,7 +211,8 @@ impl Hub {
             settings: self.settings.clone(),
             streams: self.streams.clone(),
             redis_rs: self.redis_rs.clone(),
-            clients: self.websocket_clients.clone(),
+            sse_clients: self.sse_clients.clone(),
+            websocket_clients: self.websocket_clients.clone(),
             security: self.security.clone(),
         })
     }

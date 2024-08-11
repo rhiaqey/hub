@@ -1,3 +1,4 @@
+use crate::hub::sse_client::SSEClient;
 use crate::hub::websocket_client::WebSocketClient;
 #[cfg(not(debug_assertions))]
 use crate::hub::settings::HubSettings;
@@ -22,7 +23,8 @@ pub struct SharedState {
     pub security: Arc<RwLock<SecurityKey>>,
     #[cfg(not(debug_assertions))]
     pub settings: Arc<RwLock<HubSettings>>,
-    pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    pub sse_clients: Arc<Mutex<HashMap<String, SSEClient>>>,
+    pub websocket_clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 
