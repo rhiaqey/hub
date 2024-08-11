@@ -1,9 +1,12 @@
-use crate::http::common::{prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message};
+use crate::http::common::{
+    prepare_channels, prepare_client_channel_subscription_messages,
+    prepare_client_connection_message,
+};
 use crate::http::state::SharedState;
-use crate::hub::websocket_client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
+use crate::hub::websocket_client::WebSocketClient;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -106,6 +109,70 @@ async fn handle_ws_connection(
     });
 }
 
+pub enum ChannelSnapshotResult {
+    Messages(Vec<ClientMessage>),
+    LastMessage(ClientMessage),
+}
+
+#[inline(always)]
+async fn get_channel_snapshot_for_client(
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    snapshot_request: &SnapshotParam,
+    snapshot_size: Option<usize>,
+) -> HashMap<String, ChannelSnapshotResult> {
+    let mut lock = streams.lock().await;
+    let mut messages: HashMap<String, ChannelSnapshotResult> = HashMap::new();
+
+    for channel in channels.iter() {
+        let channel_name = channel.0.name.clone();
+        let streaming_channel = lock.get_mut(&*channel_name);
+        if let Some(chx) = streaming_channel {
+            if snapshot_request.allowed() {
+                let snapshot = chx
+                    .get_snapshot(
+                        snapshot_request,
+                        channel.1.clone(),
+                        channel.2.clone(),
+                        snapshot_size,
+                    )
+                    .unwrap_or(vec![]);
+
+                let mut all: Vec<ClientMessage> = vec![];
+
+                for stream_message in snapshot.iter() {
+                    // case where clients have specified a category for their channel
+                    if channel.1.is_some() {
+                        if !stream_message.category.eq(&channel.1) {
+                            warn!(
+                                "snapshot category {:?} does not match with specified {:?}",
+                                stream_message.category, channel.1
+                            );
+                            continue;
+                        }
+                    }
+
+                    all.push(ClientMessage::from(stream_message));
+                }
+
+                messages.insert(channel_name, ChannelSnapshotResult::Messages(all));
+            } else {
+                match chx.get_last_client_message(channel.1.clone()) {
+                    Some(message) => {
+                        messages.insert(channel_name, ChannelSnapshotResult::LastMessage(message));
+                    }
+                    None => {
+                        warn!("failed to fetch last client message from channel");
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    messages
+}
+
 #[inline(always)]
 async fn send_snapshot_to_client(
     client: &mut WebSocketClient,
@@ -187,13 +254,13 @@ async fn send_snapshot_to_client(
                                     warn!("could not send last channel message to {}", &client_id);
                                     continue;
                                 }
-                            },
+                            }
                             Err(err) => {
                                 warn!("failed to serialize to binary: {}", err);
                                 continue;
                             }
                         }
-                    },
+                    }
                     None => {
                         warn!("could not send last channel message to {}", &client_id);
                         continue;
@@ -285,7 +352,8 @@ async fn handle_ws_client(
         user_id.clone(),
         sx.clone(),
         channels.clone(),
-    ).unwrap();    
+    )
+    .unwrap();
 
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
         Ok(message) => match message.ser_to_binary() {
@@ -306,7 +374,10 @@ async fn handle_ws_client(
                         Ok(_) => debug!("client channel subscription message sent successfully"),
                         Err(err) => warn!("failed to send client message: {}", err),
                     },
-                    Err(err) => warn!("failed to serialize client channel subscription message to binary: {}", err),
+                    Err(err) => warn!(
+                        "failed to serialize client channel subscription message to binary: {}",
+                        err
+                    ),
                 }
             }
         }
@@ -340,7 +411,11 @@ async fn handle_ws_client(
     }
 
     let cid = client.get_client_id().clone();
-    state.websocket_clients.lock().await.insert(client_id.clone(), client);
+    state
+        .websocket_clients
+        .lock()
+        .await
+        .insert(client_id.clone(), client);
     let total = state.websocket_clients.lock().await.len() as i64;
     TOTAL_CLIENTS.set(total);
 
