@@ -137,3 +137,78 @@ pub fn prepare_client_channel_subscription_messages(
 
     Ok(result)
 }
+
+pub enum ChannelSnapshotResult {
+    Messages(Vec<ClientMessage>),
+    LastMessage(ClientMessage),
+}
+
+#[inline(always)]
+pub async fn get_channel_snapshot_for_client(
+    hub_id: &String,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    snapshot_request: &SnapshotParam,
+    snapshot_size: Option<usize>,
+) -> HashMap<String, ChannelSnapshotResult> {
+    let mut lock = streams.lock().await;
+    let mut messages: HashMap<String, ChannelSnapshotResult> = HashMap::new();
+
+    for channel in channels.iter() {
+        let channel_name = channel.0.name.clone();
+        let streaming_channel = lock.get_mut(&*channel_name);
+        if let Some(chx) = streaming_channel {
+            if snapshot_request.allowed() {
+                let snapshot = chx
+                    .get_snapshot(
+                        snapshot_request,
+                        channel.1.clone(),
+                        channel.2.clone(),
+                        snapshot_size,
+                    )
+                    .unwrap_or(vec![]);
+
+                let mut all: Vec<ClientMessage> = vec![];
+
+                for stream_message in snapshot.iter() {
+                    // case where clients have specified a category for their channel
+                    if channel.1.is_some() {
+                        if !stream_message.category.eq(&channel.1) {
+                            warn!(
+                                "snapshot category {:?} does not match with specified {:?}",
+                                stream_message.category, channel.1
+                            );
+                            continue;
+                        }
+                    }
+
+                    let mut client_message = ClientMessage::from(stream_message);
+                    if cfg!(debug_assertions) {
+                        if client_message.hub_id.is_none() {
+                            client_message.hub_id = Some(hub_id.to_string());
+                        }
+                    } else {
+                        client_message.hub_id = None;
+                        client_message.publisher_id = None;
+                    }
+
+                    all.push(ClientMessage::from(stream_message));
+                }
+
+                messages.insert(channel_name, ChannelSnapshotResult::Messages(all));
+            } else {
+                match chx.get_last_client_message(channel.1.clone()) {
+                    Some(message) => {
+                        messages.insert(channel_name, ChannelSnapshotResult::LastMessage(message));
+                    }
+                    None => {
+                        warn!("failed to fetch last client message from channel");
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    messages
+}

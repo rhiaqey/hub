@@ -1,6 +1,7 @@
 use crate::http::common::{
-    prepare_channels, prepare_client_channel_subscription_messages,
-    prepare_client_connection_message,
+    get_channel_snapshot_for_client, prepare_channels,
+    prepare_client_channel_subscription_messages, prepare_client_connection_message,
+    ChannelSnapshotResult,
 };
 use crate::http::state::SharedState;
 use crate::hub::metrics::TOTAL_CLIENTS;
@@ -12,10 +13,9 @@ use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
-use futures::{SinkExt, StreamExt};
+use futures::{stream, SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use redis::Commands;
-use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::pubsub::{
     ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
 };
@@ -109,70 +109,6 @@ async fn handle_ws_connection(
     });
 }
 
-pub enum ChannelSnapshotResult {
-    Messages(Vec<ClientMessage>),
-    LastMessage(ClientMessage),
-}
-
-#[inline(always)]
-async fn get_channel_snapshot_for_client(
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-    snapshot_request: &SnapshotParam,
-    snapshot_size: Option<usize>,
-) -> HashMap<String, ChannelSnapshotResult> {
-    let mut lock = streams.lock().await;
-    let mut messages: HashMap<String, ChannelSnapshotResult> = HashMap::new();
-
-    for channel in channels.iter() {
-        let channel_name = channel.0.name.clone();
-        let streaming_channel = lock.get_mut(&*channel_name);
-        if let Some(chx) = streaming_channel {
-            if snapshot_request.allowed() {
-                let snapshot = chx
-                    .get_snapshot(
-                        snapshot_request,
-                        channel.1.clone(),
-                        channel.2.clone(),
-                        snapshot_size,
-                    )
-                    .unwrap_or(vec![]);
-
-                let mut all: Vec<ClientMessage> = vec![];
-
-                for stream_message in snapshot.iter() {
-                    // case where clients have specified a category for their channel
-                    if channel.1.is_some() {
-                        if !stream_message.category.eq(&channel.1) {
-                            warn!(
-                                "snapshot category {:?} does not match with specified {:?}",
-                                stream_message.category, channel.1
-                            );
-                            continue;
-                        }
-                    }
-
-                    all.push(ClientMessage::from(stream_message));
-                }
-
-                messages.insert(channel_name, ChannelSnapshotResult::Messages(all));
-            } else {
-                match chx.get_last_client_message(channel.1.clone()) {
-                    Some(message) => {
-                        messages.insert(channel_name, ChannelSnapshotResult::LastMessage(message));
-                    }
-                    None => {
-                        warn!("failed to fetch last client message from channel");
-                        continue;
-                    }
-                }
-            }
-        }
-    }
-
-    messages
-}
-
 #[inline(always)]
 async fn send_snapshot_to_client(
     client: &mut WebSocketClient,
@@ -182,52 +118,28 @@ async fn send_snapshot_to_client(
     snapshot_size: Option<usize>,
 ) -> anyhow::Result<()> {
     let client_id = client.get_client_id().clone();
-    let mut lock = streams.lock().await;
 
-    for channel in channels.iter() {
-        let channel_name = channel.0.name.clone();
-        let streaming_channel = lock.get_mut(&*channel_name);
-        if let Some(chx) = streaming_channel {
-            if snapshot_request.allowed() {
-                // send snapshot
+    trace!("sending snapshot to client: {}", &client_id);
 
-                let snapshot = chx
-                    .get_snapshot(
-                        snapshot_request,
-                        channel.1.clone(),
-                        channel.2.clone(),
-                        snapshot_size,
-                    )
-                    .unwrap_or(vec![]);
+    for channel in get_channel_snapshot_for_client(
+        client.get_hub_id(),
+        channels,
+        streams,
+        snapshot_request,
+        snapshot_size,
+    )
+    .await
+    {
+        trace!("processing snapshot for channel {}", channel.0);
 
-                for stream_message in snapshot.iter() {
-                    // case where clients have specified a category for their channel
-                    if channel.1.is_some() {
-                        if !stream_message.category.eq(&channel.1) {
-                            warn!(
-                                "snapshot category {:?} does not match with specified {:?}",
-                                stream_message.category, channel.1
-                            );
-                            continue;
-                        }
-                    }
-
-                    let mut client_message = ClientMessage::from(stream_message);
-
-                    if cfg!(debug_assertions) {
-                        if client_message.hub_id.is_none() {
-                            client_message.hub_id = Some(client.get_hub_id().to_string());
-                        }
-                    } else {
-                        client_message.hub_id = None;
-                        client_message.publisher_id = None;
-                    }
-
+        match channel.1 {
+            ChannelSnapshotResult::Messages(mut messages) => {
+                for client_message in messages.iter_mut() {
                     let raw = client_message.ser_to_binary().unwrap();
                     if let Ok(_) = client.send(Message::Binary(raw)).await {
                         trace!(
                             "channel snapshot message[category={:?}] sent successfully to {}",
-                            channel.1,
+                            &channel.0,
                             &client_id
                         );
                     } else {
@@ -235,34 +147,24 @@ async fn send_snapshot_to_client(
                         continue;
                     }
                 }
-            } else {
-                // send only the latest message
-
-                trace!("sending last channel message instead");
-                match chx.get_last_client_message(channel.1.clone()) {
-                    Some(message) => {
-                        trace!("last client message found: {:?}", message);
-                        match message.ser_to_binary() {
-                            Ok(raw) => {
-                                if let Ok(_) = client.send(Message::Binary(raw)).await {
-                                    trace!(
-                                        "last channel message[category={:?}] sent successfully to {}",
-                                        channel.1,
-                                        &client_id
-                                    );
-                                } else {
-                                    warn!("could not send last channel message to {}", &client_id);
-                                    continue;
-                                }
-                            }
-                            Err(err) => {
-                                warn!("failed to serialize to binary: {}", err);
-                                continue;
-                            }
+            }
+            ChannelSnapshotResult::LastMessage(message) => {
+                trace!("last client message found: {:?}", message);
+                match message.ser_to_binary() {
+                    Ok(raw) => {
+                        if let Ok(_) = client.send(Message::Binary(raw)).await {
+                            trace!(
+                                "last channel message[category={:?}] sent successfully to {}",
+                                &channel.0,
+                                &client_id
+                            );
+                        } else {
+                            warn!("could not send last channel message to {}", &client_id);
+                            continue;
                         }
                     }
-                    None => {
-                        warn!("could not send last channel message to {}", &client_id);
+                    Err(err) => {
+                        warn!("failed to serialize to binary: {}", err);
                         continue;
                     }
                 }
