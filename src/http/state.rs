@@ -1,5 +1,3 @@
-use crate::hub::sse_client::SSEClient;
-use crate::hub::websocket_client::WebSocketClient;
 #[cfg(not(debug_assertions))]
 use crate::hub::settings::HubSettings;
 use crate::hub::streaming_channel::StreamingChannel;
@@ -17,6 +15,7 @@ use std::collections::HashMap;
 use tokio::sync::broadcast::{Receiver, Sender};
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
+use crate::http::common::ConnectedClient;
 
 pub struct SharedState {
     pub env: Arc<Env>,
@@ -26,8 +25,7 @@ pub struct SharedState {
     pub settings: Arc<RwLock<HubSettings>>,
     pub sse_sender: Arc<Mutex<Sender<String>>>,
     pub sse_receiver: Arc<Mutex<Receiver<String>>>,
-    pub sse_clients: Arc<Mutex<HashMap<String, SSEClient>>>,
-    pub websocket_clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    pub clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 

@@ -39,7 +39,7 @@ impl Drop for Guard {
         let cid = self.client_id.clone();
         let namespace = self.state.get_namespace().to_owned();
         let streams = self.state.streams.clone();
-        let sse_clients = self.state.sse_clients.clone();
+        let sse_clients = self.state.clients.clone();
         let redis_rs = self.state.redis_rs.clone();
         let channels = self.channels.clone();
 
@@ -47,7 +47,7 @@ impl Drop for Guard {
             if let Some(client) = sse_clients.lock().await.remove(&cid) {
                 trace!("client was removed from all hub clients");
 
-                for channel in client.channels.iter() {
+                for channel in client.get_channels().iter() {
                     trace!("removing client from {} channel as well", channel.0.name);
                     if let Some(sc) = streams.lock().await.get_mut(&channel.0.name.to_string()) {
                         sc.remove_client(cid.clone());
@@ -103,8 +103,8 @@ async fn handle_sse_client(
         state.get_id().to_string(),
         client_id.clone(),
         user_id.clone(),
-        sx.clone(),
         channels.clone(),
+        sx.clone(),
     )
     .unwrap();
 
@@ -112,12 +112,12 @@ async fn handle_sse_client(
 
     let stream = async_stream::stream! {
         let _guard = Guard{
-            client_id: client.get_client_id().clone(),
+            client_id: client.client_id.clone(),
             state: state.clone(),
             channels: channels.clone(),
         };
 
-        match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
+        match prepare_client_connection_message(&client.client_id, &client.hub_id) {
             Ok(message) => match message.ser_to_string() {
                 Ok(data) => {
                     yield Ok(Event::default().data(data));
@@ -127,7 +127,7 @@ async fn handle_sse_client(
             Err(err) => warn!("failed to prepare connection message: {}", err),
         }
 
-        match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
+        match prepare_client_channel_subscription_messages(&client.hub_id, &channels) {
             Ok(messages) => {
                 for message in messages {
                     match message.ser_to_string() {
@@ -142,7 +142,7 @@ async fn handle_sse_client(
         }
 
         for channel in get_channel_snapshot_for_client(
-            client.get_hub_id(),
+            &client.hub_id,
             &channels,
             state.streams.clone(),
             &snapshot_request,
@@ -190,8 +190,8 @@ async fn handle_sse_client(
         }
 
         match notify_system_for_client_connect(
-            client.get_client_id(),
-            client.get_user_id(),
+            &client.client_id,
+            &client.user_id,
             state.get_namespace(),
             &channels,
             state.redis_rs.clone(),
@@ -204,11 +204,11 @@ async fn handle_sse_client(
         }
 
         state
-            .sse_clients
+            .clients
             .lock()
             .await
-            .insert(client_id.clone(), client);
-        let total = state.sse_clients.lock().await.len() as i64;
+            .insert(client_id.clone(), crate::http::common::ConnectedClient::SSE(client));
+        let total = state.clients.lock().await.len() as i64;
         SSE_TOTAL_CLIENTS.set(total);
 
         debug!("sse client {client_id} was connected");

@@ -7,6 +7,8 @@ use rhiaqey_sdk_rs::channel::Channel;
 use rhiaqey_sdk_rs::message::MessageValue;
 use serde::Deserialize;
 
+use crate::hub::sse_client::SSEClient;
+use crate::hub::websocket_client::WebSocketClient;
 use crate::hub::{simple_channel::SimpleChannels, streaming_channel::StreamingChannel};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -272,4 +274,61 @@ pub fn notify_system_for_client_disconnect(
     debug!("event sent for client disconnect to {}", &event_topic);
 
     Ok(())
+}
+
+pub enum ConnectedClient {
+    WebSocket(WebSocketClient),
+    SSE(SSEClient),
+}
+
+impl ConnectedClient {
+    pub fn get_hub_id(&self) -> &String {
+        match self {
+            ConnectedClient::WebSocket(c) => &c.hub_id,
+            ConnectedClient::SSE(c) => &c.hub_id,
+        }
+    }
+
+    pub fn get_client_id(&self) -> &String {
+        match self {
+            ConnectedClient::WebSocket(c) => &c.client_id,
+            ConnectedClient::SSE(c) => &c.client_id,
+        }
+    }
+
+    pub fn get_user_id(&self) -> &Option<String> {
+        match self {
+            ConnectedClient::WebSocket(w) => &w.user_id,
+            ConnectedClient::SSE(c) => &c.user_id,
+        }
+    }
+
+    pub fn get_channels(&self) -> &Vec<(Channel, Option<String>, Option<String>)> {
+        match self {
+            ConnectedClient::WebSocket(w) => &w.channels,
+            ConnectedClient::SSE(s) => &s.channels,
+        }
+    }
+
+    pub fn get_category_for_channel(
+        &self,
+        name: &String,
+    ) -> Option<(&Option<String>, &Option<String>)> {
+        match self {
+            ConnectedClient::WebSocket(c) => c.channels.iter().find_map(|(channel, category, key)| {
+                if channel.get_name().eq(name) {
+                    Some((category, key))
+                } else {
+                    None
+                }
+            }),
+            ConnectedClient::SSE(c) => c.channels.iter().find_map(|(channel, category, key)| {
+                if channel.get_name().eq(name) {
+                    Some((category, key))
+                } else {
+                    None
+                }
+            }),
+        }
+    }
 }

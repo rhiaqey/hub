@@ -7,9 +7,7 @@ use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
 
-use crate::http::common::SnapshotParam;
-use crate::hub::sse_client::SSEClient;
-use crate::hub::websocket_client::WebSocketClient;
+use crate::http::common::{ConnectedClient, SnapshotParam};
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
 use redis::streams::StreamReadReply;
@@ -287,13 +285,13 @@ impl StreamingChannel {
     }
 
     #[inline(always)]
-    async fn send_message_to_websocket_client(
+    async fn send_message_to_client(
         &self,
-        client: &mut WebSocketClient,
+        client: &mut ConnectedClient,
         message_key: &String,
         message_category: &Option<String>,
         channel_name: &String,
-        message: Vec<u8>,
+        message: &ClientMessage,
     ) -> anyhow::Result<()> {
         if let Some((cat, client_channel_key)) = client.get_category_for_channel(&channel_name) {
             // NOTE:
@@ -317,43 +315,28 @@ impl StreamingChannel {
             }
         }
 
-        client.send(Message::Binary(message)).await
-    }
-
-    pub async fn broadcast_to_sse_clients(
-        &mut self,
-        _stream_message: StreamMessage,
-        _clients: Arc<tokio::sync::Mutex<HashMap<String, SSEClient>>>,
-    ) -> anyhow::Result<()> {
-        let total_channel_clients = self.get_total_clients();
-
-        debug!(
-            "broadcasting message from channel {} to {} sse clients",
-            self.get_channel().name,
-            total_channel_clients
-        );
-
-        if total_channel_clients == 0 {
-            return Ok(());
+        match client {
+            ConnectedClient::WebSocket(ref mut c) => {
+                let raw = message.ser_to_binary()?;
+                c.send(Message::Binary(raw)).await
+            },
+            ConnectedClient::SSE(ref mut s) => {
+                let raw = message.ser_to_string()?;
+                s.send(raw).await
+            }
         }
-
-        let channel_name = &self.channel.name;
-        trace!("streaming channel found {}", channel_name);
-
-        // TODO
-
-        Ok(())
     }
 
-    pub async fn broadcast_to_websocket_clients(
+    pub async fn broadcast_to_connected_clients(
         &mut self,
-        stream_message: StreamMessage,
-        clients: Arc<tokio::sync::Mutex<HashMap<String, WebSocketClient>>>,
+        client_message: &ClientMessage,
+        stream_message: &StreamMessage,
+        clients: Arc<tokio::sync::Mutex<HashMap<String, ConnectedClient>>>,
     ) -> anyhow::Result<()> {
-        let total_channel_clients = self.get_total_clients();
+        let total_channel_clients = clients.lock().await.len();
 
         debug!(
-            "broadcasting message from channel {} to {} websocket clients",
+            "broadcasting message from channel {} to {} connected clients",
             self.get_channel().name,
             total_channel_clients
         );
@@ -366,24 +349,6 @@ impl StreamingChannel {
         let category = stream_message.category.clone();
         let user_ids = stream_message.user_ids.clone();
         let client_ids = stream_message.client_ids.clone();
-
-        let mut client_message = ClientMessage::from(stream_message);
-
-        if cfg!(debug_assertions) {
-            if client_message.hub_id.is_none() {
-                client_message.hub_id = Some(self.get_hub_id());
-            }
-        } else {
-            client_message.hub_id = None;
-            client_message.publisher_id = None;
-        }
-
-        let raw = client_message.ser_to_binary()?;
-        self.set_last_client_message(client_message, category.clone());
-        trace!(
-            "last message cached in streaming channel[name={}]",
-            self.channel.name
-        );
 
         let all_stream_channel_clients = self.clients.read().unwrap();
         let mut all_hub_clients = clients.lock().await;
@@ -425,7 +390,13 @@ impl StreamingChannel {
                     );
 
                     match self
-                        .send_message_to_websocket_client(client, &key, &category, &self.channel.name, raw.clone())
+                        .send_message_to_client(
+                            client,
+                            &key,
+                            &category,
+                            &self.channel.name,
+                            &client_message,
+                        )
                         .await
                     {
                         Ok(_) => {

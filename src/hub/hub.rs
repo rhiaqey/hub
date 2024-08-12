@@ -1,7 +1,6 @@
+use crate::http::common::ConnectedClient;
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
-use crate::hub::sse_client::SSEClient;
-use crate::hub::websocket_client::WebSocketClient;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
@@ -11,6 +10,7 @@ use futures::stream::select_all;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
 use redis::Commands;
+use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::env::Env;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::redis_rs::connect_and_ping;
@@ -33,8 +33,7 @@ pub struct Hub {
     settings: Arc<RwLock<HubSettings>>,
     sse_sender: Arc<Mutex<Sender<String>>>,
     sse_receiver: Arc<Mutex<Receiver<String>>>,
-    sse_clients: Arc<Mutex<HashMap<String, SSEClient>>>,
-    websocket_clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
     pub(crate) streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 
@@ -204,8 +203,7 @@ impl Hub {
             redis_rs: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
             sse_sender: Arc::new(Mutex::new(tx)),
             sse_receiver: Arc::new(Mutex::new(rx)),
-            sse_clients: Arc::new(Mutex::new(HashMap::new())),
-            websocket_clients: Arc::new(Mutex::new(HashMap::new())),
+            clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(RwLock::new(security)),
         })
     }
@@ -219,8 +217,7 @@ impl Hub {
             redis_rs: self.redis_rs.clone(),
             sse_sender: self.sse_sender.clone(),
             sse_receiver: self.sse_receiver.clone(),
-            sse_clients: self.sse_clients.clone(),
-            websocket_clients: self.websocket_clients.clone(),
+            clients: self.clients.clone(),
             security: self.security.clone(),
         })
     }
@@ -326,7 +323,7 @@ impl Hub {
             }
             RPCMessageData::NotifyClients(stream_message) => {
                 debug!("received notify clients rpc");
-                self.notify_clients(stream_message)
+                self.notify_clients(&stream_message)
                     .await
                     .expect("failed to notify clients");
             }
@@ -398,18 +395,41 @@ impl Hub {
         Ok(())
     }
 
-    async fn notify_clients(&self, message: StreamMessage) -> anyhow::Result<()> {
+    async fn notify_clients(&self, stream_message: &StreamMessage) -> anyhow::Result<()> {
+        let channel_name = &stream_message.channel.to_string();
         let mut all_hub_streams = self.streams.lock().await;
-        let streaming_channel = all_hub_streams.get_mut(message.channel.as_str());
+        let streaming_channel = all_hub_streams.get_mut(stream_message.channel.as_str());
+
+        let mut client_message = ClientMessage::from(stream_message);
+
+        if cfg!(debug_assertions) {
+            if client_message.hub_id.is_none() {
+                client_message.hub_id = Some(self.get_id().to_string());
+            }
+        } else {
+            client_message.hub_id = None;
+            client_message.publisher_id = None;
+        }
 
         let Some(s_channel) = streaming_channel else {
             bail!(
                 "could not find a streaming channel by name: {}",
-                message.channel
+                &channel_name
             )
         };
 
-        s_channel.broadcast_to_websocket_clients(message, self.websocket_clients.clone()).await
+        s_channel.broadcast_to_connected_clients(&client_message, stream_message, self.clients.clone())
+            .await
+            .expect("failed to broadcast to connected clients");
+
+        s_channel.set_last_client_message(client_message, stream_message.category.clone());
+
+        trace!(
+            "last message cached in streaming channel[name={}]",
+            &channel_name
+        );
+
+        Ok(())
     }
 
     fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> anyhow::Result<()> {

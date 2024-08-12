@@ -2,7 +2,7 @@ use crate::http::common::{
     get_channel_snapshot_for_client, notify_system_for_client_connect,
     notify_system_for_client_disconnect, prepare_channels,
     prepare_client_channel_subscription_messages, prepare_client_connection_message,
-    ChannelSnapshotResult,
+    ChannelSnapshotResult, ConnectedClient,
 };
 use crate::http::state::SharedState;
 use crate::hub::metrics::WS_TOTAL_CLIENTS;
@@ -113,12 +113,12 @@ async fn send_snapshot_to_client(
     snapshot_request: &SnapshotParam,
     snapshot_size: Option<usize>,
 ) -> anyhow::Result<()> {
-    let client_id = client.get_client_id().clone();
+    let client_id = client.client_id.clone();
 
     trace!("sending snapshot to client: {}", &client_id);
 
     for channel in get_channel_snapshot_for_client(
-        client.get_hub_id(),
+        &client.hub_id,
         channels,
         streams,
         snapshot_request,
@@ -192,12 +192,12 @@ async fn handle_ws_client(
         state.get_id().to_string(),
         client_id.clone(),
         user_id.clone(),
-        sx.clone(),
         channels.clone(),
+        sx.clone(),
     )
     .unwrap();
 
-    match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
+    match prepare_client_connection_message(&client.client_id, &client.hub_id) {
         Ok(message) => match message.ser_to_binary() {
             Ok(data) => match client.send(Message::Binary(data)).await {
                 Ok(_) => debug!("client connection message sent successfully"),
@@ -208,7 +208,7 @@ async fn handle_ws_client(
         Err(err) => warn!("failed to prepare connection message: {}", err),
     }
 
-    match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
+    match prepare_client_channel_subscription_messages(&client.hub_id, &channels) {
         Ok(messages) => {
             for message in messages {
                 match message.ser_to_binary() {
@@ -240,8 +240,8 @@ async fn handle_ws_client(
     }
 
     match notify_system_for_client_connect(
-        client.get_client_id(),
-        client.get_user_id(),
+        &client.client_id,
+        &client.user_id,
         state.get_namespace(),
         &channels,
         state.redis_rs.clone(),
@@ -253,13 +253,13 @@ async fn handle_ws_client(
         ),
     }
 
-    let cid = client.get_client_id().clone();
+    let cid = client.client_id.clone();
     state
-        .websocket_clients
+        .clients
         .lock()
         .await
-        .insert(client_id.clone(), client);
-    let total = state.websocket_clients.lock().await.len() as i64;
+        .insert(client_id.clone(), ConnectedClient::WebSocket(client));
+    let total = state.clients.lock().await.len() as i64;
     WS_TOTAL_CLIENTS.set(total);
 
     debug!("client {client_id} was connected");
@@ -286,10 +286,10 @@ async fn handle_ws_client(
 
     debug!("removing websocket client connection");
 
-    if let Some(client) = state.websocket_clients.lock().await.remove(&cid) {
+    if let Some(client) = state.clients.lock().await.remove(&cid) {
         trace!("client was removed from all hub clients");
 
-        for channel in client.channels.iter() {
+        for channel in client.get_channels().iter() {
             trace!("removing client from {} channel as well", channel.0.name);
             if let Some(sc) = state
                 .streams
@@ -316,7 +316,7 @@ async fn handle_ws_client(
         }
     }
 
-    let total_clients = state.websocket_clients.lock().await.len() as i64;
+    let total_clients = state.clients.lock().await.len() as i64;
     WS_TOTAL_CLIENTS.set(total_clients);
     debug!("total websocket connected clients: {}", total_clients);
 }
