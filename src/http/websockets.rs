@@ -1,5 +1,5 @@
 use crate::http::state::SharedState;
-use crate::hub::client::WebSocketClient;
+use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;

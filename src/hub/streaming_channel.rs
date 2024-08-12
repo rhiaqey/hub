@@ -8,7 +8,7 @@ use std::task::Poll;
 use std::time::Duration;
 
 use crate::http::websockets::SnapshotParam;
-use crate::hub::client::WebSocketClient;
+use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::messages::MessageHandler;
 use log::{debug, trace, warn};
 use redis::streams::StreamReadReply;

@@ -1,6 +1,6 @@
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
-use crate::hub::client::WebSocketClient;
+use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
