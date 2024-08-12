@@ -362,9 +362,6 @@ impl StreamingChannel {
             return Ok(());
         }
 
-        let channel_name = &self.channel.name;
-        trace!("streaming channel found {}", channel_name);
-
         let key = stream_message.key.clone();
         let category = stream_message.category.clone();
         let user_ids = stream_message.user_ids.clone();
@@ -381,11 +378,11 @@ impl StreamingChannel {
             client_message.publisher_id = None;
         }
 
-        let raw = rmp_serde::to_vec_named(&client_message)?;
-        self.set_last_client_message(client_message.clone(), client_message.category);
+        let raw = client_message.ser_to_binary()?;
+        self.set_last_client_message(client_message, category.clone());
         trace!(
             "last message cached in streaming channel[name={}]",
-            channel_name
+            self.channel.name
         );
 
         let all_stream_channel_clients = self.clients.read().unwrap();
@@ -428,7 +425,7 @@ impl StreamingChannel {
                     );
 
                     match self
-                        .send_message_to_websocket_client(client, &key, &category, channel_name, raw.clone())
+                        .send_message_to_websocket_client(client, &key, &category, &self.channel.name, raw.clone())
                         .await
                     {
                         Ok(_) => {
