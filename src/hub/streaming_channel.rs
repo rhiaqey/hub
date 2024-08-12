@@ -287,7 +287,7 @@ impl StreamingChannel {
     }
 
     #[inline(always)]
-    async fn send_message_to_client(
+    async fn send_message_to_websocket_client(
         &self,
         client: &mut WebSocketClient,
         message_key: &String,
@@ -428,7 +428,7 @@ impl StreamingChannel {
                     );
 
                     match self
-                        .send_message_to_client(client, &key, &category, channel_name, raw.clone())
+                        .send_message_to_websocket_client(client, &key, &category, channel_name, raw.clone())
                         .await
                     {
                         Ok(_) => {

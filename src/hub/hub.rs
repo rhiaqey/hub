@@ -402,14 +402,14 @@ impl Hub {
         let mut all_hub_streams = self.streams.lock().await;
         let streaming_channel = all_hub_streams.get_mut(message.channel.as_str());
 
-        if let Some(s_channel) = streaming_channel {
-            s_channel.broadcast_to_websocket_clients(message, self.websocket_clients.clone()).await
-        } else {
+        let Some(s_channel) = streaming_channel else {
             bail!(
                 "could not find a streaming channel by name: {}",
                 message.channel
             )
-        }
+        };
+
+        s_channel.broadcast_to_websocket_clients(message, self.websocket_clients.clone()).await
     }
 
     fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> anyhow::Result<()> {
