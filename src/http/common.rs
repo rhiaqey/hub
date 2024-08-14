@@ -1,9 +1,16 @@
+use log::{debug, warn};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
     ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
 };
 use rhiaqey_sdk_rs::{channel::Channel, message::MessageValue};
 use serde::Deserialize;
+
+use crate::hub::{simple_channel::SimpleChannels, streaming_channel::StreamingChannel};
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -105,4 +112,39 @@ pub fn prepare_client_channel_subscription_messages(
     }
 
     Ok(result)
+}
+
+#[inline(always)]
+pub async fn prepare_channels(
+    client_id: &String,
+    channels: SimpleChannels,
+    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+) -> Vec<(Channel, Option<String>, Option<String>)> {
+    // With this, we will support channel names that can include categories separated with a `/`
+    // Valid examples would be `ticks` but also `ticks/historical`.
+    // Any other format would be considered invalid and would be filtered out.
+    let channels: Vec<(String, Option<String>, Option<String>)> =
+        channels.get_channels_with_category_and_key();
+
+    let mut added_channels: Vec<(Channel, Option<String>, Option<String>)> = vec![];
+
+    {
+        for channel in channels.iter() {
+            let mut lock = streams.lock().await;
+            let streaming_channel = lock.get_mut(&channel.0);
+            if let Some(chx) = streaming_channel {
+                chx.add_client(client_id.clone());
+                added_channels.push((
+                    chx.get_channel().clone(),
+                    channel.1.clone(),
+                    channel.2.clone(),
+                ));
+                debug!("client joined channel {}", channel.0);
+            } else {
+                warn!("could not find channel {}", channel.0);
+            }
+        }
+    }
+
+    added_channels
 }
