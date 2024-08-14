@@ -24,44 +24,11 @@ use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
 use rhiaqey_sdk_rs::message::MessageValue;
 use rusty_ulid::generate_ulid_string;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
-pub enum SnapshotParam {
-    ASC,
-    DESC,
-    TRUE,
-    FALSE,
-}
-
-impl Default for SnapshotParam {
-    fn default() -> Self {
-        Self::FALSE
-    }
-}
-
-impl SnapshotParam {
-    fn allowed(&self) -> bool {
-        match *self {
-            SnapshotParam::ASC => true,
-            SnapshotParam::DESC => true,
-            SnapshotParam::TRUE => true,
-            SnapshotParam::FALSE => false,
-        }
-    }
-}
-
-#[derive(Deserialize)]
-pub struct Params {
-    channels: String,
-    snapshot: Option<SnapshotParam>,
-    snapshot_size: Option<usize>,
-    user_id: Option<String>,
-}
+use super::common::{Params, SnapshotParam};
 
 /// The handler for the HTTP request (this gets called when the HTTP GET lands at the start
 /// of websocket negotiation). After this completes, the actual switching from HTTP to

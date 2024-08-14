@@ -1,7 +1,6 @@
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
-use crate::http::websockets::SnapshotParam;
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
 use anyhow::Context;
@@ -17,6 +16,8 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use super::common::SnapshotParam;
 
 pub async fn create_channels(
     payload: CreateChannelsRequest,

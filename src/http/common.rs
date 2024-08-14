@@ -1,6 +1,41 @@
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue, ClientMessageValueClientConnection,
 };
+use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum SnapshotParam {
+    ASC,
+    DESC,
+    TRUE,
+    FALSE,
+}
+
+impl Default for SnapshotParam {
+    fn default() -> Self {
+        Self::FALSE
+    }
+}
+
+impl SnapshotParam {
+    pub fn allowed(&self) -> bool {
+        match *self {
+            SnapshotParam::ASC => true,
+            SnapshotParam::DESC => true,
+            SnapshotParam::TRUE => true,
+            SnapshotParam::FALSE => false,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct Params {
+    pub channels: String,
+    pub snapshot: Option<SnapshotParam>,
+    pub snapshot_size: Option<usize>,
+    pub user_id: Option<String>,
+}
 
 #[inline(always)]
 pub fn prepare_client_connection_message(
