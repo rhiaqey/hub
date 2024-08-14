@@ -1,5 +1,8 @@
 use crate::hub;
 
 pub async fn run() -> anyhow::Result<()> {
-    hub::exe::run().await
+    let mut hub = hub::exe::create().await?;
+    println!("hub ready");
+
+    hub.start().await
 }

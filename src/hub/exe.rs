@@ -64,8 +64,3 @@ pub async fn create() -> anyhow::Result<Hub> {
 
     Ok(hub)
 }
-
-pub async fn run() -> anyhow::Result<()> {
-    let mut hub = create().await?;
-    hub.start().await
-}
