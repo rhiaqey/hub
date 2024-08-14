@@ -1,4 +1,6 @@
-use crate::http::common::prepare_client_connection_message;
+use crate::http::common::{
+    prepare_client_channel_subscription_messages, prepare_client_connection_message,
+};
 use crate::http::state::SharedState;
 use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::client::HubClient;
@@ -13,16 +15,12 @@ use axum_extra::{headers, TypedHeader};
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use redis::Commands;
-use rhiaqey_common::client::{
-    ClientMessage, ClientMessageDataType, ClientMessageValue,
-    ClientMessageValueClientChannelSubscription,
-};
+use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::pubsub::{
     ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
 };
 use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
-use rhiaqey_sdk_rs::message::MessageValue;
 use rusty_ulid::generate_ulid_string;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -135,50 +133,6 @@ async fn prepare_channels(
     }
 
     added_channels
-}
-
-#[inline(always)]
-fn prepare_client_channel_subscription_messages(
-    hub_id: &String,
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-) -> anyhow::Result<Vec<Vec<u8>>> {
-    let mut result = vec![];
-
-    let mut client_message = ClientMessage {
-        data_type: ClientMessageDataType::ClientChannelSubscription as u8,
-        channel: "".to_string(),
-        key: "".to_string(),
-        value: ClientMessageValue::Data(MessageValue::Text(String::from(""))),
-        tag: None,
-        category: None,
-        hub_id: None,
-        publisher_id: None,
-    };
-
-    if cfg!(debug_assertions) {
-        client_message.hub_id = Some(hub_id.clone());
-    }
-
-    for channel in channels {
-        client_message.channel = channel.0.name.to_string();
-        client_message.key = channel.0.name.to_string();
-        client_message.category = channel.1.clone();
-        client_message.value = ClientMessageValue::ClientChannelSubscription(
-            ClientMessageValueClientChannelSubscription {
-                channel: Channel {
-                    name: channel.0.name.clone(),
-                    size: channel.0.size,
-                },
-            },
-        );
-
-        match rmp_serde::to_vec_named(&client_message) {
-            Ok(raw) => result.push(raw),
-            Err(err) => warn!("failed to serialize to vec: {err}"),
-        }
-    }
-
-    Ok(result)
 }
 
 #[inline(always)]
@@ -363,9 +317,12 @@ async fn handle_ws_client(
     match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
         Ok(messages) => {
             for message in messages {
-                match client.send(message).await {
-                    Ok(_) => debug!("client channel subscription message sent successfully"),
-                    Err(err) => warn!("failed to send client message: {}", err),
+                match message.ser_to_msgpack() {
+                    Ok(raw) => match client.send(raw).await {
+                        Ok(_) => debug!("client channel subscription message sent successfully"),
+                        Err(err) => warn!("failed to send client message: {}", err),
+                    },
+                    Err(err) => warn!("failed to serialize to msgpack: {}", err),
                 }
             }
         }
