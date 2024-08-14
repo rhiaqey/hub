@@ -1,5 +1,6 @@
 use crate::http::common::{
-    notify_system_for_client_connect, notify_system_for_client_disconnect, prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message
+    notify_system_for_client_connect, notify_system_for_client_disconnect, prepare_channels,
+    prepare_client_channel_subscription_messages, prepare_client_connection_message,
 };
 use crate::http::state::SharedState;
 use crate::hub::client::websocket::WebSocketClient;
@@ -159,17 +160,25 @@ async fn send_snapshot_to_client(
                 }
             } else {
                 // send only the latest message
-                if let Some(raw) = chx.get_last_client_message(channel.1.clone()) {
+                if let Some(message) = chx.get_last_client_message(channel.1.clone()) {
                     trace!("sending last channel message instead");
-                    if let Ok(_) = client.send(raw).await {
-                        trace!(
-                            "last channel message[category={:?}] sent successfully to {}",
-                            channel.1,
-                            &client_id
-                        );
-                    } else {
-                        warn!("could not send last channel message to {}", &client_id);
-                        continue;
+                    match message.ser_to_msgpack() {
+                        Ok(raw) => {
+                            if let Ok(_) = client.send(raw).await {
+                                trace!(
+                                    "last channel message[category={:?}] sent successfully to {}",
+                                    channel.1,
+                                    &client_id
+                                );
+                            } else {
+                                warn!("could not send last channel message to {}", &client_id);
+                                continue;
+                            }
+                        }
+                        Err(err) => {
+                            warn!("failed to serialize to msgpack: {}", err);
+                            continue;
+                        }
                     }
                 }
             }

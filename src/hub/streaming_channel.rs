@@ -29,7 +29,7 @@ pub struct StreamingChannel {
     namespace: String,
     redis: Arc<Mutex<redis::Connection>>,
     message_handler: Arc<Mutex<MessageHandler>>,
-    last_message: Arc<RwLock<HashMap<String, Vec<u8>>>>,
+    last_message: Arc<RwLock<HashMap<String, ClientMessage>>>,
     pub clients: Arc<RwLock<Vec<String>>>,
 }
 
@@ -273,12 +273,12 @@ impl StreamingChannel {
         Ok(result)
     }
 
-    pub fn set_last_client_message(&self, message: Vec<u8>, category: Option<String>) {
+    pub fn set_last_client_message(&self, message: ClientMessage, category: Option<String>) {
         let mut msg = self.last_message.write().unwrap();
         msg.insert(category.unwrap_or(String::from("default")), message);
     }
 
-    pub fn get_last_client_message(&self, category: Option<String>) -> Option<Vec<u8>> {
+    pub fn get_last_client_message(&self, category: Option<String>) -> Option<ClientMessage> {
         let lock = self.last_message.clone();
         let raw = lock.read().unwrap();
         let result = raw.get(&category.unwrap_or(String::from("default")));
@@ -355,8 +355,8 @@ impl StreamingChannel {
             client_message.publisher_id = None;
         }
 
-        let raw = rmp_serde::to_vec_named(&client_message)?;
-        self.set_last_client_message(raw.clone(), client_message.category);
+        let raw = client_message.ser_to_msgpack()?;
+        self.set_last_client_message(client_message, category.clone());
         trace!(
             "last message cached in streaming channel[name={}]",
             channel_name
