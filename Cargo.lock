@@ -1688,7 +1688,7 @@ dependencies = [
 
 [[package]]
 name = "rhiaqey-hub"
-version = "0.1.249"
+version = "0.1.250"
 dependencies = [
  "anyhow",
  "axum",
