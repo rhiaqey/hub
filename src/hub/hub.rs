@@ -1,6 +1,6 @@
 use crate::http::server::{start_private_http_server, start_public_http_server};
 use crate::http::state::SharedState;
-use crate::hub::client::websocket::WebSocketClient;
+use crate::hub::client::HubClient;
 use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
@@ -30,7 +30,7 @@ pub struct Hub {
     redis_rs: Arc<std::sync::Mutex<redis::Connection>>,
     security: Arc<RwLock<SecurityKey>>,
     settings: Arc<RwLock<HubSettings>>,
-    clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    clients: Arc<Mutex<HashMap<String, HubClient>>>,
     pub(crate) streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 

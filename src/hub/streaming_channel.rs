@@ -1,5 +1,4 @@
 use anyhow::bail;
-use axum::extract::ws::Message;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
@@ -8,8 +7,9 @@ use std::task::Poll;
 use std::time::Duration;
 
 use crate::http::websockets::SnapshotParam;
-use crate::hub::client::websocket::WebSocketClient;
+use crate::hub::client::HubClient;
 use crate::hub::messages::MessageHandler;
+
 use log::{debug, trace, warn};
 use redis::streams::StreamReadReply;
 use redis::streams::{StreamId, StreamReadOptions};
@@ -288,7 +288,7 @@ impl StreamingChannel {
     #[inline(always)]
     async fn send_message_to_client(
         &self,
-        client: &mut WebSocketClient,
+        client: &mut HubClient,
         message_key: &String,
         message_category: &Option<String>,
         channel_name: &String,
@@ -316,13 +316,13 @@ impl StreamingChannel {
             }
         }
 
-        client.send(Message::Binary(message)).await
+        client.send(message).await
     }
 
     pub async fn broadcast(
         &mut self,
         stream_message: StreamMessage,
-        clients: Arc<tokio::sync::Mutex<HashMap<String, WebSocketClient>>>,
+        clients: Arc<tokio::sync::Mutex<HashMap<String, HubClient>>>,
     ) -> anyhow::Result<()> {
         let total_channel_clients = self.get_total_clients();
 

@@ -1,4 +1,4 @@
-use crate::hub::client::websocket::WebSocketClient;
+use crate::hub::client::HubClient;
 #[cfg(not(debug_assertions))]
 use crate::hub::settings::HubSettings;
 use crate::hub::streaming_channel::StreamingChannel;
@@ -22,7 +22,7 @@ pub struct SharedState {
     pub security: Arc<RwLock<SecurityKey>>,
     #[cfg(not(debug_assertions))]
     pub settings: Arc<RwLock<HubSettings>>,
-    pub clients: Arc<Mutex<HashMap<String, WebSocketClient>>>,
+    pub clients: Arc<Mutex<HashMap<String, HubClient>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 }
 

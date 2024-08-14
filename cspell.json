@@ -19,6 +19,7 @@
     "xack",
     "xrevrange",
     "xtrim",
+    "xtrimmed",
     "xstream",
     "xread",
     "xreadgroup",

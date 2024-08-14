@@ -1,5 +1,6 @@
 use crate::http::state::SharedState;
 use crate::hub::client::websocket::WebSocketClient;
+use crate::hub::client::HubClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
@@ -244,7 +245,7 @@ fn prepare_client_channel_subscription_messages(
 
 #[inline(always)]
 async fn send_snapshot_to_client(
-    client: &mut WebSocketClient,
+    client: &mut HubClient,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
     snapshot_request: &SnapshotParam,
@@ -293,7 +294,7 @@ async fn send_snapshot_to_client(
                     }
 
                     let raw = rmp_serde::to_vec_named(&client_message).unwrap();
-                    if let Ok(_) = client.send(Message::Binary(raw)).await {
+                    if let Ok(_) = client.send(raw).await {
                         trace!(
                             "channel snapshot message[category={:?}] sent successfully to {}",
                             channel.1,
@@ -308,7 +309,7 @@ async fn send_snapshot_to_client(
                 // send only the latest message
                 if let Some(raw) = chx.get_last_client_message(channel.1.clone()) {
                     trace!("sending last channel message instead");
-                    if let Ok(_) = client.send(Message::Binary(raw)).await {
+                    if let Ok(_) = client.send(raw).await {
                         trace!(
                             "last channel message[category={:?}] sent successfully to {}",
                             channel.1,
@@ -328,7 +329,7 @@ async fn send_snapshot_to_client(
 
 #[inline(always)]
 fn notify_system_for_client_connect(
-    client: &WebSocketClient,
+    client: &HubClient,
     namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
@@ -356,7 +357,7 @@ fn notify_system_for_client_connect(
 
 #[inline(always)]
 fn notify_system_for_client_disconnect(
-    client: &WebSocketClient,
+    client: &HubClient,
     namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
@@ -399,16 +400,16 @@ async fn handle_ws_client(
 
     let (sender, mut receiver) = socket.split();
     let sx = Arc::new(Mutex::new(sender));
-    let mut client = WebSocketClient::create(
+    let mut client = HubClient::WebSocket(WebSocketClient::create(
         state.get_id().to_string(),
         client_id.clone(),
         user_id.clone(),
         sx.clone(),
         channels.clone(),
-    ).unwrap();
+    ).unwrap());
 
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
-        Ok(message) => match client.send(Message::Binary(message)).await {
+        Ok(message) => match client.send(message).await {
             Ok(_) => debug!("client connection message sent successfully"),
             Err(err) => warn!("failed to send client message: {}", err),
         },
@@ -418,7 +419,7 @@ async fn handle_ws_client(
     match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
         Ok(messages) => {
             for message in messages {
-                match client.send(Message::Binary(message)).await {
+                match client.send(message).await {
                     Ok(_) => debug!("client channel subscription message sent successfully"),
                     Err(err) => warn!("failed to send client message: {}", err),
                 }
@@ -485,7 +486,7 @@ async fn handle_ws_client(
     if let Some(client) = state.clients.lock().await.remove(&cid) {
         trace!("client was removed from all hub clients");
 
-        for channel in client.channels.iter() {
+        for channel in client.get_channels().iter() {
             trace!("removing client from {} channel as well", channel.0.name);
             if let Some(sc) = state
                 .streams
