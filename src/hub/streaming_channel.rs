@@ -316,7 +316,7 @@ impl StreamingChannel {
             }
         }
 
-        client.send(message).await
+        client.send_raw(message).await
     }
 
     pub async fn broadcast(

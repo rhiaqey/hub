@@ -1,5 +1,6 @@
 use crate::http::common::{
-    notify_system_for_client_connect, notify_system_for_client_disconnect, prepare_channels,
+    get_channel_snapshot_for_client, notify_system_for_client_connect,
+    notify_system_for_client_disconnect, prepare_channels,
     prepare_client_channel_subscription_messages, prepare_client_connection_message,
 };
 use crate::http::state::SharedState;
@@ -7,7 +8,6 @@ use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::client::HubClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
-use crate::hub::streaming_channel::StreamingChannel;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -15,10 +15,7 @@ use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
-use rhiaqey_common::client::ClientMessage;
-use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -96,98 +93,6 @@ async fn handle_ws_connection(
     });
 }
 
-#[inline(always)]
-async fn send_snapshot_to_client(
-    client: &mut HubClient,
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-    streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
-    snapshot_request: &SnapshotParam,
-    snapshot_size: Option<usize>,
-) -> anyhow::Result<()> {
-    let client_id = client.get_client_id().clone();
-    let mut lock = streams.lock().await;
-
-    for channel in channels.iter() {
-        let channel_name = channel.0.name.clone();
-        let streaming_channel = lock.get_mut(&*channel_name);
-        if let Some(chx) = streaming_channel {
-            if snapshot_request.allowed() {
-                // send snapshot
-
-                let snapshot = chx
-                    .get_snapshot(
-                        snapshot_request,
-                        channel.1.clone(),
-                        channel.2.clone(),
-                        snapshot_size,
-                    )
-                    .unwrap_or(vec![]);
-
-                for stream_message in snapshot.iter() {
-                    // case where clients have specified a category for their channel
-                    if channel.1.is_some() {
-                        if !stream_message.category.eq(&channel.1) {
-                            warn!(
-                                "snapshot category {:?} does not match with specified {:?}",
-                                stream_message.category, channel.1
-                            );
-                            continue;
-                        }
-                    }
-
-                    let mut client_message = ClientMessage::from(stream_message);
-
-                    if cfg!(debug_assertions) {
-                        if client_message.hub_id.is_none() {
-                            client_message.hub_id = Some(client.get_hub_id().to_string());
-                        }
-                    } else {
-                        client_message.hub_id = None;
-                        client_message.publisher_id = None;
-                    }
-
-                    let raw = rmp_serde::to_vec_named(&client_message).unwrap();
-                    if let Ok(_) = client.send(raw).await {
-                        trace!(
-                            "channel snapshot message[category={:?}] sent successfully to {}",
-                            channel.1,
-                            &client_id
-                        );
-                    } else {
-                        warn!("could not send snapshot message to {}", &client_id);
-                        continue;
-                    }
-                }
-            } else {
-                // send only the latest message
-                if let Some(message) = chx.get_last_client_message(channel.1.clone()) {
-                    trace!("sending last channel message instead");
-                    match message.ser_to_msgpack() {
-                        Ok(raw) => {
-                            if let Ok(_) = client.send(raw).await {
-                                trace!(
-                                    "last channel message[category={:?}] sent successfully to {}",
-                                    channel.1,
-                                    &client_id
-                                );
-                            } else {
-                                warn!("could not send last channel message to {}", &client_id);
-                                continue;
-                            }
-                        }
-                        Err(err) => {
-                            warn!("failed to serialize to msgpack: {}", err);
-                            continue;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
 /// Handle each client here
 async fn handle_ws_client(
     socket: WebSocket,
@@ -218,7 +123,7 @@ async fn handle_ws_client(
 
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
         Ok(message) => match message.ser_to_msgpack() {
-            Ok(raw) => match client.send(raw).await {
+            Ok(raw) => match client.send_raw(raw).await {
                 Ok(_) => debug!("client connection message sent successfully"),
                 Err(err) => warn!("failed to send client message: {}", err),
             },
@@ -231,7 +136,7 @@ async fn handle_ws_client(
         Ok(messages) => {
             for message in messages {
                 match message.ser_to_msgpack() {
-                    Ok(raw) => match client.send(raw).await {
+                    Ok(raw) => match client.send_raw(raw).await {
                         Ok(_) => debug!("client channel subscription message sent successfully"),
                         Err(err) => warn!("failed to send client message: {}", err),
                     },
@@ -242,8 +147,8 @@ async fn handle_ws_client(
         Err(err) => warn!("failed to prepare channel subscription messages: {}", err),
     }
 
-    match send_snapshot_to_client(
-        &mut client,
+    for channel in get_channel_snapshot_for_client(
+        &client,
         &channels,
         state.streams.clone(),
         &snapshot_request,
@@ -251,8 +156,13 @@ async fn handle_ws_client(
     )
     .await
     {
-        Ok(_) => debug!("client channel subscription message sent successfully"),
-        Err(err) => warn!("failed to send channel snapshot to client: {}", err),
+        trace!("processing snapshot for channel {}", channel.0);
+        for client_message in channel.1.iter() {
+            match client.send_message(client_message).await {
+                Ok(_) => trace!("snapshot message send successfully"),
+                Err(err) => warn!("failed to send snapshot message: {}", err),
+            }
+        }
     }
 
     match notify_system_for_client_connect(

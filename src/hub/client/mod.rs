@@ -1,4 +1,5 @@
 use axum::extract::ws::Message;
+use rhiaqey_common::client::ClientMessage;
 use rhiaqey_sdk_rs::channel::Channel;
 use websocket::WebSocketClient;
 
@@ -27,9 +28,18 @@ impl HubClient {
         }
     }
 
-    pub async fn send(&mut self, data: Vec<u8>) -> anyhow::Result<()> {
+    pub async fn send_raw(&mut self, data: Vec<u8>) -> anyhow::Result<()> {
         match self {
             HubClient::WebSocket(c) => c.send(Message::Binary(data)).await,
+        }
+    }
+
+    pub async fn send_message(&mut self, data: &ClientMessage) -> anyhow::Result<()> {
+        match self {
+            HubClient::WebSocket(c) => {
+                let raw = data.ser_to_msgpack()?;
+                c.send(Message::Binary(raw)).await
+            }
         }
     }
 
