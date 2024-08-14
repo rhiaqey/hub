@@ -1,10 +1,10 @@
+use crate::http::common::prepare_client_connection_message;
 use crate::http::state::SharedState;
 use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::client::HubClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
-use anyhow::bail;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -15,7 +15,7 @@ use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::client::{
     ClientMessage, ClientMessageDataType, ClientMessageValue,
-    ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
+    ClientMessageValueClientChannelSubscription,
 };
 use rhiaqey_common::pubsub::{
     ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
@@ -168,35 +168,6 @@ async fn prepare_channels(
     }
 
     added_channels
-}
-
-#[inline(always)]
-fn prepare_client_connection_message(
-    client_id: &String,
-    hub_id: &String,
-) -> anyhow::Result<Vec<u8>> {
-    let mut client_message = ClientMessage {
-        data_type: ClientMessageDataType::ClientConnection as u8,
-        channel: String::from(""),
-        key: String::from(""),
-        value: ClientMessageValue::ClientConnection(ClientMessageValueClientConnection {
-            client_id: client_id.to_string(),
-            hub_id: hub_id.to_string(),
-        }),
-        tag: None,
-        category: None,
-        hub_id: None,
-        publisher_id: None,
-    };
-
-    if cfg!(debug_assertions) {
-        client_message.hub_id = Some(hub_id.clone());
-    }
-
-    match rmp_serde::to_vec_named(&client_message) {
-        Ok(data) => Ok(data),
-        Err(err) => bail!(err),
-    }
 }
 
 #[inline(always)]
@@ -400,18 +371,24 @@ async fn handle_ws_client(
 
     let (sender, mut receiver) = socket.split();
     let sx = Arc::new(Mutex::new(sender));
-    let mut client = HubClient::WebSocket(WebSocketClient::create(
-        state.get_id().to_string(),
-        client_id.clone(),
-        user_id.clone(),
-        sx.clone(),
-        channels.clone(),
-    ).unwrap());
+    let mut client = HubClient::WebSocket(
+        WebSocketClient::create(
+            state.get_id().to_string(),
+            client_id.clone(),
+            user_id.clone(),
+            sx.clone(),
+            channels.clone(),
+        )
+        .unwrap(),
+    );
 
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
-        Ok(message) => match client.send(message).await {
-            Ok(_) => debug!("client connection message sent successfully"),
-            Err(err) => warn!("failed to send client message: {}", err),
+        Ok(message) => match message.ser_to_msgpack() {
+            Ok(raw) => match client.send(raw).await {
+                Ok(_) => debug!("client connection message sent successfully"),
+                Err(err) => warn!("failed to send client message: {}", err),
+            },
+            Err(err) => warn!("failed to serialize to msgpack: {}", err),
         },
         Err(err) => warn!("failed to prepare connection message: {}", err),
     }

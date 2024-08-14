@@ -6,3 +6,4 @@ pub(crate) mod server;
 pub(crate) mod settings;
 pub(crate) mod state;
 pub(crate) mod websockets;
+mod common;
