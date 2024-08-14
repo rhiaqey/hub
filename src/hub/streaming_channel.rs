@@ -254,7 +254,6 @@ impl StreamingChannel {
         let mut client = lock.lock().unwrap();
 
         let result: i32 = client.del(keys).unwrap_or(0);
-
         Ok(result)
     }
 
@@ -269,7 +268,6 @@ impl StreamingChannel {
 
         let result: i32 = client.xtrim(topic, StreamMaxlen::Equals(0)).unwrap_or(0);
         debug!("trimmed {} entries", result);
-
         Ok(result)
     }
 
@@ -355,7 +353,8 @@ impl StreamingChannel {
             client_message.publisher_id = None;
         }
 
-        let raw = client_message.ser_to_msgpack()?;
+        let json_raw = client_message.ser_to_json()?;
+        let msgpack_raw = client_message.ser_to_msgpack()?;
         self.set_last_client_message(client_message, category.clone());
         trace!(
             "last message cached in streaming channel[name={}]",
@@ -401,10 +400,30 @@ impl StreamingChannel {
                         client.get_user_id()
                     );
 
-                    match self
-                        .send_message_to_client(client, &key, &category, channel_name, raw.clone())
-                        .await
-                    {
+                    let result = match client {
+                        HubClient::SSE(_) => {
+                            self.send_message_to_client(
+                                client,
+                                &key,
+                                &category,
+                                channel_name,
+                                json_raw.clone(),
+                            )
+                            .await
+                        }
+                        HubClient::WebSocket(_) => {
+                            self.send_message_to_client(
+                                client,
+                                &key,
+                                &category,
+                                channel_name,
+                                msgpack_raw.clone(),
+                            )
+                            .await
+                        }
+                    };
+
+                    match result {
                         Ok(_) => {
                             trace!("message sent successfully to client {client_id}");
                             total_sent_messages += 1;

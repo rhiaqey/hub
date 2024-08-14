@@ -158,15 +158,16 @@ pub async fn prepare_channels(
 
 #[inline(always)]
 pub fn notify_system_for_client_connect(
-    client: &HubClient,
+    client_id: &String,
+    user_id: &Option<String>,
     namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_vec(&RPCMessage {
         data: RPCMessageData::ClientConnected(ClientConnectedMessage {
-            client_id: client.get_client_id().clone(),
-            user_id: client.get_user_id().clone(),
+            client_id: client_id.clone(),
+            user_id: user_id.clone(),
             channels: channels.clone(),
         }),
     })?;
@@ -186,15 +187,16 @@ pub fn notify_system_for_client_connect(
 
 #[inline(always)]
 pub fn notify_system_for_client_disconnect(
-    client: &HubClient,
+    client_id: &String,
+    user_id: &Option<String>,
     namespace: &str,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
 ) -> anyhow::Result<()> {
     let raw = serde_json::to_vec(&RPCMessage {
         data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
-            client_id: client.get_client_id().clone(),
-            user_id: client.get_user_id().clone(),
+            client_id: client_id.clone(),
+            user_id: user_id.clone(),
             channels: channels.clone(),
         }),
     })?;

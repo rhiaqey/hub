@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 pub struct SharedState {
     pub env: Arc<Env>,
@@ -24,6 +25,9 @@ pub struct SharedState {
     pub settings: Arc<RwLock<HubSettings>>,
     pub clients: Arc<Mutex<HashMap<String, HubClient>>>,
     pub streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    // sse only
+    pub sse_sender: Arc<Mutex<Sender<String>>>,
+    pub sse_receiver: Arc<Mutex<Receiver<String>>>,
 }
 
 impl SharedState {

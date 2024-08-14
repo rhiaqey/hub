@@ -94,7 +94,7 @@ async fn handle_ws_connection(
     });
 }
 
-/// Handle each client here
+/// Handle each websocket client here
 async fn handle_ws_client(
     socket: WebSocket,
     user_id: Option<String>,
@@ -122,6 +122,8 @@ async fn handle_ws_client(
         .unwrap(),
     );
 
+    // 1. send client connect message
+
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
         Ok(message) => match message.ser_to_msgpack() {
             Ok(raw) => match client.send_raw(raw).await {
@@ -132,6 +134,8 @@ async fn handle_ws_client(
         },
         Err(err) => warn!("failed to prepare connection message: {}", err),
     }
+
+    // 2. send channel subscription
 
     match prepare_client_channel_subscription_messages(client.get_hub_id(), &channels) {
         Ok(messages) => {
@@ -147,6 +151,8 @@ async fn handle_ws_client(
         }
         Err(err) => warn!("failed to prepare channel subscription messages: {}", err),
     }
+
+    // 3. send snapshot
 
     for channel in get_channel_snapshot_for_client(
         &client,
@@ -166,8 +172,11 @@ async fn handle_ws_client(
         }
     }
 
+    // 4. notify for client connection
+
     match notify_system_for_client_connect(
-        &mut client,
+        client.get_client_id(),
+        client.get_user_id(),
         state.get_namespace(),
         &channels,
         state.redis_rs.clone(),
@@ -179,6 +188,8 @@ async fn handle_ws_client(
         ),
     }
 
+    // 5. store client
+
     let cid = client.get_client_id().clone();
     state.clients.lock().await.insert(client_id.clone(), client);
     debug!("client {client_id} was connected");
@@ -188,6 +199,8 @@ async fn handle_ws_client(
         TOTAL_CLIENTS.set(total);
         debug!("total connected clients: {}", total);
     }
+
+    // 6. listen for messages
 
     while let Some(Ok(msg)) = receiver.next().await {
         match msg {
@@ -208,10 +221,14 @@ async fn handle_ws_client(
         }
     }
 
+    // 7. disconnect client and remove
+
     debug!("removing client connection");
 
     if let Some(client) = state.clients.lock().await.remove(&cid) {
         trace!("client was removed from all hub clients");
+
+        // 7.1 remove from channels
 
         for channel in client.get_channels().iter() {
             trace!("removing client from {} channel as well", channel.0.name);
@@ -224,11 +241,12 @@ async fn handle_ws_client(
                 sc.remove_client(cid.clone());
             }
         }
-    }
 
-    if let Some(mut client) = state.clients.lock().await.remove(&cid) {
+        // 7.2 notify for client disconnect
+
         match notify_system_for_client_disconnect(
-            &mut client,
+            client.get_client_id(),
+            client.get_user_id(),
             state.get_namespace(),
             &channels,
             state.redis_rs.clone(),

@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::signal;
 use tokio::sync::Mutex;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 #[derive(Clone)]
 pub struct Hub {
@@ -32,6 +33,9 @@ pub struct Hub {
     settings: Arc<RwLock<HubSettings>>,
     clients: Arc<Mutex<HashMap<String, HubClient>>>,
     pub(crate) streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
+    // sse only
+    pub sse_sender: Arc<Mutex<Sender<String>>>,
+    pub sse_receiver: Arc<Mutex<Receiver<String>>>,
 }
 
 impl Hub {
@@ -191,6 +195,8 @@ impl Hub {
         let security = Self::load_key(&config, &mut redis_rs_connection)
             .context("failed to load security key")?;
 
+        let (tx, rx) = tokio::sync::broadcast::channel::<String>(1);
+
         Ok(Hub {
             env: Arc::from(config),
             settings: Arc::from(RwLock::new(HubSettings::default())),
@@ -198,6 +204,9 @@ impl Hub {
             redis_rs: Arc::new(std::sync::Mutex::new(redis_rs_connection)),
             clients: Arc::new(Mutex::new(HashMap::new())),
             security: Arc::new(RwLock::new(security)),
+            // sse only
+            sse_sender: Arc::new(Mutex::new(tx)),
+            sse_receiver: Arc::new(Mutex::new(rx)),
         })
     }
 
@@ -210,6 +219,9 @@ impl Hub {
             redis_rs: self.redis_rs.clone(),
             clients: self.clients.clone(),
             security: self.security.clone(),
+            // sse
+            sse_sender: self.sse_sender.clone(),
+            sse_receiver: self.sse_receiver.clone(),
         })
     }
 

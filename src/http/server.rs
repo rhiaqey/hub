@@ -8,6 +8,7 @@ use crate::http::client::get_users_handler;
 use crate::http::metrics::get_metrics_handler;
 use crate::http::settings::update_settings_handler;
 use crate::http::state::SharedState;
+use crate::http::sse::sse_handler;
 use crate::http::websocket::ws_handler;
 use axum::http::Method;
 use axum::routing::{delete, get, post, put};
@@ -98,6 +99,7 @@ pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>)
     let app = Router::new()
         .route("/", get(get_home_handler))
         .route("/ws", get(ws_handler))
+        .route("/sse", get(sse_handler))
         .route("/snapshot", get(get_snapshot_handler))
         .layer(cors)
         .with_state(shared_state);
