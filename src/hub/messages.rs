@@ -30,13 +30,13 @@ impl MessageHandler {
         channel: Channel,
         namespace: String,
         redis_rs_connection: redis::Connection,
-    ) -> Self {
-        MessageHandler {
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
             hub_id,
             channel,
             namespace,
             redis_rs: redis_rs_connection,
-        }
+        })
     }
 
     fn compare_by_tags(new_msg: &StreamMessage, old_msg: &StreamMessage) -> MessageProcessResult {

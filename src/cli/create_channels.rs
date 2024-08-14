@@ -23,7 +23,7 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
         let data = contents.unwrap();
         let list: ChannelList = serde_json::from_str(data.as_str())?;
 
-        let hub = hub::exe::create().await;
+        let hub = hub::exe::create().await?;
         println!("hub ready");
 
         let state = hub.create_shared_state();

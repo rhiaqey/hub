@@ -22,14 +22,14 @@ impl WebSocketClient {
         user_id: Option<String>,
         sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
         channels: Vec<(Channel, Option<String>, Option<String>)>,
-    ) -> WebSocketClient {
-        WebSocketClient {
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
             hub_id,
             client_id,
             user_id,
             sender,
             channels,
-        }
+        })
     }
 
     pub fn get_hub_id(&self) -> &String {

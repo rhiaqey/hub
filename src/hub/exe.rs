@@ -5,7 +5,7 @@ use log::{info, warn};
 use rhiaqey_common::env::parse_env;
 use std::env::consts::ARCH;
 
-pub async fn create() -> Hub {
+pub async fn create() -> anyhow::Result<Hub> {
     env_logger::init();
 
     let env = parse_env();
@@ -20,12 +20,7 @@ pub async fn create() -> Hub {
 
     let namespace = env.get_namespace().to_string();
 
-    let hub = match Hub::create(env) {
-        Ok(exec) => exec,
-        Err(err) => {
-            panic!("failed to create hub: {:?}", err);
-        }
-    };
+    let hub = Hub::create(env)?;
 
     info!(
         "hub [id={}, name={}] is ready",
@@ -67,10 +62,10 @@ pub async fn create() -> Hub {
     TOTAL_CHANNELS.set(total_channels as i64);
     TOTAL_CLIENTS.set(0i64);
 
-    hub
+    Ok(hub)
 }
 
 pub async fn run() -> anyhow::Result<()> {
-    let mut hub = create().await;
+    let mut hub = create().await?;
     hub.start().await
 }

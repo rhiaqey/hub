@@ -140,7 +140,7 @@ async fn prepare_channels(
     channels: SimpleChannels,
     streams: Arc<Mutex<HashMap<String, StreamingChannel>>>,
 ) -> Vec<(Channel, Option<String>, Option<String>)> {
-    // With this, we will support channel names that can include categories seperated with a `/`
+    // With this, we will support channel names that can include categories separated with a `/`
     // Valid examples would be `ticks` but also `ticks/historical`.
     // Any other format would be considered invalid and would be filtered out.
     let channels: Vec<(String, Option<String>, Option<String>)> =
@@ -405,7 +405,7 @@ async fn handle_ws_client(
         user_id.clone(),
         sx.clone(),
         channels.clone(),
-    );
+    ).unwrap();
 
     match prepare_client_connection_message(client.get_client_id(), client.get_hub_id()) {
         Ok(message) => match client.send(Message::Binary(message)).await {

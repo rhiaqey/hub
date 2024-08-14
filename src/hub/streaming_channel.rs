@@ -39,13 +39,13 @@ impl StreamingChannel {
         namespace: String,
         channel: Channel,
         config: RedisSettings,
-    ) -> anyhow::Result<StreamingChannel> {
+    ) -> anyhow::Result<Self> {
         let redis_rs_client = connect_and_ping(&config)?;
         let redis_rs_connection = redis_rs_client.get_connection()?;
         let redis_ms_connection = redis_rs_client.get_connection()?;
         let rx = Arc::new(Mutex::new(redis_rs_connection));
 
-        Ok(StreamingChannel {
+        Ok(Self {
             hub_id: hub_id.clone(),
             channel: channel.clone(),
             namespace: namespace.clone(),
@@ -55,7 +55,7 @@ impl StreamingChannel {
                 channel.clone(),
                 namespace.clone(),
                 redis_ms_connection,
-            ))),
+            )?)),
             clients: Arc::new(RwLock::new(vec![])),
             last_message: Arc::new(RwLock::new(HashMap::new())),
         })

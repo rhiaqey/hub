@@ -30,7 +30,7 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
 
         println!("name found: {}", name);
 
-        let hub = hub::exe::create().await;
+        let hub = hub::exe::create().await?;
         println!("hub ready");
 
         let state = hub.create_shared_state();

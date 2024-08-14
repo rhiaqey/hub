@@ -181,7 +181,7 @@ impl Hub {
         Ok(security)
     }
 
-    pub fn create(config: Env) -> anyhow::Result<Hub> {
+    pub fn create(config: Env) -> anyhow::Result<Self> {
         let redis_rs_client = connect_and_ping(&config.redis)?;
 
         let mut redis_rs_connection = redis_rs_client
