@@ -1,5 +1,5 @@
 use crate::http::common::{
-    prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message
+    notify_system_for_client_connect, notify_system_for_client_disconnect, prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message
 };
 use crate::http::state::SharedState;
 use crate::hub::client::websocket::WebSocketClient;
@@ -14,12 +14,7 @@ use axum_client_ip::InsecureClientIp;
 use axum_extra::{headers, TypedHeader};
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
-use redis::Commands;
 use rhiaqey_common::client::ClientMessage;
-use rhiaqey_common::pubsub::{
-    ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData,
-};
-use rhiaqey_common::topics;
 use rhiaqey_sdk_rs::channel::Channel;
 use rusty_ulid::generate_ulid_string;
 use std::collections::HashMap;
@@ -180,62 +175,6 @@ async fn send_snapshot_to_client(
             }
         }
     }
-
-    Ok(())
-}
-
-#[inline(always)]
-fn notify_system_for_client_connect(
-    client: &HubClient,
-    namespace: &str,
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-    redis: Arc<std::sync::Mutex<redis::Connection>>,
-) -> anyhow::Result<()> {
-    let raw = serde_json::to_vec(&RPCMessage {
-        data: RPCMessageData::ClientConnected(ClientConnectedMessage {
-            client_id: client.get_client_id().clone(),
-            user_id: client.get_user_id().clone(),
-            channels: channels.clone(),
-        }),
-    })?;
-
-    let event_topic = topics::events_pubsub_topic(namespace);
-
-    let _: () = redis
-        .lock()
-        .unwrap()
-        .publish(&event_topic, raw)
-        .expect("failed to publish message");
-
-    debug!("event sent for client connect to {}", &event_topic);
-
-    Ok(())
-}
-
-#[inline(always)]
-fn notify_system_for_client_disconnect(
-    client: &HubClient,
-    namespace: &str,
-    channels: &Vec<(Channel, Option<String>, Option<String>)>,
-    redis: Arc<std::sync::Mutex<redis::Connection>>,
-) -> anyhow::Result<()> {
-    let raw = serde_json::to_vec(&RPCMessage {
-        data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
-            client_id: client.get_client_id().clone(),
-            user_id: client.get_user_id().clone(),
-            channels: channels.clone(),
-        }),
-    })?;
-
-    let event_topic = topics::events_pubsub_topic(namespace);
-
-    let _: () = redis
-        .lock()
-        .unwrap()
-        .publish(&event_topic, raw)
-        .expect("failed to publish message");
-
-    debug!("event sent for client disconnect to {}", &event_topic);
 
     Ok(())
 }

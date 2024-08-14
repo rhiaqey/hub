@@ -1,16 +1,23 @@
 use log::{debug, warn};
+use redis::Commands;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use rhiaqey_common::client::{
-    ClientMessage, ClientMessageDataType, ClientMessageValue,
-    ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
+use rhiaqey_common::{
+    client::{
+        ClientMessage, ClientMessageDataType, ClientMessageValue,
+        ClientMessageValueClientChannelSubscription, ClientMessageValueClientConnection,
+    },
+    pubsub::{ClientConnectedMessage, ClientDisconnectedMessage, RPCMessage, RPCMessageData},
+    topics,
 };
 use rhiaqey_sdk_rs::{channel::Channel, message::MessageValue};
 use serde::Deserialize;
 
-use crate::hub::{simple_channel::SimpleChannels, streaming_channel::StreamingChannel};
+use crate::hub::{
+    client::HubClient, simple_channel::SimpleChannels, streaming_channel::StreamingChannel,
+};
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -147,4 +154,60 @@ pub async fn prepare_channels(
     }
 
     added_channels
+}
+
+#[inline(always)]
+pub fn notify_system_for_client_connect(
+    client: &HubClient,
+    namespace: &str,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    redis: Arc<std::sync::Mutex<redis::Connection>>,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientConnected(ClientConnectedMessage {
+            client_id: client.get_client_id().clone(),
+            user_id: client.get_user_id().clone(),
+            channels: channels.clone(),
+        }),
+    })?;
+
+    let event_topic = topics::events_pubsub_topic(namespace);
+
+    let _: () = redis
+        .lock()
+        .unwrap()
+        .publish(&event_topic, raw)
+        .expect("failed to publish message");
+
+    debug!("event sent for client connect to {}", &event_topic);
+
+    Ok(())
+}
+
+#[inline(always)]
+pub fn notify_system_for_client_disconnect(
+    client: &HubClient,
+    namespace: &str,
+    channels: &Vec<(Channel, Option<String>, Option<String>)>,
+    redis: Arc<std::sync::Mutex<redis::Connection>>,
+) -> anyhow::Result<()> {
+    let raw = serde_json::to_vec(&RPCMessage {
+        data: RPCMessageData::ClientDisconnected(ClientDisconnectedMessage {
+            client_id: client.get_client_id().clone(),
+            user_id: client.get_user_id().clone(),
+            channels: channels.clone(),
+        }),
+    })?;
+
+    let event_topic = topics::events_pubsub_topic(namespace);
+
+    let _: () = redis
+        .lock()
+        .unwrap()
+        .publish(&event_topic, raw)
+        .expect("failed to publish message");
+
+    debug!("event sent for client disconnect to {}", &event_topic);
+
+    Ok(())
 }
