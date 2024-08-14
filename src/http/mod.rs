@@ -5,5 +5,5 @@ pub(crate) mod metrics;
 pub(crate) mod server;
 pub(crate) mod settings;
 pub(crate) mod state;
-pub(crate) mod websockets;
+pub(crate) mod websocket;
 pub(crate) mod common;

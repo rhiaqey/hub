@@ -8,7 +8,7 @@ use crate::http::client::get_users_handler;
 use crate::http::metrics::get_metrics_handler;
 use crate::http::settings::update_settings_handler;
 use crate::http::state::SharedState;
-use crate::http::websockets::ws_handler;
+use crate::http::websocket::ws_handler;
 use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
