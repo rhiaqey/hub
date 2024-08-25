@@ -91,6 +91,7 @@ impl HubSettings {
                                     },
                                     "Hosts": {
                                         "type": "array",
+                                        "uniqueItems": true,
                                         "items": {
                                             "type": "string",
                                             "examples": [ "http://localhost:3333", "https://192.168.0.1:8080" ]
