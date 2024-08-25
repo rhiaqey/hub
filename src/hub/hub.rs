@@ -232,6 +232,9 @@ impl Hub {
         self.set_settings(settings);
         debug!("settings loaded");
 
+        self.update_hub_schema()?;
+        debug!("schema updated");
+
         let namespace = self.env.get_namespace();
         let private_port = self.get_private_port();
         let shared_state = self.create_shared_state();
@@ -412,20 +415,46 @@ impl Hub {
         }
     }
 
+    fn update_hub_schema(&self) -> anyhow::Result<()> {
+        trace!("updating hub schema");
+
+        let schema_key: String = topics::hub_schema_key(self.get_namespace());
+
+        let encoded = serde_json::to_string(&HubSettings::schema())?;
+        let lock = self.redis_rs.clone();
+        lock.lock()
+            .unwrap()
+            .set(schema_key, encoded)
+            .context("failed to store schema for hub")?;
+
+            debug!(
+                "hub schema updated for {}[id={}]",
+                self.get_name(),
+                self.get_id()
+            );
+
+        Ok(())
+    }
+
     fn update_publisher_schema(&self, data: PublisherRegistrationMessage) -> anyhow::Result<()> {
+        trace!("updating publisher schema");
+
         let schema_key: String =
             topics::publisher_schema_key(data.namespace.as_str(), data.name.as_str());
+
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
         lock.lock()
             .unwrap()
             .set(schema_key, encoded)
-            .context("failed to store schema")?;
+            .context("failed to store schema for publisher")?;
+
         debug!(
-            "schema updated for {}[id={}]",
+            "publisher schema updated for {}[id={}]",
             data.name.clone(),
             data.id.clone()
         );
+
         Ok(())
     }
 

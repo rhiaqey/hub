@@ -1,21 +1,28 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" />
     <style>
-        button, hr, input {
+        button,
+        hr,
+        input {
             overflow: visible
         }
 
-        progress, sub, sup {
+        progress,
+        sub,
+        sup {
             vertical-align: baseline
         }
 
-        [type=checkbox], [type=radio], legend {
+        [type=checkbox],
+        [type=radio],
+        legend {
             box-sizing: border-box;
             padding: 0
         }
@@ -29,7 +36,8 @@
             margin: 0
         }
 
-        details, main {
+        details,
+        main {
             display: block
         }
 
@@ -43,7 +51,10 @@
             height: 0
         }
 
-        code, kbd, pre, samp {
+        code,
+        kbd,
+        pre,
+        samp {
             font-family: monospace, monospace;
             font-size: 1em
         }
@@ -58,7 +69,8 @@
             t-decoration: underline dotted
         }
 
-        b, strong {
+        b,
+        strong {
             font-weight: bolder
         }
 
@@ -66,7 +78,8 @@
             font-size: 80%
         }
 
-        sub, sup {
+        sub,
+        sup {
             font-size: 75%;
             line-height: 0;
             position: relative
@@ -84,27 +97,41 @@
             border-style: none
         }
 
-        button, input, optgroup, select, textarea {
+        button,
+        input,
+        optgroup,
+        select,
+        textarea {
             font-family: inherit;
             font-size: 100%;
             line-height: 1.15;
             margin: 0
         }
 
-        button, select {
+        button,
+        select {
             text-transform: none
         }
 
-        [type=button], [type=reset], [type=submit], button {
+        [type=button],
+        [type=reset],
+        [type=submit],
+        button {
             -webkit-appearance: button
         }
 
-        [type=button]::-moz-focus-inner, [type=reset]::-moz-focus-inner, [type=submit]::-moz-focus-inner, button::-moz-focus-inner {
+        [type=button]::-moz-focus-inner,
+        [type=reset]::-moz-focus-inner,
+        [type=submit]::-moz-focus-inner,
+        button::-moz-focus-inner {
             border-style: none;
             padding: 0
         }
 
-        [type=button]:-moz-focusring, [type=reset]:-moz-focusring, [type=submit]:-moz-focusring, button:-moz-focusring {
+        [type=button]:-moz-focusring,
+        [type=reset]:-moz-focusring,
+        [type=submit]:-moz-focusring,
+        button:-moz-focusring {
             outline: ButtonText dotted 1px
         }
 
@@ -123,7 +150,8 @@
             overflow: auto
         }
 
-        [type=number]::-webkit-inner-spin-button, [type=number]::-webkit-outer-spin-button {
+        [type=number]::-webkit-inner-spin-button,
+        [type=number]::-webkit-outer-spin-button {
             height: auto
         }
 
@@ -145,19 +173,20 @@
             display: list-item
         }
 
-        [hidden], template {
+        [hidden],
+        template {
             display: none
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
-          integrity="sha512-uf06llspW44/LZpHzHT6qBOIVODjWtv4MxCricRxkzvopAlSWnTf6hpZTFxuuZcuNE9CBQhqE0Seu1CoRk84nQ=="
-          crossorigin="anonymous" referrerpolicy="no-referrer"/>
+        integrity="sha512-uf06llspW44/LZpHzHT6qBOIVODjWtv4MxCricRxkzvopAlSWnTf6hpZTFxuuZcuNE9CBQhqE0Seu1CoRk84nQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/theme/abbott.min.css"
-          integrity="sha512-wmVrx1zhiPOwFCxX7n1aR9vLlXCI3RI0RwizrDSf3/4vEliwboeXwF7HLPZW6k9R6WZt7KCh5fTArAYPyTZ5ag=="
-          crossorigin="anonymous" referrerpolicy="no-referrer"/>
+        integrity="sha512-wmVrx1zhiPOwFCxX7n1aR9vLlXCI3RI0RwizrDSf3/4vEliwboeXwF7HLPZW6k9R6WZt7KCh5fTArAYPyTZ5ag=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"
-            integrity="sha512-8RnEqURPUc5aqFEN04aQEiPlSAdE0jlFS/9iGgUyNtwFnSKCXhmB6ZTNl7LnDtDWKabJIASzXrzD0K+LYexU9g=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        integrity="sha512-8RnEqURPUc5aqFEN04aQEiPlSAdE0jlFS/9iGgUyNtwFnSKCXhmB6ZTNl7LnDtDWKabJIASzXrzD0K+LYexU9g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         body {
             background: rgb(249, 249, 249);
@@ -324,219 +353,221 @@
     </style>
     <title>Rhiaqey Admin</title>
 </head>
+
 <body>
-<header>
-    <div class="content">&nbsp;</div>
-</header>
-<main>
-    <div class="content">
-        <h2>Channels</h2>
-        <div class="metrics">
-            <div class="channels channels_bg_image">
-                <div class="channels_total">0 total channels</div>
-                <button onclick="create_new_channel()">Create new channel</button>
+    <header>
+        <div class="content">&nbsp;</div>
+    </header>
+    <main>
+        <div class="content">
+            <h2>Channels</h2>
+            <div class="metrics">
+                <div class="channels channels_bg_image">
+                    <div class="channels_total">0 total channels</div>
+                    <button onclick="create_new_channel()">Create new channel</button>
+                </div>
+                <div class="channel_list"></div>
             </div>
-            <div class="channel_list"></div>
-        </div>
-        <br/>
-        <hr/>
-        <br/>
-        <h2>Publishers</h2>
-        <div class="publisher_metrics">
-            <div class="publishers publishers_bg_image">
-                <div class="publishers_total">0 total publishers</div>
-                <button>[x]</button>
+            <br />
+            <hr />
+            <br />
+            <h2>Publishers</h2>
+            <div class="publisher_metrics">
+                <div class="publishers publishers_bg_image">
+                    <div class="publishers_total">0 total publishers</div>
+                    <button>[x]</button>
+                </div>
+                <div class="publisher_list"></div>
+                <br />
+                <label>
+                    <textarea class="publisher_code"></textarea>
+                </label>
+                <br />
+                <button class="update_settings_btn" onclick="update_publisher_settings()">Update settings</button>
             </div>
-            <div class="publisher_list"></div>
-            <br/>
-            <label>
-                <textarea class="publisher_code"></textarea>
-            </label>
-            <br/>
-            <button class="update_settings_btn" onclick="update_publisher_settings()">Update settings</button>
+            <br />
+            <hr />
+            <br />
+            <h2>Hub</h2>
+            <div class="hub_metrics">
+                <div class="hub_info"></div>
+                <br />
+                <label>
+                    <textarea class="hub_code"></textarea>
+                </label>
+                <br />
+                <button class="update_hub_settings_btn" onclick="update_publisher_settings()">Update hub
+                    settings</button>
+            </div>
         </div>
-        <br/>
-        <hr/>
-        <br/>
-        <h2>Hub</h2>
-        <div class="hub_metrics">
-            <div class="hub_info"></div>
-            <br/>
-            <label>
-                <textarea class="hub_code"></textarea>
-            </label>
-            <br/>
-            <button class="update_hub_settings_btn" onclick="update_publisher_settings()">Update hub settings</button>
-        </div>
-    </div>
-</main>
-<footer>
-    <div class="content">&nbsp;</div>
-</footer>
-<script>
-    let hub_info = null;
-    let users_map = {};
-    let channel_list = [];
-    let publisher_list = [];
-    let channel_assignments = new Map();
-    const temp_api_prefix = "";
+    </main>
+    <footer>
+        <div class="content">&nbsp;</div>
+    </footer>
+    <script>
+        let hub_info = null;
+        let users_map = {};
+        let channel_list = [];
+        let publisher_list = [];
+        let channel_assignments = new Map();
+        const temp_api_prefix = "";
 
-    const editor = CodeMirror.fromTextArea(document.getElementsByClassName('publisher_code').item(0), {
-        value: '',
-        mode: 'json',
-        theme: 'abbott',
-        styleActiveLine: true,
-        matchBrackets: true,
-        lineNumbers: true
-    });
-
-    const hub_editor = CodeMirror.fromTextArea(document.getElementsByClassName('hub_code').item(0), {
-        value: '',
-        mode: 'json',
-        theme: 'abbott',
-        styleActiveLine: true,
-        matchBrackets: true,
-        lineNumbers: true
-    });
-
-    function fetch_hub() {
-        return fetch(`${temp_api_prefix}/admin/api/hub`).then(result => result.json()).then(info => {
-            hub_info = info;
-            render_hub();
-        }).catch((err) => {
-            console.warn(err);
+        const editor = CodeMirror.fromTextArea(document.getElementsByClassName('publisher_code').item(0), {
+            value: '',
+            mode: 'json',
+            theme: 'abbott',
+            styleActiveLine: true,
+            matchBrackets: true,
+            lineNumbers: true
         });
-    }
 
-    function sum(arr) {
-        let result = 0, n = arr.length || 0; //may use >>> 0 to ensure length is Uint32
-        while (n--) {
-            result += +arr[n]; // unary operator to ensure ToNumber conversion
+        const hub_editor = CodeMirror.fromTextArea(document.getElementsByClassName('hub_code').item(0), {
+            value: '',
+            mode: 'json',
+            theme: 'abbott',
+            styleActiveLine: true,
+            matchBrackets: true,
+            lineNumbers: true
+        });
+
+        function fetch_hub() {
+            return fetch(`${temp_api_prefix}/admin/api/hub`).then(result => result.json()).then(info => {
+                hub_info = info;
+                render_hub();
+            }).catch((err) => {
+                console.warn(err);
+            });
         }
-        return result;
-    }
 
-    function fetch_channels() {
-        return fetch(`${temp_api_prefix}/admin/api/channels`).then(result => result.json()).then(channels => {
-            channel_list = [].concat(channels?.Channels);
-            render_channel_count();
-            render_channel_list();
-        }).catch((err) => {
-            console.warn(err);
-        });
-    }
+        function sum(arr) {
+            let result = 0, n = arr.length || 0; //may use >>> 0 to ensure length is Uint32
+            while (n--) {
+                result += +arr[n]; // unary operator to ensure ToNumber conversion
+            }
+            return result;
+        }
 
-    function fetch_publishers() {
-        return fetch(`${temp_api_prefix}/admin/api/publishers`).then(result => result.json()).then(publishers => {
-            publisher_list = [].concat(publishers);
-            render_publisher_count();
-            render_publisher_list();
-        }).catch((err) => {
-            console.warn(err);
-        });
-    }
+        function fetch_channels() {
+            return fetch(`${temp_api_prefix}/admin/api/channels`).then(result => result.json()).then(channels => {
+                channel_list = [].concat(channels?.Channels);
+                render_channel_count();
+                render_channel_list();
+            }).catch((err) => {
+                console.warn(err);
+            });
+        }
 
-    function fetch_channel_assignments() {
-        return fetch(`${temp_api_prefix}/admin/api/channels/assign`).then(result => result.json()).then(assigns => {
-            channel_assignments = new Map();
-            [].concat(assigns).forEach(assign => {
-                [].concat(assign.Channels).forEach(channel => {
-                    if (channel_assignments.has(channel)) {
-                        channel_assignments.get(channel).add(assign.Name)
-                    } else {
-                        channel_assignments.set(channel, new Set([assign.Name]));
-                    }
+        function fetch_publishers() {
+            return fetch(`${temp_api_prefix}/admin/api/publishers`).then(result => result.json()).then(publishers => {
+                publisher_list = [].concat(publishers);
+                render_publisher_count();
+                render_publisher_list();
+            }).catch((err) => {
+                console.warn(err);
+            });
+        }
+
+        function fetch_channel_assignments() {
+            return fetch(`${temp_api_prefix}/admin/api/channels/assign`).then(result => result.json()).then(assigns => {
+                channel_assignments = new Map();
+                [].concat(assigns).forEach(assign => {
+                    [].concat(assign.Channels).forEach(channel => {
+                        if (channel_assignments.has(channel)) {
+                            channel_assignments.get(channel).add(assign.Name)
+                        } else {
+                            channel_assignments.set(channel, new Set([assign.Name]));
+                        }
+                    })
                 })
-            })
-        }).catch((err) => {
-            console.warn(err);
-        });
-    }
-
-    function render_publisher_count() {
-        document.getElementsByClassName('publishers_total').item(0).innerHTML = `${publisher_list.length} total publishers`;
-    }
-
-    function render_channel_count() {
-        document.getElementsByClassName('channels_total').item(0).innerHTML = `${channel_list.length} total channels`;
-    }
-
-    function update_publisher_settings(pid, publisher_name) {
-        return fetch(`${temp_api_prefix}/admin/api/publishers/settings`, {
-            method: 'POST',
-            body: JSON.stringify({
-                Id: pid,
-                Name: publisher_name,
-                Settings: JSON.parse(editor.getValue()),
-            }, null, 4),
-            headers: {
-                "Content-Type": "application/json",
-                // 'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }).then(response => response.json()).then(() => {
-            fetch_channel_assignments().then(fetch_channels);
-        });
-    }
-
-    function update_hub_settings() {
-        return fetch(`${temp_api_prefix}/admin/api/hub/settings`, {
-            method: 'POST',
-            body: JSON.stringify({
-                Name: 'hub',
-                Settings: JSON.parse(hub_editor.getValue()),
-            }, null, 4),
-            headers: {
-                "Content-Type": "application/json",
-                // 'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }).then(response => response.json()).then(() => {
-            //
-        });
-    }
-
-    function view_schema(schema) {
-        editor.getDoc().setValue(JSON.stringify(schema, null, 4));
-        document.getElementsByClassName('update_settings_btn').item(0).style.display = 'none';
-    }
-
-    function set_settings(pid, publisher_name) {
-        editor.getDoc().setValue(JSON.stringify({
-            Key: "Value" // example
-        }, null, 4));
-
-        document.getElementsByClassName('update_settings_btn').item(0).onclick = function () {
-            update_publisher_settings(pid, publisher_name);
-        };
-
-        document.getElementsByClassName('update_settings_btn').item(0).style.display = 'block';
-    }
-
-    function view_hub_schema() {
-        hub_editor.getDoc().setValue(JSON.stringify(hub_info, null, 4));
-        document.getElementsByClassName('update_hub_settings_btn').item(0).style.display = 'none';
-    }
-
-    function set_hub_settings() {
-        hub_editor.getDoc().setValue(JSON.stringify({
-            Key: "Value" // example
-        }, null, 4));
-
-        document.getElementsByClassName('update_hub_settings_btn').item(0).onclick = function () {
-            update_hub_settings();
-        };
-
-        document.getElementsByClassName('update_hub_settings_btn').item(0).style.display = 'block';
-    }
-
-    function render_hub() {
-        if (!hub_info) {
-            document.getElementsByClassName("hub_info").item(0).innerHTML = "<div>No hub info available</div>";
-            return;
+            }).catch((err) => {
+                console.warn(err);
+            });
         }
 
-        let content = "<table style='margin-top: 40px'><tr><th>Id</th><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
+        function render_publisher_count() {
+            document.getElementsByClassName('publishers_total').item(0).innerHTML = `${publisher_list.length} total publishers`;
+        }
 
-        content += `<tr>
+        function render_channel_count() {
+            document.getElementsByClassName('channels_total').item(0).innerHTML = `${channel_list.length} total channels`;
+        }
+
+        function update_publisher_settings(pid, publisher_name) {
+            return fetch(`${temp_api_prefix}/admin/api/publishers/settings`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    Id: pid,
+                    Name: publisher_name,
+                    Settings: JSON.parse(editor.getValue()),
+                }, null, 4),
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }).then(response => response.json()).then(() => {
+                fetch_channel_assignments().then(fetch_channels);
+            });
+        }
+
+        function update_hub_settings() {
+            return fetch(`${temp_api_prefix}/admin/api/hub/settings`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    Name: 'hub',
+                    Settings: JSON.parse(hub_editor.getValue()),
+                }, null, 4),
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }).then(response => response.json()).then(() => {
+                //
+            });
+        }
+
+        function view_schema(schema) {
+            editor.getDoc().setValue(JSON.stringify(schema, null, 4));
+            document.getElementsByClassName('update_settings_btn').item(0).style.display = 'none';
+        }
+
+        function set_settings(pid, publisher_name) {
+            editor.getDoc().setValue(JSON.stringify({
+                Key: "Value" // example
+            }, null, 4));
+
+            document.getElementsByClassName('update_settings_btn').item(0).onclick = function () {
+                update_publisher_settings(pid, publisher_name);
+            };
+
+            document.getElementsByClassName('update_settings_btn').item(0).style.display = 'block';
+        }
+
+        function view_hub_schema() {
+            hub_editor.getDoc().setValue(JSON.stringify(hub_info, null, 4));
+            document.getElementsByClassName('update_hub_settings_btn').item(0).style.display = 'none';
+        }
+
+        function set_hub_settings() {
+            hub_editor.getDoc().setValue(JSON.stringify({
+                Key: "Value" // example
+            }, null, 4));
+
+            document.getElementsByClassName('update_hub_settings_btn').item(0).onclick = function () {
+                update_hub_settings();
+            };
+
+            document.getElementsByClassName('update_hub_settings_btn').item(0).style.display = 'block';
+        }
+
+        function render_hub() {
+            if (!hub_info) {
+                document.getElementsByClassName("hub_info").item(0).innerHTML = "<div>No hub info available</div>";
+                return;
+            }
+
+            let content = "<table style='margin-top: 40px'><tr><th>Id</th><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
+
+            content += `<tr>
             <td>${hub_info.Id}</td>
             <td>${hub_info.Name}</td>
             <td>${hub_info.Namespace}</td>
@@ -547,52 +578,52 @@
             </td>
         </tr>`;
 
-        document.getElementsByClassName("hub_info").item(0).innerHTML = content;
-    }
+            document.getElementsByClassName("hub_info").item(0).innerHTML = content;
+        }
 
-    function render_publisher_list() {
-        let content = "<table><tr><th>Id</th><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
-        publisher_list.forEach(pub => {
-            content += `<tr>
+        function render_publisher_list() {
+            let content = "<table><tr><th>Id</th><th>Name</th><th>Namespace</th><th>Actions</th></tr>";
+            publisher_list.forEach(pub => {
+                content += `<tr>
                     <td class="pub_id">${pub.Id}</td>
                     <td class="pub_name">${pub.Name}</td>
                     <td class="pub_namespace">${pub.Namespace}</td>`;
 
-            let id = pub.Id;
-            let name = pub.Name;
-            let schema = JSON.stringify(pub.Schema);
+                let id = pub.Id;
+                let name = pub.Name;
+                let schema = JSON.stringify(pub.Schema);
 
-            content +=
-                `<td>
+                content +=
+                    `<td>
                         <a onclick='view_schema(${schema})' href="javascript:void(0);">[view schema]</a>
                         <span>&nbsp;</span>
                         <a onclick="set_settings('${id}', '${name}')" href="javascript:void(0);">[set settings]</a>
                     </td>
                 </tr>`;
-        });
+            });
 
-        if (!publisher_list.length) {
-            content = "<div>No publishers available</div>";
+            if (!publisher_list.length) {
+                content = "<div>No publishers available</div>";
+            }
+
+            document.getElementsByClassName("publisher_list").item(0).innerHTML = content;
         }
 
-        document.getElementsByClassName("publisher_list").item(0).innerHTML = content;
-    }
-
-    function render_channel_list() {
-        let content = "<table><tr><th>Name</th><th>Size</th><th>Publishers</th><th>Actions</th></tr>";
-        channel_list.forEach(channel => {
-            content += `<tr>
+        function render_channel_list() {
+            let content = "<table><tr><th>Name</th><th>Size</th><th>Publishers</th><th>Actions</th></tr>";
+            channel_list.forEach(channel => {
+                content += `<tr>
                     <td class="channel_name">${channel.Name}</td>
                     <td class="channel_size">${channel.Size}</td>`;
 
-            if (channel_assignments.has(channel.Name)) {
-                content += `<td>${Array.from(channel_assignments.get(channel.Name)).join(', ')}</td>`;
-            } else {
-                content += `<td>&dash;</td>`
-            }
+                if (channel_assignments.has(channel.Name)) {
+                    content += `<td>${Array.from(channel_assignments.get(channel.Name)).join(', ')}</td>`;
+                } else {
+                    content += `<td>&dash;</td>`
+                }
 
-            content +=
-                `<td>
+                content +=
+                    `<td>
                         <a onclick="delete_channel('${channel.Name}')" href="javascript:void(0);">[delete]</a>
                         <span>&nbsp;</span>
                         <a onclick="assign_channel('${channel.Name}')" href="javascript:void(0);">[assign]</a>
@@ -600,120 +631,121 @@
                         <a onclick="purge_channel('${channel.Name}')" href="javascript:void(0);">[purge]</a>
                     </td>
                 </tr>`;
-        })
+            })
 
-        if (!channel_list.length) {
-            content = "<div>No channels available</div>";
+            if (!channel_list.length) {
+                content = "<div>No channels available</div>";
+            }
+
+            document.getElementsByClassName("channel_list").item(0).innerHTML = content;
         }
 
-        document.getElementsByClassName("channel_list").item(0).innerHTML = content;
-    }
-
-    function purge_channel(channel_name) {
-        if (!confirm(`Are you sure you want to purge ${channel_name}'s content?`)) {
-            return;
-        }
-
-        fetch(`${temp_api_prefix}/admin/api/channel/` + channel_name, {
-            method: 'DELETE',
-            headers: {
-                "Content-Type": "application/json",
-                // 'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }).then(response => response.json()).then(() => {
-            console.log('content purged for', channel_name)
-        });
-    }
-
-    function assign_channel(channel_name) {
-        const publisher_name = prompt("Publisher's name");
-        if (!publisher_name) {
-            alert("Name is required");
-            return;
-        }
-
-        fetch(`${temp_api_prefix}/admin/api/channels/assign`, {
-            method: 'POST',
-            body: JSON.stringify({
-                Name: publisher_name,
-                Channels: [channel_name]
-            }),
-            headers: {
-                "Content-Type": "application/json",
-                // 'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }).then(response => response.json()).then(() => {
-            fetch_channel_assignments().then(fetch_channels);
-        });
-    }
-
-    function create_new_channel() {
-        const name = prompt("Channel name");
-        if (!name) {
-            alert("Name is required");
-            return;
-        }
-
-        const size = prompt("Channel size", "1");
-        if (!name) {
-            alert("Size is required");
-            return;
-        }
-
-        // NOTE: on purpose
-        if (size != +size) {
-            alert("Invalid size format");
-            return;
-        }
-
-        const existing_channel_by_name = channel_list.find((channel) => channel.Name === name);
-        if (existing_channel_by_name) {
-            if (!confirm(`Channel ${name} already exist. Do you want to update it's size?`)) {
+        function purge_channel(channel_name) {
+            if (!confirm(`Are you sure you want to purge ${channel_name}'s content?`)) {
                 return;
             }
+
+            fetch(`${temp_api_prefix}/admin/api/channel/` + channel_name, {
+                method: 'DELETE',
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }).then(response => response.json()).then(() => {
+                console.log('content purged for', channel_name)
+            });
         }
 
-        const channels = [...channel_list, {Name: name, Size: +size}];
-        fetch(`${temp_api_prefix}/admin/api/channels`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                Channels: channels
-            }),
-            headers: {
-                "Content-Type": "application/json",
-                // 'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }).then(response => response.json()).then((channels) => {
-            channel_list = channels.Channels;
-            return fetch_channel_assignments();
-        }).then(() => {
-            render_channel_count();
-            render_channel_list();
-        });
-    }
+        function assign_channel(channel_name) {
+            const publisher_name = prompt("Publisher's name");
+            if (!publisher_name) {
+                alert("Name is required");
+                return;
+            }
 
-    function delete_channel(channel_name) {
-        if (!confirm(`Are you sure you want to delete ${channel_name}?`)) {
-            return;
+            fetch(`${temp_api_prefix}/admin/api/channels/assign`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    Name: publisher_name,
+                    Channels: [channel_name]
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }).then(response => response.json()).then(() => {
+                fetch_channel_assignments().then(fetch_channels);
+            });
         }
 
-        fetch(`${temp_api_prefix}/admin/api/channels`, {
-            method: 'DELETE',
-            body: JSON.stringify({
-                Channels: [channel_name]
-            }),
-            headers: {
-                "Content-Type": "application/json",
-                // 'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }).then(() => {
-            channel_list = channel_list.filter(channel => channel.Name !== channel_name);
-            render_channel_count();
-            render_channel_list();
-        });
-    }
+        function create_new_channel() {
+            const name = prompt("Channel name");
+            if (!name) {
+                alert("Name is required");
+                return;
+            }
 
-    fetch_hub().then(fetch_channel_assignments).then(fetch_channels).then(fetch_publishers);
-</script>
+            const size = prompt("Channel size", "1");
+            if (!name) {
+                alert("Size is required");
+                return;
+            }
+
+            // NOTE: on purpose
+            if (size != +size) {
+                alert("Invalid size format");
+                return;
+            }
+
+            const existing_channel_by_name = channel_list.find((channel) => channel.Name === name);
+            if (existing_channel_by_name) {
+                if (!confirm(`Channel ${name} already exist. Do you want to update it's size?`)) {
+                    return;
+                }
+            }
+
+            const channels = [...channel_list, { Name: name, Size: +size }];
+            fetch(`${temp_api_prefix}/admin/api/channels`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    Channels: channels
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }).then(response => response.json()).then((channels) => {
+                channel_list = channels.Channels;
+                return fetch_channel_assignments();
+            }).then(() => {
+                render_channel_count();
+                render_channel_list();
+            });
+        }
+
+        function delete_channel(channel_name) {
+            if (!confirm(`Are you sure you want to delete ${channel_name}?`)) {
+                return;
+            }
+
+            fetch(`${temp_api_prefix}/admin/api/channels`, {
+                method: 'DELETE',
+                body: JSON.stringify({
+                    Channels: [channel_name]
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }).then(() => {
+                channel_list = channel_list.filter(channel => channel.Name !== channel_name);
+                render_channel_count();
+                render_channel_list();
+            });
+        }
+
+        fetch_hub().then(fetch_channel_assignments).then(fetch_channels).then(fetch_publishers);
+    </script>
 </body>
+
 </html>
