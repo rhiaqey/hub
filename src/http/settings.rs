@@ -1,3 +1,4 @@
+use crate::http::common::retrieve_schema_for_hub;
 use crate::http::state::{SharedState, UpdateSettingsRequest};
 use crate::hub::settings::HubSettings;
 use anyhow::{bail, Context};
@@ -56,13 +57,17 @@ fn validate_settings_for_hub(message: &MessageValue, schema: Value) -> bool {
     result
 }
 
-pub fn update_settings_for_hub(
+pub async fn update_settings_for_hub(
     payload: UpdateSettingsRequest,
     state: Arc<SharedState>,
 ) -> anyhow::Result<MessageValue> {
     debug!("hub settings payload {:?}", payload);
 
-    let valid = validate_settings_for_hub(&payload.settings, HubSettings::schema());
+    let schema = retrieve_schema_for_hub(state.get_namespace(), state.redis_rs.clone()).await?;
+
+    trace!("hub schema retrieved");
+
+    let valid = validate_settings_for_hub(&payload.settings, schema);
     trace!("hub settings valid: {valid}");
 
     if !valid {
@@ -197,7 +202,7 @@ pub async fn update_hub_settings_handler(
 ) -> impl IntoResponse {
     info!("[POST] Update hub settings");
 
-    match update_settings_for_hub(payload, state) {
+    match update_settings_for_hub(payload, state).await {
         Ok(response) => {
             info!("hub settings updated successfully");
             (StatusCode::OK, Json(response)).into_response()

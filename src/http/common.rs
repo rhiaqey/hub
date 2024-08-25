@@ -209,7 +209,7 @@ pub fn notify_system_for_client_disconnect(
     Ok(())
 }
 
-pub async fn retrieve_hub_schema(
+pub async fn retrieve_schema_for_hub(
     namespace: &str,
     redis: Arc<std::sync::Mutex<redis::Connection>>,
 ) -> anyhow::Result<serde_json::Value> {

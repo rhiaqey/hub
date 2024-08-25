@@ -43,7 +43,7 @@ pub async fn run(sub_matches: &ArgMatches) -> anyhow::Result<()> {
                     settings: MessageValue::Text(data),
                 },
                 state,
-            )?;
+            ).await?;
         } else {
             update_settings_for_publishers(
                 UpdateSettingsRequest {

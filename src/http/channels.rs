@@ -1,4 +1,4 @@
-use crate::http::common::retrieve_hub_schema;
+use crate::http::common::retrieve_schema_for_hub;
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
@@ -193,7 +193,7 @@ pub async fn get_hub_handler(State(state): State<Arc<SharedState>>) -> impl Into
     let name = state.get_name();
     let namespace = state.get_namespace();
 
-    let Ok(schema) = retrieve_hub_schema(namespace, state.redis_rs.clone()).await else {
+    let Ok(schema) = retrieve_schema_for_hub(namespace, state.redis_rs.clone()).await else {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             [(hyper::header::CONTENT_TYPE, "application/json")],
