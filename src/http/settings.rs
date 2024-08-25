@@ -191,42 +191,52 @@ pub fn update_settings_for_publishers(
     Ok(payload.settings)
 }
 
-pub async fn update_settings_handler(
+pub async fn update_hub_settings_handler(
     State(state): State<Arc<SharedState>>,
     Json(payload): Json<UpdateSettingsRequest>,
 ) -> impl IntoResponse {
-    info!("[POST] Update settings");
+    info!("[POST] Update hub settings");
 
-    let update_fn: anyhow::Result<MessageValue>;
-
-    debug!(
-        "state vs payload => {} vs {}",
-        state.get_name(),
-        payload.name
-    );
-
-    if state.get_name() == payload.name {
-        trace!("update hub settings");
-        update_fn = update_settings_for_hub(payload, state);
-    } else {
-        trace!("update publisher settings");
-        update_fn = update_settings_for_publishers(payload, state);
-    }
-
-    // return response
-    match update_fn {
+    match update_settings_for_hub(payload, state) {
         Ok(response) => {
-            info!("settings updated successfully");
+            info!("hub settings updated successfully");
             (StatusCode::OK, Json(response)).into_response()
         }
         Err(err) => {
-            warn!("error updating settings: {}", err);
+            warn!("error updating hub settings: {}", err);
             return (
                 StatusCode::OK,
                 [(hyper::header::CONTENT_TYPE, "application/json")],
                 json!({
                     "code": 500,
-                    "message": "failed to update settings"
+                    "message": "failed to update hub settings"
+                })
+                .to_string(),
+            )
+                .into_response();
+        }
+    }
+}
+
+pub async fn update_publishers_settings_handler(
+    State(state): State<Arc<SharedState>>,
+    Json(payload): Json<UpdateSettingsRequest>,
+) -> impl IntoResponse {
+    info!("[POST] Update publisher settings");
+
+    match update_settings_for_publishers(payload, state) {
+        Ok(response) => {
+            info!("publisher settings updated successfully");
+            (StatusCode::OK, Json(response)).into_response()
+        }
+        Err(err) => {
+            warn!("error updating publisher settings: {}", err);
+            return (
+                StatusCode::OK,
+                [(hyper::header::CONTENT_TYPE, "application/json")],
+                json!({
+                    "code": 500,
+                    "message": "failed to update publisher settings"
                 })
                 .to_string(),
             )

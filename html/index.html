@@ -353,7 +353,7 @@
                 <textarea class="publisher_code"></textarea>
             </label>
             <br/>
-            <button class="update_settings_btn" onclick="update_settings()">Update settings</button>
+            <button class="update_settings_btn" onclick="update_publisher_settings()">Update settings</button>
         </div>
         <br/>
         <hr/>
@@ -366,7 +366,7 @@
                 <textarea class="hub_code"></textarea>
             </label>
             <br/>
-            <button class="update_hub_settings_btn" onclick="update_settings()">Update hub settings</button>
+            <button class="update_hub_settings_btn" onclick="update_publisher_settings()">Update hub settings</button>
         </div>
     </div>
 </main>
@@ -461,8 +461,8 @@
         document.getElementsByClassName('channels_total').item(0).innerHTML = `${channel_list.length} total channels`;
     }
 
-    function update_settings(pid, publisher_name) {
-        return fetch(`${temp_api_prefix}/admin/api/settings`, {
+    function update_publisher_settings(pid, publisher_name) {
+        return fetch(`${temp_api_prefix}/admin/api/publishers/settings`, {
             method: 'POST',
             body: JSON.stringify({
                 Id: pid,
@@ -479,7 +479,7 @@
     }
 
     function update_hub_settings() {
-        return fetch(`${temp_api_prefix}/admin/api/settings`, {
+        return fetch(`${temp_api_prefix}/admin/api/hub/settings`, {
             method: 'POST',
             body: JSON.stringify({
                 Name: 'hub',
@@ -505,7 +505,7 @@
         }, null, 4));
 
         document.getElementsByClassName('update_settings_btn').item(0).onclick = function () {
-            update_settings(pid, publisher_name);
+            update_publisher_settings(pid, publisher_name);
         };
 
         document.getElementsByClassName('update_settings_btn').item(0).style.display = 'block';

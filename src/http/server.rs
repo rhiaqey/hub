@@ -5,9 +5,9 @@ use crate::http::channels::{
     get_snapshot_handler, purge_channel_handler,
 };
 use crate::http::metrics::get_metrics_handler;
-use crate::http::settings::update_settings_handler;
-use crate::http::state::SharedState;
+use crate::http::settings::{update_hub_settings_handler, update_publishers_settings_handler};
 use crate::http::sse::sse_handler;
+use crate::http::state::SharedState;
 use crate::http::websocket::ws_handler;
 use axum::http::Method;
 use axum::routing::{delete, get, post, put};
@@ -57,7 +57,11 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
             "/admin/api/channels/assign",
             get(get_channel_assignments_handler),
         )
-        .route("/admin/api/settings", post(update_settings_handler))
+        .route("/admin/api/hub/settings", post(update_hub_settings_handler))
+        .route(
+            "/admin/api/publishers/settings",
+            post(update_publishers_settings_handler),
+        )
         // .layer(CookieManagerLayer::new())
         .layer(SecureClientIpSource::ConnectInfo.into_extension())
         .with_state(shared_state);
