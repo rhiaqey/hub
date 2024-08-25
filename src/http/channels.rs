@@ -23,8 +23,6 @@ pub async fn create_channels(
     payload: CreateChannelsRequest,
     state: Arc<SharedState>,
 ) -> anyhow::Result<String> {
-    info!("[PUT] Creating channels");
-
     let lock = state.redis_rs.clone();
     let mut conn = lock.lock().unwrap();
 
@@ -69,6 +67,8 @@ pub async fn create_channels_handler(
     State(state): State<Arc<SharedState>>,
     Json(payload): Json<CreateChannelsRequest>,
 ) -> impl IntoResponse {
+    info!("[PUT] Creating channels");
+
     match create_channels(payload, state).await {
         Ok(response) => (
             StatusCode::OK,
