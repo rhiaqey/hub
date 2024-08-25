@@ -1,4 +1,4 @@
-use crate::http::auth::{get_auth_handler, get_status_handler};
+use crate::http::auth::get_auth_handler;
 use crate::http::channels::{
     assign_channels_handler, create_channels_handler, delete_channels_handler,
     get_channel_assignments_handler, get_channels_handler, get_hub_handler, get_publishers_handler,
@@ -47,7 +47,6 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/admin", get(get_admin_handler))
         .route("/admin/", get(get_admin_handler))
         .route("/admin/api/hub", get(get_hub_handler))
-        .route("/admin/api/status", get(get_status_handler))
         .route("/admin/api/channel/:channel", delete(purge_channel_handler))
         .route("/admin/api/channels", get(get_channels_handler))
         .route("/admin/api/channels", put(create_channels_handler))

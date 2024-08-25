@@ -281,14 +281,3 @@ pub async fn get_auth_handler(
         (StatusCode::UNAUTHORIZED, "Unauthorized access")
     }
 }
-
-pub async fn get_status_handler(// headers: HeaderMap,            // external and internal headers
-                                // insecure_ip: InsecureClientIp, // external
-                                // secure_ip: SecureClientIp,                               // internal
-                                // Host(hostname): Host,                  // external host
-                                // qs: Query<AuthenticationQueryParams>,  // external query string
-                                // State(state): State<Arc<SharedState>>, // global state
-                                // jar: CookieJar,                        // global
-) -> impl IntoResponse {
-    (StatusCode::OK, "Everything looks good")
-}
