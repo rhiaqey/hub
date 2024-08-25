@@ -360,10 +360,6 @@
         <br/>
         <h2>Hub</h2>
         <div class="hub_metrics">
-            <div class="hub hub_bg_image">
-                <div class="hub_total">0 total users</div>
-                <button>[x]</button>
-            </div>
             <div class="hub_info"></div>
             <br/>
             <label>
@@ -418,21 +414,6 @@
             result += +arr[n]; // unary operator to ensure ToNumber conversion
         }
         return result;
-    }
-
-    function fetch_users_impl() {
-        fetch(`${temp_api_prefix}/admin/api/users`).then(result => result.json()).then(users => {
-            users_map[users.Hub] = users?.Clients || 0;
-            let total_users = sum(Object.values(users_map));
-            document.getElementsByClassName('hub_total').item(0).innerHTML = `${total_users || 0} total users`
-        }).catch((err) => {
-            console.warn(err);
-        });
-    }
-
-    function fetch_users() {
-        fetch_users_impl();
-        setInterval(fetch_users_impl, 5000);
     }
 
     function fetch_channels() {
@@ -732,7 +713,7 @@
         });
     }
 
-    fetch_hub().then(fetch_users).then(fetch_channel_assignments).then(fetch_channels).then(fetch_publishers);
+    fetch_hub().then(fetch_channel_assignments).then(fetch_channels).then(fetch_publishers);
 </script>
 </body>
 </html>
