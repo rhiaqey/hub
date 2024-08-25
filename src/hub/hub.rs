@@ -22,8 +22,8 @@ use sha256::digest;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::signal;
-use tokio::sync::Mutex;
 use tokio::sync::broadcast::{Receiver, Sender};
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct Hub {
@@ -75,7 +75,7 @@ impl Hub {
         Ok(channel_list.channels)
     }
 
-    pub fn retrieve_settings(&self) -> anyhow::Result<Vec<u8>> {
+    pub fn read_settings(&self) -> anyhow::Result<HubSettings> {
         trace!("retrieve settings");
 
         let settings_key = topics::hub_settings_key(self.get_namespace());
@@ -98,14 +98,6 @@ impl Hub {
         .context("failed to decrypt settings with key")?;
 
         trace!("settings decrypted");
-
-        Ok(data)
-    }
-
-    pub fn read_settings(&self) -> anyhow::Result<HubSettings> {
-        info!("reading hub settings");
-
-        let data = self.retrieve_settings()?;
 
         let settings = MessageValue::Binary(data)
             .decode::<HubSettings>()
@@ -322,7 +314,7 @@ impl Hub {
                 self.update_publisher_schema(data)
                     .expect("failed to set schema for publisher");
             }
-            RPCMessageData::UpdateHubSettings() => {
+            RPCMessageData::UpdateHubSettings(_) => {
                 debug!("received update settings rpc");
                 self.update_hub_settings()
                     .expect("failed to update hub settings");
@@ -427,11 +419,11 @@ impl Hub {
             .set(schema_key, encoded)
             .context("failed to store schema for hub")?;
 
-            debug!(
-                "hub schema updated for {}[id={}]",
-                self.get_name(),
-                self.get_id()
-            );
+        debug!(
+            "hub schema updated for {}[id={}]",
+            self.get_name(),
+            self.get_id()
+        );
 
         Ok(())
     }

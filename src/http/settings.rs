@@ -83,7 +83,7 @@ pub async fn update_settings_for_hub(
 
     trace!("save encrypted in redis");
 
-    match state.publish_rpc_message(RPCMessageData::UpdateHubSettings()) {
+    match state.publish_rpc_message(RPCMessageData::UpdateHubSettings(vec![])) {
         Ok(_) => {
             info!("pubsub update settings message sent");
             Ok(payload.settings)
@@ -175,7 +175,7 @@ pub fn update_settings_for_publishers(
     info!("publishing to topic {}", pub_topic);
 
     let rpc_message = RPCMessage {
-        data: RPCMessageData::UpdatePublisherSettings(),
+        data: RPCMessageData::UpdatePublisherSettings(vec![]),
     }
     .ser_to_string()
     .context("failed to serialize rpc message")?;
