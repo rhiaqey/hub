@@ -47,7 +47,7 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/admin", get(get_admin_handler))
         .route("/admin/", get(get_admin_handler))
         .route("/admin/api/hub", get(get_hub_handler))
-        .route("/admin/api/channel/:channel", delete(purge_channel_handler))
+        .route("/admin/api/channels/:channel", delete(purge_channel_handler))
         .route("/admin/api/channels", get(get_channels_handler))
         .route("/admin/api/channels", put(create_channels_handler))
         .route("/admin/api/channels", delete(delete_channels_handler))

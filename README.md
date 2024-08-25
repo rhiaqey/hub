@@ -1,4 +1,4 @@
-# Hub
+# Rhiaqey Hub
 
 ![Hub](https://github.com/rhiaqey/hub/actions/workflows/pr_merge.yml/badge.svg)
 
