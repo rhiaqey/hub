@@ -232,7 +232,7 @@ impl Hub {
         self.set_settings(settings);
         debug!("settings loaded");
 
-        self.update_hub_schema()?;
+        self.set_hub_schema()?;
         debug!("schema updated");
 
         let namespace = self.env.get_namespace();
@@ -415,7 +415,7 @@ impl Hub {
         }
     }
 
-    fn update_hub_schema(&self) -> anyhow::Result<()> {
+    fn set_hub_schema(&self) -> anyhow::Result<()> {
         trace!("updating hub schema");
 
         let schema_key: String = topics::hub_schema_key(self.get_namespace());
