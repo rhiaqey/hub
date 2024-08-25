@@ -53,7 +53,6 @@ pub struct Params {
     pub user_id: Option<String>,
 }
 
-#[inline(always)]
 pub fn prepare_client_connection_message(
     client_id: &String,
     hub_id: &String,
@@ -79,7 +78,6 @@ pub fn prepare_client_connection_message(
     Ok(client_message)
 }
 
-#[inline(always)]
 pub fn prepare_client_channel_subscription_messages(
     hub_id: &String,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,
@@ -121,7 +119,6 @@ pub fn prepare_client_channel_subscription_messages(
     Ok(result)
 }
 
-#[inline(always)]
 pub async fn prepare_channels(
     client_id: &String,
     channels: SimpleChannels,
@@ -156,7 +153,6 @@ pub async fn prepare_channels(
     added_channels
 }
 
-#[inline(always)]
 pub fn notify_system_for_client_connect(
     client_id: &String,
     user_id: &Option<String>,
@@ -185,7 +181,6 @@ pub fn notify_system_for_client_connect(
     Ok(())
 }
 
-#[inline(always)]
 pub fn notify_system_for_client_disconnect(
     client_id: &String,
     user_id: &Option<String>,
@@ -214,7 +209,18 @@ pub fn notify_system_for_client_disconnect(
     Ok(())
 }
 
-#[inline(always)]
+pub async fn retrieve_hub_schema(
+    namespace: &str,
+    redis: Arc<std::sync::Mutex<redis::Connection>>,
+) -> anyhow::Result<serde_json::Value> {
+    let schema_key: String = topics::hub_schema_key(namespace);
+
+    let schema_str: String = redis.lock().unwrap().get(schema_key)?;
+    let schema = serde_json::from_str(schema_str.as_str())?;
+
+    Ok(schema)
+}
+
 pub async fn get_channel_snapshot_for_client(
     client: &HubClient,
     channels: &Vec<(Channel, Option<String>, Option<String>)>,

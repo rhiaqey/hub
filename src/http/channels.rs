@@ -1,3 +1,4 @@
+use crate::http::common::retrieve_hub_schema;
 use crate::http::state::{
     AssignChannelsRequest, CreateChannelsRequest, DeleteChannelsRequest, SharedState,
 };
@@ -6,7 +7,7 @@ use anyhow::Context;
 use axum::extract::{Path, Query, State};
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use log::{debug, info, trace, warn};
-use redis::{Commands, RedisResult};
+use redis::Commands;
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics::{self};
@@ -192,10 +193,7 @@ pub async fn get_hub_handler(State(state): State<Arc<SharedState>>) -> impl Into
     let name = state.get_name();
     let namespace = state.get_namespace();
 
-    let schema_key = topics::hub_schema_key(state.get_namespace());
-    debug!("schema key {}", schema_key);
-
-    let Ok(mut conn) = state.redis_rs.lock() else {
+    let Ok(schema) = retrieve_hub_schema(namespace, state.redis_rs.clone()).await else {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             [(hyper::header::CONTENT_TYPE, "application/json")],
@@ -208,24 +206,6 @@ pub async fn get_hub_handler(State(state): State<Arc<SharedState>>) -> impl Into
             .into_response();
     };
 
-    trace!("connection acquired");
-
-    let schema_result: RedisResult<String> = conn.get(schema_key);
-    if let Err(err) = schema_result {
-        warn!("schema get error {err}");
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [(hyper::header::CONTENT_TYPE, "application/json")],
-            json!({
-                "code": 500,
-                "message": "failed to get hub schema"
-            })
-            .to_string(),
-        )
-            .into_response();
-    };
-
-    let schema = schema_result.unwrap();
     trace!("schema acquired");
 
     (
