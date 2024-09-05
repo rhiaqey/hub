@@ -1669,7 +1669,7 @@ dependencies = [
 
 [[package]]
 name = "rhiaqey-hub"
-version = "0.1.275"
+version = "0.1.276"
 dependencies = [
  "anyhow",
  "async-stream",
