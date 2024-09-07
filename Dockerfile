@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rhiaqey/build:1.0.8 AS builder
+FROM --platform=$BUILDPLATFORM rhiaqey/build:1.0.9 AS builder
 
 ARG TARGETPLATFORM
 
