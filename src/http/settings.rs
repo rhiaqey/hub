@@ -185,7 +185,7 @@ pub fn update_settings_for_publishers(
 
     trace!("redis connection acquired");
 
-    let _ = conn
+    let _: () = conn
         .publish(pub_topic, rpc_message)
         .context("failed to publish message")?;
 

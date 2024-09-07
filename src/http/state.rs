@@ -59,7 +59,7 @@ impl SharedState {
         let hub_broadcast_topic = topics::hub_raw_to_hub_clean_pubsub_topic(self.get_namespace());
         debug!("broadcasting to topic {}", hub_broadcast_topic);
 
-        let _ = conn
+        let _: () = conn
             .publish(hub_broadcast_topic, rpc_message)
             .context("failed to publish message")?;
 
@@ -87,7 +87,7 @@ impl SharedState {
 
         trace!("redis connection acquired");
 
-        let _ = conn
+        let _: () = conn
             .set(topic, settings)
             .context("failed to store settings for publisher")?;
 

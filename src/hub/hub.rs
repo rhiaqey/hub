@@ -165,7 +165,8 @@ impl Hub {
                 debug!("security key encrypted");
 
                 let key_result = serde_json::to_string(&security).context("failed to serialize")?;
-                client
+
+                let _: () = client
                     .set(security_key.clone(), key_result)
                     .context("failed to store security key")?;
 
@@ -414,7 +415,8 @@ impl Hub {
 
         let encoded = serde_json::to_string(&HubSettings::schema())?;
         let lock = self.redis_rs.clone();
-        lock.lock()
+
+        let _: () = lock.lock()
             .unwrap()
             .set(schema_key, encoded)
             .context("failed to store schema for hub")?;
@@ -436,7 +438,8 @@ impl Hub {
 
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
-        lock.lock()
+
+        let _: () = lock.lock()
             .unwrap()
             .set(schema_key, encoded)
             .context("failed to store schema for publisher")?;

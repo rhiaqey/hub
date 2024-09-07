@@ -240,14 +240,14 @@ impl MessageHandler {
         .ser_to_string()
         .context("failed to serialize rpc message")?;
 
-        self.redis_rs.publish(&clean_topic, rpc_message)?;
+        let _: () = self.redis_rs.publish(&clean_topic, rpc_message)?;
         trace!("message sent to pubsub {}", &clean_topic);
 
         let mut items = BTreeMap::new();
         items.insert("raw", raw_message);
         items.insert("tag", tag);
 
-        let id = self.redis_rs.xadd_maxlen_map(
+        let id: String = self.redis_rs.xadd_maxlen_map(
             snapshot_topic.clone(),
             StreamMaxlen::Equals(channel_size),
             "*",
