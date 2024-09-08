@@ -8,5 +8,5 @@ lazy_static! {
 
 lazy_static! {
     pub(crate) static ref TOTAL_CLIENTS: IntGauge =
-        register_int_gauge!("total_clients", "Total number of connected clients.").unwrap();
+        register_int_gauge!("total_hub_clients", "Total number of connected clients.").unwrap();
 }
