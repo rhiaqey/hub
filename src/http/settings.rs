@@ -6,7 +6,6 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 use hyper::StatusCode;
-use jsonschema::{Draft, JSONSchema};
 use log::{debug, info, trace, warn};
 use redis::{Commands, RedisResult};
 use rhiaqey_common::pubsub::{PublisherRegistrationMessage, RPCMessage, RPCMessageData};
@@ -35,12 +34,7 @@ fn validate_settings_for_hub(message: &MessageValue, schema: Value) -> bool {
         return false;
     };
 
-    let compiled_schema = JSONSchema::options()
-        .with_draft(Draft::Draft7)
-        .compile(&schema)
-        .expect("failed to compile json schema");
-
-    let result = compiled_schema.is_valid(&settings);
+    let result = jsonschema::is_valid(&schema, &settings);
 
     trace!("checking for duplicate api keys");
 
@@ -104,12 +98,7 @@ fn validate_settings_for_publishers(message: &MessageValue, schema: Value) -> bo
         return false;
     };
 
-    let compiled_schema = JSONSchema::options()
-        .with_draft(Draft::Draft7)
-        .compile(&schema)
-        .expect("failed to compile json schema");
-
-    compiled_schema.is_valid(&settings)
+    jsonschema::is_valid(&schema, &settings)
 }
 
 fn retrieve_schema_for_publisher(
