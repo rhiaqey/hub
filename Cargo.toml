@@ -29,7 +29,7 @@ redis = { version = "0.27", features = ["tokio-comp", "sentinel"] }
 tokio = { version = "1.40", features = ["full"] }
 axum = { version = "0.7", features = ["http2", "json", "macros",
     "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
-hyper = { version = "1.4", features = ["full"] }
+hyper = { version = "1.5", features = ["full"] }
 sha256 = "1.5"
 url = "2.5"
 rsa = { version = "0.9", features = ["pem"] }
