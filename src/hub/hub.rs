@@ -281,6 +281,7 @@ impl Hub {
         Ok(())
     }
 
+    /// Handle RPC messages received from producers & other hubs
     async fn handle_rpc_message(&mut self, data: RPCMessage) {
         match data.data {
             RPCMessageData::PurgeChannels(channels) => {
@@ -416,7 +417,8 @@ impl Hub {
         let encoded = serde_json::to_string(&HubSettings::schema())?;
         let lock = self.redis_rs.clone();
 
-        let _: () = lock.lock()
+        let _: () = lock
+            .lock()
             .unwrap()
             .set(schema_key, encoded)
             .context("failed to store schema for hub")?;
@@ -439,7 +441,8 @@ impl Hub {
         let encoded = serde_json::to_string(&data)?;
         let lock = self.redis_rs.clone();
 
-        let _: () = lock.lock()
+        let _: () = lock
+            .lock()
             .unwrap()
             .set(schema_key, encoded)
             .context("failed to store schema for publisher")?;
