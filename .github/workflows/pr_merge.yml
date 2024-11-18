@@ -35,7 +35,7 @@ jobs:
 
       - name: Cargo Verison
         id: verison
-        uses: dimitrmo/cargo-verison-action@v1.0.22
+        uses: dimitrmo/cargo-verison-action@v1.0.23
         with:
           message: |
             Release %s
