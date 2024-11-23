@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rhiaqey/build:1.0.9 AS builder
+FROM --platform=$BUILDPLATFORM rhiaqey/build:1.0.10 AS builder
 
 ARG TARGETPLATFORM
 
@@ -20,7 +20,7 @@ RUN case "${TARGETPLATFORM}" in \
     && rustup target add ${rust_target} \
     && cargo install --target ${rust_target} --path .
 
-FROM rhiaqey/run:1.0.8
+FROM rhiaqey/run:1.0.9
 
 ARG BINARY=rhiaqey-hub
 ARG USER=1000
