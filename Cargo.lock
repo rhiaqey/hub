@@ -1813,7 +1813,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.1"
-source = "git+https://github.com/rhiaqey/common.git#701fcd5e7d05dde5684f764631ab4f8a8af02db7"
+source = "git+https://github.com/rhiaqey/common.git#315d37ce14afc7b652d54f9a1baed9d23039bdb2"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -1871,7 +1871,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.1"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#b83d1400b2104811c4b4cbfe25e7f067e87f2ab0"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#f89d52ba5f2f118b797bb14c114313c5aac6f8ac"
 dependencies = [
  "serde",
  "serde_bytes",
