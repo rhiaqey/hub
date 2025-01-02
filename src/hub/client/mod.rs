@@ -1,11 +1,12 @@
+use axum::body::Bytes;
 use axum::extract::ws::Message;
 use rhiaqey_common::client::ClientMessage;
 use rhiaqey_sdk_rs::channel::Channel;
 use sse::SSEClient;
 use websocket::WebSocketClient;
 
-pub(crate) mod websocket;
 pub(crate) mod sse;
+pub(crate) mod websocket;
 
 pub(crate) enum HubClient {
     SSE(SSEClient),
@@ -37,7 +38,7 @@ impl HubClient {
     pub async fn send_raw(&mut self, data: Vec<u8>) -> anyhow::Result<()> {
         match self {
             HubClient::SSE(c) => c.send(String::from_utf8(data)?).await,
-            HubClient::WebSocket(c) => c.send(Message::Binary(data)).await,
+            HubClient::WebSocket(c) => c.send(Message::Binary(Bytes::from(data))).await,
         }
     }
 
@@ -49,7 +50,7 @@ impl HubClient {
             }
             HubClient::WebSocket(c) => {
                 let raw = data.ser_to_msgpack()?;
-                c.send(Message::Binary(raw)).await
+                c.send(Message::Binary(Bytes::from(raw))).await
             }
         }
     }
@@ -67,7 +68,7 @@ impl HubClient {
     pub fn get_channels(&self) -> &Vec<(Channel, Option<String>, Option<String>)> {
         match self {
             HubClient::SSE(c) => &c.channels,
-            HubClient::WebSocket(c) => &c.channels
+            HubClient::WebSocket(c) => &c.channels,
         }
     }
 }
