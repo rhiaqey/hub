@@ -33,7 +33,7 @@ hyper = { version = "1.6", features = ["full"] }
 sha256 = "1.5"
 url = "2.5"
 rsa = { version = "0.9", features = ["pem"] }
-rand = "0.8"
+rand = "0.9"
 clap = { version = "4.5", features = ["derive"] }
 rusty_ulid = { version = "2.0" }
 axum-extra = { version = "0.10", features = ["typed-header", "cookie"] }
