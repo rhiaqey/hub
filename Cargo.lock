@@ -1289,9 +1289,9 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.8.7"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff70ce3e48ae43fa075863cef62e8b43b71a4f2382229920e0df362592919430"
+checksum = "3be647b768db090acb35d5ec5db2b0e1f1de11133ca123b9eacf5137868f892a"
 dependencies = [
  "adler2",
 ]
@@ -1482,9 +1482,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-src"
-version = "300.4.2+3.4.1"
+version = "300.5.0+3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168ce4e058f975fe43e89d9ccf78ca668601887ae736090aacc23ae353c298e2"
+checksum = "e8ce546f549326b0e6052b649198487d91320875da901e7bd11a06d1ee3f9c2f"
 dependencies = [
  "cc",
 ]
@@ -1887,7 +1887,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.1"
-source = "git+https://github.com/rhiaqey/common.git#92621ebcdb7d8a5e21518ab3a34ab54187e996b1"
+source = "git+https://github.com/rhiaqey/common.git#d63995a67bde6c5aff254fa7b741c25d96e98a73"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -1945,7 +1945,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.1"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#ffa70e48b22c954f0553c254bb4ed7cd94bb4b11"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#0d898ef1334a1dc76313b8fbf64585aa9e617f51"
 dependencies = [
  "serde",
  "serde_bytes",
