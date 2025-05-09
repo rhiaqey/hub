@@ -1778,6 +1778,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bc1ea653e0b2e097db3ebb5b7f678be339620b8041f66b30a308c1d45d36a7f"
+dependencies = [
+ "bytes",
+ "cfg-if",
+ "combine",
+ "futures-util",
+ "itoa",
+ "num-bigint",
+ "percent-encoding",
+ "pin-project-lite",
+ "rand 0.9.1",
+ "ryu",
+ "sha1_smol",
+ "socket2",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1899,7 +1922,7 @@ dependencies = [
  "hyper",
  "log",
  "rand 0.8.5",
- "redis",
+ "redis 0.30.0",
  "rhiaqey-sdk-rs",
  "rmp-serde",
  "rsa",
@@ -1930,7 +1953,7 @@ dependencies = [
  "openssl",
  "prometheus",
  "rand 0.8.5",
- "redis",
+ "redis 0.31.0",
  "rhiaqey-common",
  "rhiaqey-sdk-rs",
  "rmp-serde",
