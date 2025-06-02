@@ -227,12 +227,12 @@ dependencies = [
 
 [[package]]
 name = "axum-client-ip"
-version = "0.7.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dff8ee1869817523c8f91c20bf17fd932707f66c2e7e0b0f811b29a227289562"
+checksum = "32553d2dd2f8ab99d6d9e8a520d2ecd6eddd9194857bcd477dc56611d5d2c960"
 dependencies = [
  "axum",
- "forwarded-header-value",
+ "client-ip",
  "serde",
 ]
 
@@ -448,6 +448,15 @@ name = "clap_lex"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
+
+[[package]]
+name = "client-ip"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e77429d29d1260f102075217f070c503672cfc729877409e9f80ef32fab6d2b4"
+dependencies = [
+ "http",
+]
 
 [[package]]
 name = "colorchoice"
@@ -687,16 +696,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "forwarded-header-value"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8835f84f38484cc86f110a805655697908257fb9a7af005234060891557198e9"
-dependencies = [
- "nonempty",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1301,12 +1300,6 @@ dependencies = [
  "spin",
  "version_check",
 ]
-
-[[package]]
-name = "nonempty"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9e591e719385e6ebaeb5ce5d3887f7d5676fceca6411d1925ccc95745f3d6f7"
 
 [[package]]
 name = "num"
