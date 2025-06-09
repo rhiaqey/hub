@@ -1762,6 +1762,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd673deb3d184140109c1e27b043c2354cb79399c3ef304c365fc628092ed773"
+dependencies = [
+ "bytes",
+ "cfg-if",
+ "combine",
+ "futures-util",
+ "itoa",
+ "num-bigint",
+ "percent-encoding",
+ "pin-project-lite",
+ "rand 0.9.1",
+ "ryu",
+ "sha1_smol",
+ "socket2",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1872,18 +1895,15 @@ dependencies = [
 
 [[package]]
 name = "rhiaqey-common"
-version = "0.2.2"
-source = "git+https://github.com/rhiaqey/common.git#d97f618a9236a0b3cff66912e6a2de2a8a9b6650"
+version = "0.2.3"
+source = "git+https://github.com/rhiaqey/common.git#4967ee7236f554221a83e5b956348e37238e3432"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
- "axum-core",
- "env_logger",
  "envy",
- "hyper",
  "log",
  "rand 0.8.5",
- "redis",
+ "redis 0.32.0",
  "rhiaqey-sdk-rs",
  "rmp-serde",
  "rsa",
@@ -1914,7 +1934,7 @@ dependencies = [
  "openssl",
  "prometheus",
  "rand 0.8.5",
- "redis",
+ "redis 0.31.0",
  "rhiaqey-common",
  "rhiaqey-sdk-rs",
  "rmp-serde",
