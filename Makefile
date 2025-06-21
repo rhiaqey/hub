@@ -160,3 +160,7 @@ docker-multi:
 		-t rhiaqey/hub:dev \
 		-o type=image \
 		.
+
+.PHONY: all
+all:
+	cargo b --release --all-features
