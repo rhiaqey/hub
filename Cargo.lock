@@ -637,10 +637,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "fast-float"
-version = "0.2.0"
+name = "fast-float2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95765f67b4b18863968b4a1bd5bb576f732b29a4a28c7cd84c09fa3e2875f33c"
+checksum = "f8eb564c5c7423d25c886fb561d1e4ee69f72354d16918afa32c08811f6b6a55"
 
 [[package]]
 name = "fluent-uri"
@@ -1870,7 +1870,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.3"
-source = "git+https://github.com/rhiaqey/common.git#4967ee7236f554221a83e5b956348e37238e3432"
+source = "git+https://github.com/rhiaqey/common.git#c91b03ca59cdc1de6474af83eb8956a92ae19891"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -1925,10 +1925,9 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.2"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#24a571c1eb140fb18b41dd268a60fa098d6e900f"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#e6f360a234ab5a53f16a0f0df85857e1897829db"
 dependencies = [
  "serde",
- "serde_bytes",
  "serde_json",
  "tokio",
 ]
@@ -1983,21 +1982,21 @@ checksum = "989e6739f80c4ad5b13e0fd7fe89531180375b18520cc8c82080e4dc4035b84f"
 
 [[package]]
 name = "rustis"
-version = "0.13.3"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e44f8369b2f0de0ebdad3ab7aa8baef56fa24812daa7b91a405846634a880b16"
+checksum = "c726eae929f832af6e704b0fd883badb35367f09b809893c085808bbc636b387"
 dependencies = [
  "atoi",
  "bytes",
  "crc16",
  "dtoa",
- "fast-float",
+ "fast-float2",
  "futures-channel",
  "futures-util",
  "itoa",
  "log",
  "memchr",
- "rand 0.8.5",
+ "rand 0.9.1",
  "serde",
  "smallvec",
  "socket2",
@@ -2042,15 +2041,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
 dependencies = [
  "serde_derive",
-]
-
-[[package]]
-name = "serde_bytes"
-version = "0.11.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8437fd221bde2d4ca316d61b90e337e9e702b3820b87d63caa9ba6c02bd06d96"
-dependencies = [
- "serde",
 ]
 
 [[package]]
