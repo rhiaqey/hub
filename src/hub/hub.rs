@@ -244,10 +244,10 @@ impl Hub {
             start_public_http_server(public_port, public_state.clone()).await;
         });
 
-        let client = connect_and_ping(&self.env.redis.clone()).unwrap();
-        let mut pubsub = client.get_async_pubsub().await.unwrap();
+        let client = connect_and_ping(&self.env.redis.clone())?;
+        let mut pubsub = client.get_async_pubsub().await?;
         let key = topics::hub_raw_to_hub_clean_pubsub_topic(namespace);
-        pubsub.subscribe(key).await.unwrap();
+        pubsub.subscribe(key).await?;
         let pubsub_stream = pubsub.on_message();
         let mut streamz = select_all(vec![Box::pin(pubsub_stream)]);
 
@@ -271,7 +271,7 @@ impl Hub {
                         continue;
                     }
 
-                    self.handle_rpc_message(data.unwrap()).await;
+                    self.handle_rpc_message(data?).await;
                 }
             }
         }
