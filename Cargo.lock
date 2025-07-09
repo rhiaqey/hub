@@ -1881,7 +1881,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.2.3"
-source = "git+https://github.com/rhiaqey/common.git#7dc1f1a47eb5b624e06bd216760c665dd40a74fd"
+source = "git+https://github.com/rhiaqey/common.git#a8675a4d1b46ee6cf548e1ccc2951d1884c8a57d"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -1993,9 +1993,9 @@ checksum = "989e6739f80c4ad5b13e0fd7fe89531180375b18520cc8c82080e4dc4035b84f"
 
 [[package]]
 name = "rustis"
-version = "0.15.2"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05d94d79e38f4b6d0bafc45802df9d4460217f0fb350d3660aaadf03aa96b81b"
+checksum = "e990ff5237e02870496797d0a47846793b60b9e54e0c3f18529ea5fdb375e076"
 dependencies = [
  "atoi",
  "bytes",
