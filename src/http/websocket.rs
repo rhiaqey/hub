@@ -11,7 +11,7 @@ use crate::hub::simple_channel::SimpleChannels;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::XRealIp as ClientIp;
 use axum_extra::{headers, TypedHeader};
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
@@ -30,7 +30,7 @@ pub async fn ws_handler(
     ws: WebSocketUpgrade,
     // headers: HeaderMap,
     Query(params): Query<Params>,
-    insecure_ip: InsecureClientIp,
+    ClientIp(user_ip): ClientIp,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     State(state): State<Arc<SharedState>>,
 ) -> impl IntoResponse {
@@ -42,8 +42,7 @@ pub async fn ws_handler(
         String::from("Unknown browser")
     };
 
-    let ip = insecure_ip.0.to_string();
-    debug!("`{}` at {} connected.", user_agent, ip);
+    debug!("`{}` at {} connected.", user_agent, user_ip);
 
     let channels = SimpleChannels::from(params.channels.split(",").collect::<Vec<_>>());
     trace!("channel from params extracted {:?}", channels);
@@ -59,7 +58,7 @@ pub async fn ws_handler(
     ws.on_upgrade(move |socket| {
         handle_ws_connection(
             socket,
-            ip,
+            user_ip.to_string(),
             user_id,
             channels,
             snapshot_request,
