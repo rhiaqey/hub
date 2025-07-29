@@ -2,7 +2,7 @@ use crate::http::state::SharedState;
 use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::XRealIp as ClientIp;
 use hyper::http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;
@@ -27,7 +27,7 @@ pub fn extract_api_host_from_relative_path(relative_path: &str) -> Option<String
 
     let full = format!("http://localhost{}", relative_path);
 
-    return match Url::parse(full.as_str()) {
+    match Url::parse(full.as_str()) {
         Ok(parts) => {
             trace!("we parsed full url {full} into parts");
 
@@ -41,19 +41,19 @@ pub fn extract_api_host_from_relative_path(relative_path: &str) -> Option<String
 
             warn!("could not find host part");
 
-            return None;
+            None
         }
         Err(e) => {
             warn!("error parsing host {}", e);
             None
         }
-    };
+    }
 }
 
 pub fn extract_api_key_from_relative_path(relative_path: &str) -> Option<String> {
     let full = format!("http://localhost{}", relative_path);
 
-    return match Url::parse(full.as_str()) {
+    match Url::parse(full.as_str()) {
         Ok(parts) => {
             trace!("we parsed full url into parts");
 
@@ -67,13 +67,13 @@ pub fn extract_api_key_from_relative_path(relative_path: &str) -> Option<String>
 
             warn!("could not find api_key part");
 
-            return None;
+            None
         }
         Err(e) => {
             warn!("error parsing api key {}", e);
             None
         }
-    };
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -84,7 +84,7 @@ pub fn valid_api_key(
     _state: Arc<SharedState>,
 ) -> bool {
     debug!("[DEBUG]: checking is key/host is valid");
-    return true;
+    true
 }
 
 #[cfg(not(debug_assertions))]
@@ -229,7 +229,7 @@ pub fn valid_api_host(api_host: String, origin: String) -> bool {
 
 pub async fn get_auth_handler(
     headers: HeaderMap,        // external and internal headers
-    user_ip: InsecureClientIp, // external
+    ClientIp(user_ip): ClientIp,
     // internal: SecureClientIp, // internal
     // Host(hostname): Host,               // external host
     qs: Query<AuthenticationQueryParams>, // external query string
@@ -271,7 +271,7 @@ pub async fn get_auth_handler(
     if valid_api_key(
         digest(api_key.clone().unwrap()),
         api_host.clone().unwrap(),
-        user_ip.0.to_string(),
+        user_ip.to_string(),
         state,
     ) {
         info!("api key is valid");

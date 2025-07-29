@@ -13,7 +13,7 @@ use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
-use axum_client_ip::SecureClientIpSource;
+use axum_client_ip::ClientIpSource;
 use log::info;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -62,9 +62,8 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
             "/admin/api/publishers/settings",
             post(update_publishers_settings_handler),
         )
-        // .layer(CookieManagerLayer::new())
-        .layer(SecureClientIpSource::ConnectInfo.into_extension())
-        .with_state(shared_state);
+        .with_state(shared_state)
+        .layer(ClientIpSource::ConnectInfo.into_extension());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
