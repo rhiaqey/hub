@@ -5,7 +5,7 @@ use rsa::{RsaPrivateKey, RsaPublicKey};
 use std::fs;
 
 fn generate_keys(bits: Option<usize>) -> anyhow::Result<(RsaPrivateKey, RsaPublicKey)> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let bits = bits.unwrap_or(2048);
 
     let pr = RsaPrivateKey::new(&mut rng, bits)?;
