@@ -35,9 +35,10 @@ ENV GROUP=$GROUP
 
 LABEL org.opencontainers.image.description="Rhiaqey Hub ${BINARY}"
 
-# Create the specified group and user, and add the user to the group
-RUN groupadd -g $GROUP $GROUP \
-    && useradd -u $USER -ms /bin/bash -g $GROUP $USER
+# Create the specified group and user with the given GID/UID, avoid numeric names (Debian Trixie restriction)
+RUN set -eux; \
+    if ! getent group "$GROUP" >/dev/null; then groupadd -g "$GROUP" app; fi; \
+    if ! getent passwd "$USER" >/dev/null; then useradd -u "$USER" -ms /bin/bash -g "$GROUP" app; fi
 
 USER $USER
 
