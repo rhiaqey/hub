@@ -102,6 +102,7 @@ pub async fn start_public_http_server(port: u16, shared_state: Arc<SharedState>)
         .route("/sse", get(sse_handler))
         .route("/snapshot", get(get_snapshot_handler))
         .layer(cors)
+        .layer(ClientIpSource::XRealIp.into_extension())
         .with_state(shared_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

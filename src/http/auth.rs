@@ -2,7 +2,7 @@ use crate::http::state::SharedState;
 use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::{extract::State, http::HeaderMap};
-use axum_client_ip::XRealIp as ClientIp;
+use axum_client_ip::ClientIp;
 use hyper::http::StatusCode;
 use log::{debug, info, trace, warn};
 use serde::Deserialize;

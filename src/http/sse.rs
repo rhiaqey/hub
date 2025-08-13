@@ -9,7 +9,7 @@ use crate::hub::simple_channel::SimpleChannels;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive};
 use axum::response::Sse;
-use axum_client_ip::XRealIp as ClientIp;
+use axum_client_ip::ClientIp;
 use axum_extra::{headers, TypedHeader};
 use futures::Stream;
 use log::{debug, info, trace, warn};
@@ -82,7 +82,7 @@ impl Drop for SSEGuard {
 pub async fn sse_handler(
     // headers: HeaderMap,
     Query(params): Query<Params>,
-    ClientIp(ip): ClientIp,
+    ClientIp(user_ip): ClientIp,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
     State(state): State<Arc<SharedState>>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
@@ -94,7 +94,7 @@ pub async fn sse_handler(
         String::from("Unknown browser")
     };
 
-    debug!("`{}` at {} connected.", user_agent, ip);
+    debug!("`{}` at {} connected.", user_agent, user_ip);
 
     let channels = SimpleChannels::from(params.channels.split(",").collect::<Vec<_>>());
     trace!("channel from params extracted {:?}", channels);
@@ -107,7 +107,7 @@ pub async fn sse_handler(
 
     Sse::new(
         handle_sse_client(
-            ip.to_string(),
+            user_ip.to_string(),
             user_id,
             channels,
             snapshot_request,
