@@ -62,8 +62,8 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
             "/admin/api/publishers/settings",
             post(update_publishers_settings_handler),
         )
-        .with_state(shared_state)
-        .layer(ClientIpSource::ConnectInfo.into_extension());
+        .layer(ClientIpSource::XRealIp.into_extension())
+        .with_state(shared_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
