@@ -55,10 +55,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Extract commit hash (short form)
-      - name: Set up commit hash
-        run: echo "GIT_COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
@@ -81,7 +77,6 @@ jobs:
           outputs: "type=registry"
           build-args: |
             BINARY=rhiaqey-hub
-            GIT_COMMIT=${{ env.GIT_COMMIT }}
 
       - name: Git push
         run: |

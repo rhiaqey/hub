@@ -1,9 +1,6 @@
-# syntax=docker/dockerfile:1
-
 FROM --platform=$BUILDPLATFORM rhiaqey/build:1.0.17 AS builder
 
 ARG TARGETPLATFORM
-ARG GIT_COMMIT=unknown
 
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=trace
@@ -28,7 +25,6 @@ FROM rhiaqey/run:1.0.13
 ARG BINARY=rhiaqey-hub
 ARG USER=1000
 ARG GROUP=1000
-ARG GIT_COMMIT=unknown
 
 ENV BINARY=$BINARY
 ENV DEBIAN_FRONTEND=noninteractive
@@ -39,7 +35,6 @@ ENV GROUP=$GROUP
 ENV GIT_COMMIT=$GIT_COMMIT
 
 LABEL org.opencontainers.image.description="Rhiaqey Hub ${BINARY}"
-LABEL org.opencontainers.image.revision=$GIT_COMMIT
 
 # Create the specified group and user with the given GID/UID, avoid numeric names (Debian Trixie restriction)
 RUN set -eux; \
