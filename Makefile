@@ -115,6 +115,7 @@ prod:
 docker-build:
 	docker build . \
  		--build-arg BINARY=rhiaqey-hub \
+ 		--build-arg GIT_COMMIT=$$(git rev-parse --short HEAD) \
  		-t rhiaqey/hub:dev \
  		-f Dockerfile \
  		--squash
