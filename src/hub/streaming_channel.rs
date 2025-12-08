@@ -82,7 +82,7 @@ impl StreamingChannel {
         let mut entries: Vec<StreamMessage> = vec![];
 
         for StreamKey { key, ids } in reply.keys {
-            for StreamId { id: _, map } in &ids {
+            for StreamId { id: _, map, milliseconds_elapsed_from_delivery: _, delivered_count: _ } in &ids {
                 if let Some(raw) = map.get("raw") {
                     if let redis::Value::BulkString(data) = raw {
                         if let Ok(entry) = serde_json::from_slice::<StreamMessage>(data) {
@@ -98,7 +98,7 @@ impl StreamingChannel {
             }
 
             // acknowledge each stream and message ID once all messages are
-            let keys: Vec<&String> = ids.iter().map(|StreamId { id, map: _ }| id).collect();
+            let keys: Vec<&String> = ids.iter().map(|StreamId { id, map: _, milliseconds_elapsed_from_delivery: _, delivered_count: _ }| id).collect();
             debug!("need to ack {} stream keys", keys.len());
 
             let ack_result: RedisResult<i32> = connection.xack(key, "hub", &keys);
@@ -236,7 +236,12 @@ impl StreamingChannel {
 
         let lock = self.redis.clone();
         let mut client = lock.lock().unwrap();
-        let keys: Vec<String> = client.scan_match(&snapshot_topic)?.collect();
+
+        // collect() yields RedisResult<Vec<String>> because the iterator items are Result<String, RedisError>
+        let keys: Vec<String> = client
+            .scan_match(&snapshot_topic)?
+            .collect::<RedisResult<Vec<String>>>()?;
+
         debug!("found {} scan keys", keys.len());
 
         Ok(keys)
