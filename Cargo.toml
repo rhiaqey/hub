@@ -38,7 +38,7 @@ clap = { version = "4.5", features = ["derive"] }
 rusty_ulid = { version = "2.0" }
 axum-extra = { version = "0.12", features = ["typed-header", "cookie"] }
 axum-client-ip = "1.1"
-jsonschema = "0.37"
+jsonschema = "0.38"
 openssl = { version = "0.10", features = ["vendored"] }
 tower-http = { version = "0.6", features = ["cors"] }
 anyhow = { version = "1.0" }
