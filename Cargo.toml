@@ -26,19 +26,19 @@ serde_json = "1.0"
 futures = "0.3"
 prometheus = { version = "0.14" }
 redis = { version = "1.0", features = ["tokio-comp", "sentinel"] }
-tokio = { version = "1.48", features = ["full"] }
+tokio = { version = "1.49", features = ["full"] }
 axum = { version = "0.8", features = ["http2", "json", "macros",
     "original-uri", "tokio", "ws", "form", "query", "matched-path", "multipart"] }
 hyper = { version = "1.8", features = ["full"] }
 sha256 = "1.6"
 url = "2.5"
-rsa = { version = "0.10.0-rc.8" }
-rand = { version = "0.10.0-rc.0" }
+rsa = { version = "0.10.0-rc.11" }
+rand = { version = "0.10.0-rc.6" }
 clap = { version = "4.5", features = ["derive"] }
 rusty_ulid = { version = "2.0" }
 axum-extra = { version = "0.12", features = ["typed-header", "cookie"] }
 axum-client-ip = "1.1"
-jsonschema = "0.37"
+jsonschema = "0.38"
 openssl = { version = "0.10", features = ["vendored"] }
 tower-http = { version = "0.6", features = ["cors"] }
 anyhow = { version = "1.0" }
