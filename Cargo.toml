@@ -32,7 +32,7 @@ axum = { version = "0.8", features = ["http2", "json", "macros",
 hyper = { version = "1.8", features = ["full"] }
 sha256 = "1.6"
 url = "2.5"
-rsa = { version = "0.10.0-rc.11" }
+rsa = { version = "0.10.0-rc.14" }
 rand = { version = "0.10.0-rc.6" }
 clap = { version = "4.5", features = ["derive"] }
 rusty_ulid = { version = "2.0" }
