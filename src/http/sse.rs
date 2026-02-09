@@ -1,16 +1,18 @@
 use crate::http::common::{
-    get_channel_snapshot_for_client, notify_system_for_client_connect, notify_system_for_client_disconnect, prepare_channels, prepare_client_channel_subscription_messages, prepare_client_connection_message
+    get_channel_snapshot_for_client, notify_system_for_client_connect,
+    notify_system_for_client_disconnect, prepare_channels,
+    prepare_client_channel_subscription_messages, prepare_client_connection_message,
 };
 use crate::http::state::SharedState;
-use crate::hub::client::sse::SSEClient;
 use crate::hub::client::HubClient;
+use crate::hub::client::sse::SSEClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use axum::extract::{Query, State};
-use axum::response::sse::{Event, KeepAlive};
 use axum::response::Sse;
+use axum::response::sse::{Event, KeepAlive};
 use axum_client_ip::ClientIp;
-use axum_extra::{headers, TypedHeader};
+use axum_extra::{TypedHeader, headers};
 use futures::Stream;
 use log::{debug, info, trace, warn};
 use rhiaqey_sdk_rs::channel::Channel;
@@ -60,7 +62,7 @@ impl Drop for SSEGuard {
                     client.get_user_id(),
                     &namespace,
                     &channels,
-                    redis_rs
+                    redis_rs,
                 ) {
                     Ok(_) => debug!("system notified successfully for client disconnected event"),
                     Err(err) => warn!(

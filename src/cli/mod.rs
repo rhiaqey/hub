@@ -1,4 +1,4 @@
-use clap::{arg, Command};
+use clap::{Command, arg};
 
 pub(crate) mod assign_channels;
 pub(crate) mod create_channels;
@@ -27,7 +27,7 @@ fn cli() -> Command {
                         .required(false),
                 )
                 .arg(
-                    arg!(-c --create)
+                    arg!(-c - -create)
                         .value_parser(clap::value_parser!(bool))
                         .required(false),
                 ),

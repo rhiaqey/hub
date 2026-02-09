@@ -9,9 +9,9 @@ use crate::http::settings::{update_hub_settings_handler, update_publishers_setti
 use crate::http::sse::sse_handler;
 use crate::http::state::SharedState;
 use crate::http::websocket::ws_handler;
+use axum::Router;
 use axum::http::Method;
 use axum::routing::{delete, get, post, put};
-use axum::Router;
 use axum::{http::StatusCode, response::IntoResponse};
 use axum_client_ip::ClientIpSource;
 use log::info;
@@ -46,7 +46,10 @@ pub async fn start_private_http_server(port: u16, shared_state: Arc<SharedState>
         .route("/auth", get(get_auth_handler))
         .route("/admin", get(get_admin_handler))
         .route("/admin/api/hub", get(get_hub_handler))
-        .route("/admin/api/channels/:channel", delete(purge_channel_handler))
+        .route(
+            "/admin/api/channels/:channel",
+            delete(purge_channel_handler),
+        )
         .route("/admin/api/channels", get(get_channels_handler))
         .route("/admin/api/channels", put(create_channels_handler))
         .route("/admin/api/channels", delete(delete_channels_handler))

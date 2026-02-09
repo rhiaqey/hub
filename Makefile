@@ -165,3 +165,7 @@ docker-multi:
 .PHONY: all
 all:
 	cargo b --release --all-features
+
+.PHONY: format
+format:
+	cargo fmt --all

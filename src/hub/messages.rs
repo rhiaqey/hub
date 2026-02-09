@@ -1,7 +1,7 @@
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use log::{trace, warn};
-use redis::streams::{StreamMaxlen, StreamRangeReply};
 use redis::Commands;
+use redis::streams::{StreamMaxlen, StreamRangeReply};
 use rhiaqey_common::pubsub::{RPCMessage, RPCMessageData};
 use rhiaqey_common::stream::StreamMessage;
 use rhiaqey_common::topics;

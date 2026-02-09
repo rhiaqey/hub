@@ -5,9 +5,9 @@ use crate::hub::metrics::TOTAL_CHANNELS;
 use crate::hub::settings::HubSettings;
 use crate::hub::simple_channel::SimpleChannels;
 use crate::hub::streaming_channel::StreamingChannel;
-use anyhow::{bail, Context};
-use futures::stream::select_all;
+use anyhow::{Context, anyhow, bail};
 use futures::StreamExt;
+use futures::stream::select_all;
 use log::{debug, info, trace, warn};
 use redis::Commands;
 use rhiaqey_common::env::Env;
@@ -22,8 +22,8 @@ use sha256::digest;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::signal;
-use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::Mutex;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 #[derive(Clone)]
 pub struct Hub {
@@ -66,7 +66,7 @@ impl Hub {
 
     pub fn get_channels(&self) -> anyhow::Result<Vec<Channel>> {
         let channels_key = topics::hub_channels_key(self.get_namespace());
-        let mut lock = self.redis_rs.lock().unwrap();
+        let mut lock = self.redis_rs.lock().map_err(|e| anyhow!(e.to_string()))?;
         let result: String = lock
             .get(channels_key)
             .context("failed to retrieve channels")?;
@@ -88,10 +88,10 @@ impl Hub {
 
         trace!("encrypted settings retrieved");
 
-        let keys = self.security.read().unwrap();
+        let keys = self.security.read().map_err(|e| anyhow!(e.to_string()))?;
 
         let data = security::aes_decrypt(
-            keys.no_once.as_slice(),
+            keys.nonce.as_slice(),
             keys.key.as_slice(),
             result.as_slice(),
         )
@@ -142,8 +142,8 @@ impl Hub {
                     .context("failed to decrypt security key")?;
                 debug!("security key decrypted");
 
-                security.no_once = config
-                    .decrypt(security.no_once)
+                security.nonce = config
+                    .decrypt(security.nonce)
                     .context("failed to decrypt no once")?;
                 debug!("no_once decrypted");
 
@@ -154,8 +154,8 @@ impl Hub {
                 let mut security = SecurityKey::default();
                 let original = security.clone();
 
-                security.no_once = config
-                    .encrypt(security.no_once)
+                security.nonce = config
+                    .encrypt(security.nonce)
                     .context("failed to encrypt no once")?;
                 debug!("no_once encrypted");
 

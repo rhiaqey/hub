@@ -2,7 +2,7 @@ use crate::hub::client::HubClient;
 #[cfg(not(debug_assertions))]
 use crate::hub::settings::HubSettings;
 use crate::hub::streaming_channel::StreamingChannel;
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use log::{debug, info, trace};
 use redis::Commands;
 use rhiaqey_common::env::Env;
@@ -50,7 +50,9 @@ impl SharedState {
         info!("broadcasting to all hubs for message {}", data);
 
         let lock = self.redis_rs.clone();
-        let mut conn = lock.lock().unwrap();
+        let mut conn = lock
+            .lock()
+            .map_err(|err| anyhow!("lock poisoned: {:?}", err))?;
 
         let rpc_message = RPCMessage { data }
             .ser_to_string()
@@ -73,17 +75,14 @@ impl SharedState {
     pub fn store_settings(&self, topic: String, data: Vec<u8>) -> anyhow::Result<()> {
         trace!("storing settings to {}", topic);
 
-        let keys = self.security.read().unwrap();
-        let settings = security::aes_encrypt(
-            keys.no_once.as_slice(),
-            keys.key.as_slice(),
-            data.as_slice(),
-        )?;
+        let keys = self.security.read().map_err(|e| anyhow!(e.to_string()))?;
+        let settings =
+            security::aes_encrypt(keys.nonce.as_slice(), keys.key.as_slice(), data.as_slice())?;
 
         trace!("settings encrypted");
 
         let lock = self.redis_rs.clone();
-        let mut conn = lock.lock().unwrap(); // blocking
+        let mut conn = lock.lock().map_err(|e| anyhow!(e.to_string()))?;
 
         trace!("redis connection acquired");
 

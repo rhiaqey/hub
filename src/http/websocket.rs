@@ -4,15 +4,15 @@ use crate::http::common::{
     prepare_client_channel_subscription_messages, prepare_client_connection_message,
 };
 use crate::http::state::SharedState;
-use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::client::HubClient;
+use crate::hub::client::websocket::WebSocketClient;
 use crate::hub::metrics::TOTAL_CLIENTS;
 use crate::hub::simple_channel::SimpleChannels;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum_client_ip::ClientIp;
-use axum_extra::{headers, TypedHeader};
+use axum_extra::{TypedHeader, headers};
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use rusty_ulid::generate_ulid_string;

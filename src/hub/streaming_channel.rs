@@ -11,11 +11,11 @@ use crate::hub::client::HubClient;
 use crate::hub::messages::MessageHandler;
 
 use log::{debug, trace, warn};
+use redis::Commands;
+use redis::RedisResult;
 use redis::streams::StreamReadReply;
 use redis::streams::{StreamId, StreamReadOptions};
 use redis::streams::{StreamKey, StreamMaxlen};
-use redis::Commands;
-use redis::RedisResult;
 use rhiaqey_common::client::ClientMessage;
 use rhiaqey_common::redis::RedisSettings;
 use rhiaqey_common::redis_rs::connect_and_ping;
@@ -82,14 +82,19 @@ impl StreamingChannel {
         let mut entries: Vec<StreamMessage> = vec![];
 
         for StreamKey { key, ids } in reply.keys {
-            for StreamId { id: _, map, milliseconds_elapsed_from_delivery: _, delivered_count: _ } in &ids {
+            for StreamId {
+                id: _,
+                map,
+                milliseconds_elapsed_from_delivery: _,
+                delivered_count: _,
+            } in &ids
+            {
                 if let Some(raw) = map.get("raw") {
                     if let redis::Value::BulkString(data) = raw {
                         if let Ok(entry) = serde_json::from_slice::<StreamMessage>(data) {
                             trace!(
                                 "found bulk string entry key={}, timestamp={:?}",
-                                entry.key,
-                                entry.timestamp
+                                entry.key, entry.timestamp
                             );
                             entries.push(entry);
                         }
@@ -98,7 +103,17 @@ impl StreamingChannel {
             }
 
             // acknowledge each stream and message ID once all messages are
-            let keys: Vec<&String> = ids.iter().map(|StreamId { id, map: _, milliseconds_elapsed_from_delivery: _, delivered_count: _ }| id).collect();
+            let keys: Vec<&String> = ids
+                .iter()
+                .map(
+                    |StreamId {
+                         id,
+                         map: _,
+                         milliseconds_elapsed_from_delivery: _,
+                         delivered_count: _,
+                     }| id,
+                )
+                .collect();
             debug!("need to ack {} stream keys", keys.len());
 
             let ack_result: RedisResult<i32> = connection.xack(key, "hub", &keys);

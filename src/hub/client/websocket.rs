@@ -1,8 +1,8 @@
 use axum::extract::ws::{Message, WebSocket};
 
 use anyhow::bail;
-use futures::stream::SplitSink;
 use futures::SinkExt;
+use futures::stream::SplitSink;
 use rhiaqey_sdk_rs::channel::Channel;
 use std::sync::Arc;
 use tokio::sync::Mutex;

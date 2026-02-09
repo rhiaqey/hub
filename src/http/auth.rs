@@ -228,7 +228,7 @@ pub fn valid_api_host(api_host: String, origin: String) -> bool {
 }
 
 pub async fn get_auth_handler(
-    headers: HeaderMap,        // external and internal headers
+    headers: HeaderMap, // external and internal headers
     ClientIp(user_ip): ClientIp,
     // internal: SecureClientIp, // internal
     // Host(hostname): Host,               // external host

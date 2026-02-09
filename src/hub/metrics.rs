@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use prometheus::{register_int_gauge, IntGauge};
+use prometheus::{IntGauge, register_int_gauge};
 
 lazy_static! {
     pub(crate) static ref TOTAL_CHANNELS: IntGauge =
