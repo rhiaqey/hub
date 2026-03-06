@@ -28,7 +28,7 @@ jobs:
           git config user.email "$CARGO_TAG_EMAIL"
 
       - name: Docker buildx setup
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: QEMU setup
         uses: docker/setup-qemu-action@v4
