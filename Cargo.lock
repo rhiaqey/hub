@@ -585,9 +585,9 @@ checksum = "338089f42c427b86394a5ee60ff321da23a5c89c9d89514c829687b26359fcff"
 
 [[package]]
 name = "crypto-bigint"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f438b626cb7c9dd48a613a9826e6bad9db71097f9d628f7237af2f6bc13c0ec"
+checksum = "9fde2467e74147f492aebb834985186b2c74761927b8b9b3bd303bcb2e72199d"
 dependencies = [
  "cpubits",
  "ctutils",
@@ -2121,7 +2121,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.3.0"
-source = "git+https://github.com/rhiaqey/common.git#4d2e0409c282ba4a61008d03b1874b8556c3072e"
+source = "git+https://github.com/rhiaqey/common.git#181cd234b53f5c3ccf2fc68b45ae24451af4b559"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -2142,7 +2142,7 @@ dependencies = [
 
 [[package]]
 name = "rhiaqey-hub"
-version = "0.1.480"
+version = "0.1.481"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2368,9 +2368,9 @@ dependencies = [
 
 [[package]]
 name = "schannel"
-version = "0.1.28"
+version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "891d81b926048e76efe18581bf793546b4c0eaf8448d72be8de2bbee5fd166e1"
+checksum = "91c1b7e4904c873ef0710c1f407dde2e6287de2bebc1bbbf7d430bb7cbffd939"
 dependencies = [
  "windows-sys 0.61.2",
 ]
