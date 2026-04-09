@@ -1748,9 +1748,9 @@ checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 
 [[package]]
 name = "openssl-src"
-version = "300.5.5+3.5.5"
+version = "300.6.0+3.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f1787d533e03597a7934fd0a765f0d28e94ecc5fb7789f8053b1e699a56f709"
+checksum = "a8e8cbfd3a4a8c8f089147fd7aaa33cf8c7450c4d09f8f80698a0cf093abeff4"
 dependencies = [
  "cc",
 ]
@@ -2193,7 +2193,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.3.0"
-source = "git+https://github.com/rhiaqey/common.git#b25c5bb0a1199a43ea01da33f57d17216876199f"
+source = "git+https://github.com/rhiaqey/common.git#6a23811e0ff2d701477047dda8743038162b1769"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "rhiaqey-hub"
-version = "0.1.489"
+version = "0.1.490"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2248,7 +2248,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.2"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#7c474fde76e50fae0797f8000b5782746a45cfb4"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#f946e394bdcb49e17f4c936f0110ad19edac83cc"
 dependencies = [
  "serde",
  "serde_json",
