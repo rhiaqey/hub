@@ -834,7 +834,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2189,7 +2189,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.3.0"
-source = "git+https://github.com/rhiaqey/common.git#319b1337a5fbb3e5742ce20964e2e970e1dd338b"
+source = "git+https://github.com/rhiaqey/common.git#899b30f9c60fde0d6b52818484dc07afb033eb2b"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -2244,7 +2244,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.2"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#5947f398e790582f829481903b13aac1d6ad723f"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#f74967d622279c1be2125aaf74937b7b4ebf6425"
 dependencies = [
  "serde",
  "serde_json",
@@ -2390,7 +2390,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3193,7 +3193,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
