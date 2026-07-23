@@ -2180,7 +2180,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.3.0"
-source = "git+https://github.com/rhiaqey/common.git#aeff9cc2a2e463fcd5ccc64871678bf6dc05a423"
+source = "git+https://github.com/rhiaqey/common.git#e4465edf442847070b9ef4bf4179784255ad295e"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -2201,7 +2201,7 @@ dependencies = [
 
 [[package]]
 name = "rhiaqey-hub"
-version = "0.1.527"
+version = "0.1.528"
 dependencies = [
  "anyhow",
  "async-stream",
