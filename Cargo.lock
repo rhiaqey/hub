@@ -596,6 +596,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "338089f42c427b86394a5ee60ff321da23a5c89c9d89514c829687b26359fcff"
 
 [[package]]
+name = "crossbeam-queue"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "803d13fb3b09d88be9f4dbc29062c66b19bf7170867ceb746d2a8689bf6c7a26"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
+
+[[package]]
 name = "crypto-bigint"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -819,7 +834,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2022,9 +2037,9 @@ checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
 name = "redis"
-version = "1.4.1"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0b9503711b03773e43b31668c7b5bd279ee7cd9b7d18cff7c23a42cc1d08e5a"
+checksum = "3257df217f7eab0044627a268c9cc6cdb60c0c421c88f83ac41c4e31520b6b84"
 dependencies = [
  "arcstr",
  "async-lock",
@@ -2164,7 +2179,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.3.0"
-source = "git+https://github.com/rhiaqey/common.git#e4465edf442847070b9ef4bf4179784255ad295e"
+source = "git+https://github.com/rhiaqey/common.git#04c0303784472125af6c659d1f703139b586abe5"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -2219,7 +2234,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-sdk-rs"
 version = "0.1.2"
-source = "git+https://github.com/rhiaqey/sdk-rs.git#3dfffb2890ba28518f77a1c1b805727b8d8d5856"
+source = "git+https://github.com/rhiaqey/sdk-rs.git#64a106502a231211569a9e936357095b2e61ff6f"
 dependencies = [
  "serde",
  "serde_json",
@@ -2288,19 +2303,19 @@ dependencies = [
 
 [[package]]
 name = "rustis"
-version = "0.19.3"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53709ab61f0c2788b0de01aa6a8cb1c57bb7bc62974cb8249ddf42356bfdbf2f"
+checksum = "af35730c168e84b2e792c67898f4d7c967bda27dbd22a2cae37f45e0207bb046"
 dependencies = [
  "atoi",
  "bytes",
  "crc16",
+ "crossbeam-queue",
  "dtoa",
  "fast-float2",
  "futures-channel",
  "futures-util",
  "itoa",
- "log",
  "memchr",
  "rand 0.9.5",
  "serde",
@@ -2309,6 +2324,7 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "tokio-util",
+ "tracing",
  "url",
 ]
 
@@ -2365,7 +2381,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2967,7 +2983,19 @@ checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
  "log",
  "pin-project-lite",
+ "tracing-attributes",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3201,7 +3229,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
