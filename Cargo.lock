@@ -174,9 +174,9 @@ dependencies = [
 
 [[package]]
 name = "atoi"
-version = "2.0.0"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f28d99ec8bfea296261ca1af174f24225171fea9664ba9003cbebee704810528"
+checksum = "e7a8bbe9949e43a1edaa043038c68703b04774156afdfb62ba2cef5bf93d67be"
 dependencies = [
  "num-traits",
 ]
@@ -834,7 +834,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2179,7 +2179,7 @@ dependencies = [
 [[package]]
 name = "rhiaqey-common"
 version = "0.3.0"
-source = "git+https://github.com/rhiaqey/common.git#04c0303784472125af6c659d1f703139b586abe5"
+source = "git+https://github.com/rhiaqey/common.git#487222a7fce932e4535f2a4d437540bfb323d0cd"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -2303,9 +2303,9 @@ dependencies = [
 
 [[package]]
 name = "rustis"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af35730c168e84b2e792c67898f4d7c967bda27dbd22a2cae37f45e0207bb046"
+checksum = "c6e00d2a4bab4b9d18f5f8729582d1e48076730c7827312abba20dee40663374"
 dependencies = [
  "atoi",
  "bytes",
@@ -2317,7 +2317,7 @@ dependencies = [
  "futures-util",
  "itoa",
  "memchr",
- "rand 0.9.5",
+ "rand 0.10.2",
  "serde",
  "smallvec",
  "socket2",
@@ -2381,7 +2381,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3229,7 +3229,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
