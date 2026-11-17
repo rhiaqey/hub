@@ -2427,9 +2427,9 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rusty_ulid"
-version = "2.0.1"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb8423097b0eb572b5288a11d78b6869ed61bf2988bc01a5399a79fc323db918"
+checksum = "50dd057eddb1e4ac1d9eaebc705fd2d5822992ac67e3c627ebca28e02dfb83a7"
 dependencies = [
  "rand 0.10.3",
  "serde",
